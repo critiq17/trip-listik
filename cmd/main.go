@@ -22,7 +22,7 @@ func main() {
 	bot, err := tgbotapi.NewBotAPI(botToken)
 
 	if err != nil {
-		log.Panic(err)
+		log.Println(err)
 	}
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)

@@ -30,7 +30,7 @@ func SendToAi(prompt string) (string, error) {
 	apiKey := os.Getenv("GROQ_API_KEY")
 	log.Println("KEY:", apiKey[:6], "...")
 	if apiKey == "" {
-		log.Fatal("API key is empty")
+		log.Println("API key is empty")
 	}
 
 	reqBody := ChatRequest{
