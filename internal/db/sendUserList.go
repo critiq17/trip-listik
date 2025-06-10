@@ -15,7 +15,7 @@ func SendUserList(bot *tgbotapi.BotAPI, db *pgxpool.Pool, chatID int64) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	rows, err := db.Query(ctx, "SELECT place FROM userlist WHERE chat_id = $1", chatID)
+	rows, err := db.Query(ctx, "SELECT place FROM user-wishlist WHERE chat_id = $1", chatID)
 
 	if err != nil {
 		log.Printf("DB err: %v", err)
