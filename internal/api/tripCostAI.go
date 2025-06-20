@@ -71,5 +71,5 @@ func SendToAi(prompt string) (string, error) {
 		return respJSON.Choices[0].Message.Content, nil
 	}
 
-	return "", fmt.Errorf("no respomse from AI")
+	return "", fmt.Errorf("no response from AI")
 }
