@@ -3,13 +3,14 @@ package handlers
 import (
 	"fmt"
 
+	"github.com/critiq17/tripListik/internal/state"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 type StartHandler struct{}
 
-func (h *StartHandler) CanHandle(msg *tgbotapi.Message, state UserState) bool {
-	return msg.Text == "/start" && state == StateNormal
+func (h *StartHandler) CanHandle(msg *tgbotapi.Message, userState state.UserState) bool {
+	return msg.Text == "/start" && userState == state.StateNormal
 }
 
 func (h *StartHandler) Handle(bot BotSender, msg *tgbotapi.Message) error {

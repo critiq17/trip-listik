@@ -1,28 +1,24 @@
 package state
 
-import (
-	"github.com/critiq17/tripListik/internal/handlers"
-)
-
 type Manager struct {
-	userStates map[int64]handlers.UserState
+	userStates map[int64]UserState
 }
 
 func NewManager() *Manager {
 	return &Manager{
-		userStates: make(map[int64]handlers.UserState),
+		userStates: make(map[int64]UserState),
 	}
 }
 
-func (m *Manager) GetUserState(chatID int64) handlers.UserState {
+func (m *Manager) GetUserState(chatID int64) UserState {
 	if state, exists := m.userStates[chatID]; exists {
 		return state
 	}
-	return handlers.StateNormal
+	return StateNormal
 }
 
-func (m *Manager) SetUserState(chatID int64, state handlers.UserState) {
-	if state == handlers.StateNormal {
+func (m *Manager) SetUserState(chatID int64, state UserState) {
+	if state == StateNormal {
 		delete(m.userStates, chatID)
 	} else {
 		m.userStates[chatID] = state

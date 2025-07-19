@@ -2,16 +2,17 @@ package bot
 
 import (
 	"github.com/critiq17/tripListik/internal/handlers"
+	"github.com/critiq17/tripListik/internal/state"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 type Bot struct {
 	api          *tgbotapi.BotAPI
 	handlers     []handlers.Handler
-	stateManager handlers.StateManager
+	stateManager state.StateManager
 }
 
-func NewBot(api *tgbotapi.BotAPI, stateManager handlers.StateManager) *Bot {
+func NewBot(api *tgbotapi.BotAPI, stateManager state.StateManager) *Bot {
 
 	return &Bot{
 		api:          api,

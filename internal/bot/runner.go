@@ -7,6 +7,7 @@ import (
 )
 
 func (b *Bot) RunPolling() error {
+	
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 	updates := b.api.GetUpdatesChan(u)

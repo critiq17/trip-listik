@@ -17,7 +17,7 @@ func main() {
 		log.Fatal("Bot_token not found")
 	}
 
-	bot, err := bot.BewBotWithHandlers(cfg.BotToken, stateManager)
+	bot, err := bot.NewBotWithHandlers(cfg.BotToken, stateManager)
 	if err != nil {
 		log.Fatal("Failed to create bot: ", err)
 	}

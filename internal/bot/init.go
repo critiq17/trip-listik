@@ -2,10 +2,11 @@ package bot
 
 import (
 	"github.com/critiq17/tripListik/internal/handlers"
+	"github.com/critiq17/tripListik/internal/state"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-func BewBotWithHandlers(token string, stateManager handlers.StateManager) (*Bot, error) {
+func NewBotWithHandlers(token string, stateManager state.StateManager) (*Bot, error) {
 	api, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
 		return nil, err
