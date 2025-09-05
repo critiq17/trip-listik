@@ -3,23 +3,19 @@ package db
 import (
 	"context"
 	"log"
-	"os"
 	"time"
 
+	"github.com/critiq17/tripListik/internal/config"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/joho/godotenv"
 )
 
 var DB *pgxpool.Pool
 
 func Init() {
 
-	err := godotenv.Load()
-	if err != nil {
-		log.Println("No .env file")
-	}
+	cfg := config.LoadConfig()
 
-	dbUrl := os.Getenv("DATABASE_URL")
+	dbUrl := cfg.DB_URL
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -32,5 +28,5 @@ func Init() {
 
 	DB = pool
 
-	log.Println("Successful connection to PostgreSQL", dbUrl)
+	log.Printf("Successful connection to PostgreSQL %s", dbUrl)
 }

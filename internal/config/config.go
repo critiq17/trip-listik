@@ -20,6 +20,6 @@ func LoadConfig() *Config {
 
 	return &Config{
 		DB_URL:   os.Getenv("DATABASE_URL"),
-		BotToken: os.Getenv("BOT_TOKEN_TRIP_LISTIK"),
+		BotToken: os.Getenv("BOT_TOKEN"),
 	}
 }

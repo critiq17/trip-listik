@@ -16,7 +16,7 @@ func NewBot(api *tgbotapi.BotAPI, stateManager state.StateManager) *Bot {
 
 	return &Bot{
 		api:          api,
-		stateManager: stateManager,
+		stateManager: state.NewManager(),
 		handlers:     handlers.RegisterHandlers(stateManager),
 	}
 }

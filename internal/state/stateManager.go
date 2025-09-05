@@ -1,15 +1,15 @@
-package state
+	package state
 
-type UserState int
+	type UserState int
 
-const (
-	StateNormal UserState = iota
-	StateWaitingAddPlace
-	StateWaitingDeletePlace
-	StateWaitingForAI
-)
+	const (
+		StateNormal UserState = iota
+		StateWaitingAddPlace
+		StateWaitingDeletePlace
+		StateWaitingForAI
+	)
 
-type StateManager interface {
-	GetUserState(chatID int64) UserState
-	SetUserState(chatID int64, state UserState)
-}
+	type StateManager interface {
+		GetUserState(chatID int64) UserState
+		SetUserState(chatID int64, state UserState)
+	}
