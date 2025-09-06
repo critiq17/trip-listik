@@ -7,5 +7,6 @@ func RegisterHandlers(stateManager state.StateManager) []Handler {
 	return []Handler{
 		&StartHandler{},
 		NewAddHandler(stateManager),
+		NewDeleteHandler(stateManager),
 	}
 }
