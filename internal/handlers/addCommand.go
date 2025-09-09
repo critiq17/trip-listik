@@ -3,17 +3,18 @@ package handlers
 import (
 	"fmt"
 
-	"github.com/critiq17/tripListik/internal/db"
+	"github.com/critiq17/tripListik/internal/services"
 	"github.com/critiq17/tripListik/internal/state"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 type AddHandler struct {
 	stateManager state.StateManager
+	Service      *services.Service
 }
 
-func NewAddHandler(stateManager state.StateManager) *AddHandler {
-	return &AddHandler{stateManager: stateManager}
+func NewAddHandler(stateManager state.StateManager, service *services.Service) *AddHandler {
+	return &AddHandler{stateManager: stateManager, Service: service}
 }
 
 func (h *AddHandler) CanHandle(msg *tgbotapi.Message, userState state.UserState) bool {
@@ -30,7 +31,7 @@ func (h *AddHandler) Handle(bot BotSender, msg *tgbotapi.Message) error {
 	}
 
 	if userState == state.StateWaitingAddPlace {
-		err := db.SavePlaceToDB(msg.Chat.ID, msg.Text)
+		err := h.Service.AddPlace(msg.From.ID, msg.From.FirstName, msg.From.UserName, msg.Text)
 		if err != nil {
 			return err
 		}
