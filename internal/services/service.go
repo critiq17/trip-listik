@@ -33,6 +33,7 @@ func (s *Service) AddPlace(telegramID int64, firstName, userName, placeName stri
 
 func (s *Service) DeletePlace(telegramID int64, placeName string) error {
 	user, err := s.Repo.GetUserByUserID(telegramID)
+
 	if err != nil {
 		return err
 	}
@@ -40,15 +41,13 @@ func (s *Service) DeletePlace(telegramID int64, placeName string) error {
 		return errors.New("user not found")
 	}
 
-	// place, err := s.Repo.GetPlaceByNameAndUserID( placeName)
+	place, err := s.Repo.GetPlaceByNameAndUserID(user.ID, placeName)
 	if err != nil {
 		return err
 	}
 
-	//if place == nil {
-	//		return errors.New("place not found")
-	//	}
-	//return s.Repo.DeletePlace(place.ID)
-
-	return nil
+	if place == nil {
+		return errors.New("place not found")
+	}
+	return s.Repo.DeletePlace(place.ID)
 }

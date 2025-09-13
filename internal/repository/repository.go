@@ -13,9 +13,9 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{DB: db}
 }
 
-func (r *Repository) GetUserByUserID(userID int64) (*models.User, error) {
+func (r *Repository) GetUserByUserID(telegramID int64) (*models.User, error) {
 	var user models.User
-	result := r.DB.Where("user_id = ?", userID).First(&user)
+	result := r.DB.Where("telegram_id = ?", telegramID).First(&user)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			return nil, nil
@@ -29,7 +29,7 @@ func (r *Repository) CreateUser(user *models.User) error {
 	return r.DB.Create(user).Error
 }
 
-func (r *Repository) GetPlaceByNameAndUserID(userID int, placeName string) (*models.Place, error) {
+func (r *Repository) GetPlaceByNameAndUserID(userID uint, placeName string) (*models.Place, error) {
 	var place models.Place
 	result := r.DB.Where("user_id = ? AND name = ?", userID, placeName).First(&place)
 	if result.Error != nil {
