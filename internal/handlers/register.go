@@ -10,6 +10,6 @@ func RegisterHandlers(stateManager state.StateManager, service *services.Service
 	return []Handler{
 		&StartHandler{},
 		NewAddHandler(stateManager, service),
-		NewDeleteHandler(stateManager),
+		NewDeleteHandler(stateManager, service),
 	}
 }

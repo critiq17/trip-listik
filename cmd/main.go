@@ -15,10 +15,12 @@ import (
 
 func main() {
 
+	// init config
 	cfg := config.LoadConfig()
 	dsn := cfg.DSN
 	bot_token := cfg.BotToken
 
+	// connect to db
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Printf("error init DB: %v", err)
@@ -35,7 +37,6 @@ func main() {
 	}
 
 	bot, err := bot.NewBotWithHandlers(cfg.BotToken, stateManager, service)
-
 	if err != nil {
 		log.Fatal("Failed to create bot: ", err)
 	}

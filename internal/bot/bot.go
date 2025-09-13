@@ -14,7 +14,6 @@ type Bot struct {
 }
 
 func NewBot(api *tgbotapi.BotAPI, stateManager state.StateManager, service *services.Service) *Bot {
-
 	return &Bot{
 		api:          api,
 		stateManager: state.NewManager(),
