@@ -51,3 +51,22 @@ func (s *Service) DeletePlace(telegramID int64, placeName string) error {
 	}
 	return s.Repo.DeletePlace(place.ID)
 }
+
+func (s *Service) GetUserPlaces(telegramID int64) ([]models.Place, error) {
+
+	user, err := s.Repo.GetUserByUserID(telegramID)
+	if err != nil {
+		return nil, err
+	}
+
+	if user == nil {
+		return nil, errors.New("user not found")
+	}
+
+	places, err := s.Repo.GetPlacesByUserID(user.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return places, nil
+}

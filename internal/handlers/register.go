@@ -11,5 +11,6 @@ func RegisterHandlers(stateManager state.StateManager, service *services.Service
 		&StartHandler{},
 		NewAddHandler(stateManager, service),
 		NewDeleteHandler(stateManager, service),
+		NewListHandler(stateManager, service),
 	}
 }

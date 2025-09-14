@@ -41,6 +41,12 @@ func (r *Repository) GetPlaceByNameAndUserID(userID uint, placeName string) (*mo
 	return &place, nil
 }
 
+func (r *Repository) GetPlacesByUserID(userID uint) ([]models.Place, error) {
+	var places []models.Place
+	result := r.DB.Where("user_id = ?", userID).Find(&places)
+	return places, result.Error
+}
+
 func (r *Repository) AddPlaceToUser(userID uint, placeName string) error {
 	newPlace := models.Place{
 		Name:   placeName,
