@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/critiq17/tripListik/internal/state"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -24,5 +25,6 @@ func (h *StartHandler) Handle(bot BotSender, msg *tgbotapi.Message) error {
 
 	message := tgbotapi.NewMessage(msg.Chat.ID, welcome)
 	_, err := bot.Send(message)
+	log.Printf("user: %s use command /start", msg.From.UserName)
 	return err
 }

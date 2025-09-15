@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/critiq17/tripListik/internal/services"
 	"github.com/critiq17/tripListik/internal/state"
@@ -36,9 +37,8 @@ func (h *AddHandler) Handle(bot BotSender, msg *tgbotapi.Message) error {
 			return err
 		}
 		h.stateManager.SetUserState(msg.Chat.ID, state.StateNormal)
-
 		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, fmt.Sprintf("Place %s added", msg.Text)))
-
+		log.Printf("user: %s add a place: %s", msg.From.UserName, msg.Text)
 	}
 	return nil
 

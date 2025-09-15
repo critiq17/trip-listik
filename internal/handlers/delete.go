@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/critiq17/tripListik/internal/services"
 	"github.com/critiq17/tripListik/internal/state"
@@ -35,6 +36,7 @@ func (h *DeleteHandler) Handle(bot BotSender, msg *tgbotapi.Message) error {
 		h.Service.DeletePlace(msg.From.ID, msg.Text)
 		h.stateManager.SetUserState(msg.Chat.ID, state.StateNormal)
 		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, fmt.Sprintf("Place %s delete from list", msg.Text)))
+		log.Printf("user: %s delete place: %s", msg.From.UserName, msg.Text)
 	}
 
 	return nil

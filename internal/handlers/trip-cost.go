@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"log"
+
 	"github.com/critiq17/tripListik/internal/api"
 	"github.com/critiq17/tripListik/internal/services"
 	"github.com/critiq17/tripListik/internal/state"
@@ -35,7 +37,7 @@ func (h *TripCostHandler) Handle(bot BotSender, msg *tgbotapi.Message) error {
 		if err != nil {
 			return err
 		}
-
+		log.Printf("user: %s send to AI %s", msg.From.UserName, msg.Text)
 		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, string))
 	}
 

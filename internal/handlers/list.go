@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/critiq17/tripListik/internal/services"
@@ -41,6 +42,8 @@ func (h *ListHandler) Handle(bot BotSender, msg *tgbotapi.Message) error {
 	}
 	message := tgbotapi.NewMessage(msg.Chat.ID, messageText)
 	bot.Send(message)
+
+	log.Printf("user: %s wishlist: %s", msg.From.UserName, messageText)
 
 	return nil
 }
