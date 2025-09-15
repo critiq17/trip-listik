@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
+
+	"github.com/critiq17/tripListik/internal/config"
 )
 
 type Message struct {
@@ -27,7 +28,8 @@ type ChatResponse struct {
 
 func SendToAi(prompt string) (string, error) {
 
-	apiKey := os.Getenv("GROQ_API_KEY")
+	apiKey := config.LoadConfig().API_KEY_AI
+
 	log.Println("KEY:", apiKey[:6], "...")
 	if apiKey == "" {
 		log.Println("API key is empty")
@@ -71,5 +73,5 @@ func SendToAi(prompt string) (string, error) {
 		return respJSON.Choices[0].Message.Content, nil
 	}
 
-	return "", fmt.Errorf("no respomse from AI")
+	return "", fmt.Errorf("no response from AI")
 }
