@@ -7,8 +7,9 @@ import (
 	"log"
 	"net/http"
 	"os"
-)
 
+	"github.com/joho/godotenv"
+)
 
 type Message struct {
 	Role    string `json:"role"`
@@ -28,6 +29,10 @@ type ChatResponse struct {
 
 func SendToAi(prompt string) (string, error) {
 
+	err := godotenv.Load()
+	if err != nil {
+		log.Println(err)
+	}
 	apiKey := os.Getenv("GROQ_API_KEY")
 	log.Println("KEY:", apiKey[:6], "...")
 	if apiKey == "" {

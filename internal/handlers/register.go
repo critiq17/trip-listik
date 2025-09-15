@@ -12,5 +12,6 @@ func RegisterHandlers(stateManager state.StateManager, service *services.Service
 		NewAddHandler(stateManager, service),
 		NewDeleteHandler(stateManager, service),
 		NewListHandler(stateManager, service),
+		NewTripCostHandler(stateManager, service),
 	}
 }
