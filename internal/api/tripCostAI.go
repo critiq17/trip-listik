@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 
-	"github.com/joho/godotenv"
+	"github.com/critiq17/tripListik/internal/config"
 )
 
 type Message struct {
@@ -29,11 +28,8 @@ type ChatResponse struct {
 
 func SendToAi(prompt string) (string, error) {
 
-	err := godotenv.Load()
-	if err != nil {
-		log.Println(err)
-	}
-	apiKey := os.Getenv("GROQ_API_KEY")
+	apiKey := config.LoadConfig().API_KEY_AI
+
 	log.Println("KEY:", apiKey[:6], "...")
 	if apiKey == "" {
 		log.Println("API key is empty")

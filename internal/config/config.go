@@ -8,8 +8,9 @@ import (
 )
 
 type Config struct {
-	BotToken string
-	DSN      string
+	BotToken   string
+	DSN        string
+	API_KEY_AI string
 }
 
 func LoadConfig() *Config {
@@ -19,7 +20,8 @@ func LoadConfig() *Config {
 	}
 
 	return &Config{
-		DSN:      os.Getenv("DSN"),
-		BotToken: os.Getenv("BOT_TOKEN"),
+		DSN:        os.Getenv("DSN"),
+		BotToken:   os.Getenv("BOT_TOKEN"),
+		API_KEY_AI: os.Getenv("API_KEY_AI"),
 	}
 }
