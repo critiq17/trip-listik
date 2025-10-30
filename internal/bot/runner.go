@@ -13,9 +13,6 @@ func (b *Bot) RunPolling() error {
 	updates := b.api.GetUpdatesChan(u)
 
 	for update := range updates {
-		if update.Message == nil || update.Message.Chat == nil {
-		}
-
 		if err := b.handleMessage(update.Message); err != nil {
 			log.Printf("Error handling message: %v", err)
 		}
