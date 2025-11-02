@@ -2,7 +2,8 @@
 
 > Telegram bot to easily save, manage, and explore your travel wishlist 🧳
 
-![TripListik Preview](./assets/images/ReadmeImage.jpg)
+<img src="./assets/images/ReadmeImage.jpg" alt="TripListik Preview" width="150"/>
+
 
 ---
 
