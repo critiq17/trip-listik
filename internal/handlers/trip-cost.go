@@ -33,12 +33,12 @@ func (h *TripCostHandler) Handle(bot BotSender, msg *tgbotapi.Message) error {
 	}
 
 	if userState == state.StateWaitingForAI {
-		string, err := api.SendToAi(msg.Text)
+		str, err := api.SendToAi(msg.Text)
 		if err != nil {
 			return err
 		}
 		log.Printf("user: %s send to AI %s", msg.From.UserName, msg.Text)
-		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, string))
+		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, str))
 	}
 
 	return nil

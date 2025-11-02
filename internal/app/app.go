@@ -25,6 +25,8 @@ func Start() error {
 
 	fmt.Println("DB init successfully")
 
+	// slayer architecture
+	// repo -> service -> stateManager
 	repo := repository.NewRepository(db)
 	service := services.NewService(repo)
 	stateManager := state.NewManager()
@@ -38,11 +40,11 @@ func Start() error {
 		log.Fatal("Failed to create bot: ", err)
 	}
 
-	log.Println("Bot started successfully")
-
 	if err := bot.Start(); err != nil {
 		log.Fatal("Bot started failed: ", err)
 	}
+
+	log.Println("Bot started successfully")
 
 	return nil
 }

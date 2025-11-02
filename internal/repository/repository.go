@@ -56,7 +56,7 @@ func (r *Repository) GetOrCreateUser(telegramID int64, firstName, userName strin
 	var user models.User
 
 	result := r.DB.
-		Where(models.User{TelegramID: telegramID}). // 👈 вот это важно
+		Where(models.User{TelegramID: telegramID}).
 		Attrs(models.User{
 			FirstName: firstName,
 			UserName:  userName,
