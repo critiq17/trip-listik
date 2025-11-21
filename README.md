@@ -11,7 +11,6 @@
 
 - 💬 Manage your personal travel wishlist via Telegram
 - 🗺️ Add and remove destinations
-- 📸 User profiles with photo upload support
 - 🤖 Optional AI integration for travel ideas
 
 ---
@@ -20,7 +19,6 @@
 
 - **Go (Fiber + GORM)** — backend & Telegram bot
 - **PostgreSQL** — database
-- **SvelteKit** — frontend for user profiles
 - **Docker Compose** — infrastructure setup and container orchestration
 
 ---
