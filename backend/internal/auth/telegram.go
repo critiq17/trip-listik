@@ -31,8 +31,8 @@ func ValidateTelegramInitData(initData string, botToken string) (*TelegramUser, 
 	}
 
 	dataCheckString := buildDataCheckString(values)
-	secret := sha256.Sum256([]byte(botToken))
-	computed := computeHMAC(dataCheckString, secret[:])
+	secret := computeTelegramWebAppSecret(botToken)
+	computed := computeHMAC(dataCheckString, secret)
 	if !hmac.Equal([]byte(computed), []byte(hash)) {
 		return nil, errors.New("invalid init data signature")
 	}
@@ -66,4 +66,10 @@ func computeHMAC(data string, key []byte) string {
 	h := hmac.New(sha256.New, key)
 	h.Write([]byte(data))
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+func computeTelegramWebAppSecret(botToken string) []byte {
+	h := hmac.New(sha256.New, []byte("WebAppData"))
+	h.Write([]byte(botToken))
+	return h.Sum(nil)
 }
