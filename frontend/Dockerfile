@@ -1,0 +1,20 @@
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+ARG PUBLIC_API_BASE_URL
+ARG PUBLIC_SUPABASE_URL
+ARG PUBLIC_SUPABASE_BUCKET
+ENV PUBLIC_API_BASE_URL=$PUBLIC_API_BASE_URL
+ENV PUBLIC_SUPABASE_URL=$PUBLIC_SUPABASE_URL
+ENV PUBLIC_SUPABASE_BUCKET=$PUBLIC_SUPABASE_BUCKET
+RUN npm run build
+
+FROM node:20-alpine
+WORKDIR /app
+COPY --from=builder /app/build ./build
+COPY package*.json ./
+RUN npm ci --omit=dev
+EXPOSE 3000
+CMD ["node", "build"]
