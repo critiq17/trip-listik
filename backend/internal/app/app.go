@@ -18,7 +18,10 @@ func Start() error {
 	dsn := cfg.DSN
 	bot_token := cfg.BotToken
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		DSN:                  dsn,
+		PreferSimpleProtocol: true,
+	}), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("error init DB: %v", err)
 	}
