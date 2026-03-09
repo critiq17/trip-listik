@@ -1,49 +1,30 @@
-# ✈️ TripListik
+# TripListik Monorepo
 
-> Telegram bot to easily save, manage, and explore your travel wishlist 🧳
+This repo is split into:
 
-<img src="./assets/images/ReadmeImage.jpg" alt="TripListik Preview" width="150"/>
+- `backend/` Go API + bot + migrations
+- `frontend/` SvelteKit Telegram Mini App
 
+## Backend
 
----
+```bash
+cd backend
+# set .env (see backend/README.md)
 
-## 🚀 Features
+go run ./cmd/migrate -direction=up
 
-- 💬 Manage your personal travel wishlist via Telegram
-- 🗺️ Add and remove destinations
-- 🤖 Optional AI integration for travel ideas
-
----
-
-## 🧩 Tech Stack
-
-- **Go (Fiber + GORM)** — backend & Telegram bot
-- **PostgreSQL** — database
-- **Docker Compose** — infrastructure setup and container orchestration
-
----
-
-## ⚙️ Setup & Run
-
-### 1. Configure `.env`
-
-Create a `.env` file in the project root:
-
-```env
-# Database connection
-DSN="host=localhost user=myuser password=1234 dbname=trip_listik sslmode=disable"
-
-# Telegram Bot Token
-BOT_TOKEN=your_telegram_bot_token_here
-
-# Optional AI API key
-API_KEY_AI=your_api_key_here
-
+go run ./cmd/api
 ```
 
-### Run 
+## Frontend
 
-```docker-compose up -d```
+```bash
+cd frontend
+npm run dev
+```
 
+## Docker Compose (All-in-One)
 
-```make run```
+```bash
+docker-compose up --build
+```

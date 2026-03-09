@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16
+    container_name: trip_listik_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-myuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-1234}
+      POSTGRES_DB: ${POSTGRES_DB:-trip_listik}
+    ports:
+      - "5442:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-myuser} -d ${POSTGRES_DB:-trip_listik}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      DSN: ${DSN:-host=db user=${POSTGRES_USER:-myuser} password=${POSTGRES_PASSWORD:-1234} dbname=${POSTGRES_DB:-trip_listik} sslmode=disable}
+      HTTP_ADDR: :8080
+      JWT_SECRET: ${JWT_SECRET:-change_me}
+      TELEGRAM_WEBAPP_SECRET: ${TELEGRAM_WEBAPP_SECRET:-change_me}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-}
+      SUPABASE_STORAGE_BUCKET: ${SUPABASE_STORAGE_BUCKET:-trip-photos}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  migrate:
+    build:
+      context: ./backend
+    command: ["/app/migrate", "-direction=up"]
+    environment:
+      DSN: ${DSN:-host=db user=${POSTGRES_USER:-myuser} password=${POSTGRES_PASSWORD:-1234} dbname=${POSTGRES_DB:-trip_listik} sslmode=disable}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-http://localhost:8080}
+        PUBLIC_SUPABASE_URL: ${PUBLIC_SUPABASE_URL:-}
+        PUBLIC_SUPABASE_BUCKET: ${PUBLIC_SUPABASE_BUCKET:-trip-photos}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

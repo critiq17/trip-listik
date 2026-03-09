@@ -1,0 +1,87 @@
+export type TripCardData = {
+	id: string;
+	owner_id?: string;
+	title: string;
+	description?: string;
+	cover_photo_url?: string;
+	start_date?: string | null;
+	end_date?: string | null;
+	member_count?: number;
+	vote_count?: number;
+	vote_average?: number;
+	country_code?: string;
+	city?: string;
+	status?: string;
+	visibility?: string;
+	created_at?: string;
+	updated_at?: string;
+};
+
+export type User = {
+	id: string;
+	username?: string;
+	first_name?: string;
+	last_name?: string;
+	photo_url?: string;
+};
+
+export type UserStats = {
+	total_trips: number;
+	countries_visited: number;
+	cities_visited: number;
+	trips_with_friends: number;
+	solo_trips: number;
+};
+
+export type Member = {
+	trip_id: string;
+	user_id: string;
+	role: string;
+	joined_at: string;
+	username?: string;
+	first_name?: string;
+	last_name?: string;
+	photo_url?: string;
+};
+
+export type JoinRequest = {
+	trip_id: string;
+	user_id: string;
+	status: string;
+	created_at: string;
+	username?: string;
+	first_name?: string;
+	last_name?: string;
+	photo_url?: string;
+};
+
+export type Comment = {
+	id: string;
+	trip_id: string;
+	user_id: string;
+	body: string;
+	created_at: string;
+	username?: string;
+	first_name?: string;
+	last_name?: string;
+	photo_url?: string;
+};
+
+export type Photo = {
+	id: string;
+	trip_id: string;
+	user_id: string;
+	url: string;
+	storage_path?: string;
+	created_at: string;
+};
+
+export type NotificationItem = {
+	id: string;
+	type: string;
+	trip_id?: string | null;
+	actor_id?: string | null;
+	payload?: string | Record<string, unknown> | null;
+	read_at?: string | null;
+	created_at: string;
+};
