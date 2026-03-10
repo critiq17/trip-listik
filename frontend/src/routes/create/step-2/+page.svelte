@@ -4,15 +4,74 @@
 	import { getDraft } from '$lib/tripDraft';
 
 	let isPublic = true;
-	let startDate = 'Oct 12, 2023';
-	let endDate = 'Oct 18, 2023';
+	let startDate: Date | null = new Date(2023, 9, 12);
+	let endDate: Date | null = new Date(2023, 9, 18);
 	let saving = false;
 	let error = '';
 
-	const toISO = (value: string) => {
-		const date = new Date(value);
-		if (Number.isNaN(date.getTime())) return null;
-		return date.toISOString().split('T')[0];
+	let viewMonth = new Date();
+	viewMonth.setDate(1);
+
+	const formatDisplay = (value: Date | null) => {
+		if (!value) return '';
+		return value.toLocaleDateString(undefined, {
+			month: 'short',
+			day: 'numeric',
+			year: 'numeric'
+		});
+	};
+
+	const toISO = (value: Date | null) => {
+		if (!value) return null;
+		return value.toISOString().split('T')[0];
+	};
+
+	const daysInMonth = (date: Date) => {
+		return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+	};
+
+	const startWeekday = (date: Date) => {
+		return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+	};
+
+	const buildGrid = (date: Date) => {
+		const totalDays = daysInMonth(date);
+		const offset = startWeekday(date);
+		const cells: Array<Date | null> = [];
+		for (let i = 0; i < offset; i += 1) cells.push(null);
+		for (let day = 1; day <= totalDays; day += 1) {
+			cells.push(new Date(date.getFullYear(), date.getMonth(), day));
+		}
+		const rows: Array<Array<Date | null>> = [];
+		for (let i = 0; i < cells.length; i += 7) {
+			rows.push(cells.slice(i, i + 7));
+		}
+		return rows;
+	};
+
+	const isSameDay = (a: Date | null, b: Date | null) => {
+		if (!a || !b) return false;
+		return a.toDateString() === b.toDateString();
+	};
+
+	const isInRange = (day: Date) => {
+		if (!startDate || !endDate) return false;
+		const time = day.getTime();
+		return time >= startDate.getTime() && time <= endDate.getTime();
+	};
+
+	const selectDay = (day: Date) => {
+		if (!startDate || (startDate && endDate)) {
+			startDate = day;
+			endDate = null;
+			return;
+		}
+		if (day.getTime() < startDate.getTime()) {
+			endDate = startDate;
+			startDate = day;
+			return;
+		}
+		endDate = day;
 	};
 
 	const next = async () => {
@@ -58,10 +117,10 @@
 
 	<main>
 		<div class="progress">
-			<div class="progress-row">
-				<p>Step 2 of 3</p>
-				<span>66% Complete</span>
-			</div>
+		<div class="progress-row">
+			<p>Step 2 of 3</p>
+			<span>66% Complete</span>
+		</div>
 			<div class="progress-bar">
 				<div class="progress-fill"></div>
 			</div>
@@ -74,40 +133,57 @@
 				<span>From</span>
 				<div class="date-input">
 					<span class="material-symbols-outlined">calendar_today</span>
-					<input type="text" bind:value={startDate} />
+					<input type="text" readonly value={formatDisplay(startDate)} />
 				</div>
 			</div>
 			<div class="date-field">
 				<span>To</span>
 				<div class="date-input">
 					<span class="material-symbols-outlined">event</span>
-					<input type="text" bind:value={endDate} />
+					<input type="text" readonly value={formatDisplay(endDate)} />
 				</div>
 			</div>
 		</div>
 
 		<div class="calendar">
 			<div class="calendar-head">
-				<button class="material-symbols-outlined">chevron_left</button>
-				<h3>October 2023</h3>
-				<button class="material-symbols-outlined">chevron_right</button>
+				<button
+					class="material-symbols-outlined"
+					aria-label="Previous month"
+					on:click={() => (viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))}
+				>
+					chevron_left
+				</button>
+				<h3>
+					{viewMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+				</h3>
+				<button
+					class="material-symbols-outlined"
+					aria-label="Next month"
+					on:click={() => (viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))}
+				>
+					chevron_right
+				</button>
 			</div>
 			<div class="calendar-week">
 				<span>SU</span><span>MO</span><span>TU</span><span>WE</span><span>TH</span><span>FR</span><span>SA</span>
 			</div>
 			<div class="calendar-grid">
-				{#each Array(11) as _, i}
-					<span class="muted">{i + 1}</span>
-				{/each}
-				<span class="range start">12</span>
-				<span class="range">13</span>
-				<span class="range">14</span>
-				<span class="range">15</span>
-				<span class="range">16</span>
-				<span class="range">17</span>
-				<span class="range end">18</span>
-				{#each Array(13) as _, i}
-					<span>{i + 19}</span>
+				{#each buildGrid(viewMonth) as row}
+					{#each row as day}
+						{#if day}
+							<button
+								class:range={isInRange(day)}
+								class:start={isSameDay(day, startDate)}
+								class:end={isSameDay(day, endDate)}
+								on:click={() => selectDay(day)}
+							>
+								{day.getDate()}
+							</button>
+						{:else}
+							<span class="muted"></span>
+						{/if}
+					{/each}
 				{/each}
 			</div>
 		</div>
@@ -124,7 +200,7 @@
 			</div>
 		</div>
 
-		<button class="continue" on:click={next} disabled={saving}>
+		<button class="continue" on:click={next} disabled={saving || !startDate || !endDate}>
 			{saving ? 'Saving…' : 'Continue'}
 			<span class="material-symbols-outlined">arrow_forward</span>
 		</button>
@@ -273,13 +349,13 @@
 		font-weight: 700;
 	}
 
-	.calendar-week,
-	.calendar-grid {
-		display: grid;
-		grid-template-columns: repeat(7, 1fr);
-		text-align: center;
-		gap: 0.2rem;
-	}
+		.calendar-week,
+		.calendar-grid {
+			display: grid;
+			grid-template-columns: repeat(7, 1fr);
+			text-align: center;
+			gap: 0.2rem;
+		}
 
 	.calendar-week span {
 		font-size: 0.6rem;
@@ -287,25 +363,42 @@
 		font-weight: 700;
 	}
 
-	.calendar-grid span {
-		font-size: 0.7rem;
-		padding: 0.3rem 0;
-		border-radius: 6px;
-	}
+		.calendar-grid span,
+		.calendar-grid button {
+			font-size: 0.7rem;
+			padding: 0.3rem 0;
+			border-radius: 6px;
+			background: none;
+			border: none;
+			color: var(--text-primary);
+		}
 
-	.calendar-grid span.muted {
-		color: var(--text-secondary);
-	}
+		.calendar-grid span.muted {
+			color: var(--text-secondary);
+		}
 
-	.calendar-grid span.range {
-		background: rgba(77, 157, 109, 0.2);
-	}
+		.calendar-grid button.range {
+			background: rgba(77, 157, 109, 0.2);
+		}
 
-	.calendar-grid span.range.start,
-	.calendar-grid span.range.end {
-		background: var(--primary);
-		color: white;
-	}
+		.calendar-grid button.start,
+		.calendar-grid button.end {
+			background: var(--primary);
+			color: white;
+		}
+
+		.calendar-grid button.range {
+			position: relative;
+		}
+
+		.calendar-grid button.start::after,
+		.calendar-grid button.end::after {
+			content: '';
+			position: absolute;
+			inset: 2px;
+			border-radius: 6px;
+			border: 1px solid rgba(255, 255, 255, 0.4);
+		}
 
 	.visibility {
 		display: flex;
