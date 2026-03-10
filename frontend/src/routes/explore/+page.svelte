@@ -60,16 +60,17 @@
 	<main class="content">
 		<div class="form">
 			<div class="field">
-				<label>Destination</label>
+				<label for="explore-destination">Destination</label>
 				<input
+					id="explore-destination"
 					type="text"
 					placeholder="Where to?"
 					bind:value={query}
 				/>
 			</div>
 			<div class="field select">
-				<label>Country Filter</label>
-				<select bind:value={country}>
+				<label for="explore-country">Country Filter</label>
+				<select id="explore-country" bind:value={country}>
 					<option value="">All Regions</option>
 					<option value="europe">Europe</option>
 					<option value="asia">Asia</option>

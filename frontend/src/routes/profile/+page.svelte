@@ -10,7 +10,7 @@
 	let world = 0;
 	let history: TripCardData[] = [];
 	let error = '';
-	let statEls: HTMLElement[] = [];
+	let statEls: Array<HTMLElement | null> = [];
 	let worldEl: HTMLElement | null = null;
 	let worldBar: HTMLDivElement | null = null;
 
@@ -29,7 +29,9 @@
 
 			if (stats && statEls.length) {
 				const values = [stats.total_trips, stats.countries_visited, stats.cities_visited, stats.trips_with_friends];
-				statEls.forEach((el, idx) => countUp(el, values[idx] ?? 0));
+				statEls.forEach((el, idx) => {
+					if (el) countUp(el, values[idx] ?? 0);
+				});
 			}
 			if (worldEl) countUp(worldEl, world, 1.1);
 			if (worldBar) {
@@ -86,22 +88,22 @@
 
 			<div class="stats">
 				<div class="stat">
-					<p bind:this={(el) => (statEls[0] = el)}>0</p>
+					<p bind:this={statEls[0]}>0</p>
 					<span>Trips</span>
 				</div>
 				<div class="divider"></div>
 				<div class="stat">
-					<p bind:this={(el) => (statEls[1] = el)}>0</p>
+					<p bind:this={statEls[1]}>0</p>
 					<span>Countries</span>
 				</div>
 				<div class="divider"></div>
 				<div class="stat">
-					<p bind:this={(el) => (statEls[2] = el)}>0</p>
+					<p bind:this={statEls[2]}>0</p>
 					<span>Cities</span>
 				</div>
 				<div class="divider"></div>
 				<div class="stat">
-					<p bind:this={(el) => (statEls[3] = el)}>0</p>
+					<p bind:this={statEls[3]}>0</p>
 					<span>Friends</span>
 				</div>
 			</div>

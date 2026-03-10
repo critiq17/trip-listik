@@ -81,8 +81,13 @@
 		</div>
 
 		<div class="field textarea">
-			<label>Trip Description (Optional)</label>
-			<textarea rows="3" bind:value={description} placeholder="Tell everyone what the plan is..."></textarea>
+			<label for="trip-description">Trip Description (Optional)</label>
+			<textarea
+				id="trip-description"
+				rows="3"
+				bind:value={description}
+				placeholder="Tell everyone what the plan is..."
+			></textarea>
 		</div>
 
 		<div class="actions">

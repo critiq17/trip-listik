@@ -61,21 +61,21 @@
 
 		<div class="form">
 			<div class="field">
-				<label>Trip Name</label>
-				<input bind:value={title} placeholder="e.g. Summer in Tuscany" />
+				<label for="trip-name">Trip Name</label>
+				<input id="trip-name" bind:value={title} placeholder="e.g. Summer in Tuscany" />
 			</div>
 
 			<div class="field">
-				<label>Destination</label>
+				<label for="trip-destination">Destination</label>
 				<div class="field-row">
-					<input bind:value={destination} placeholder="Where to?" />
+					<input id="trip-destination" bind:value={destination} placeholder="Where to?" />
 					<span class="material-symbols-outlined">map</span>
 				</div>
 			</div>
 
 			<div class="field">
-				<label>Cover Photo</label>
-				<div class="upload" on:click={pickPhoto}>
+				<label for="cover-photo">Cover Photo</label>
+				<button type="button" class="upload" on:click={pickPhoto}>
 					{#if coverPhotoPreview}
 						<img src={coverPhotoPreview} alt="Cover preview" />
 					{:else}
@@ -84,8 +84,15 @@
 						</div>
 						<span>Add a cover image</span>
 					{/if}
-				</div>
-				<input class="file-input" type="file" accept="image/*" bind:this={fileInput} on:change={onFile} />
+				</button>
+				<input
+					id="cover-photo"
+					class="file-input"
+					type="file"
+					accept="image/*"
+					bind:this={fileInput}
+					on:change={onFile}
+				/>
 			</div>
 			{#if error}
 				<p class="error">{error}</p>
