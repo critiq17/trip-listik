@@ -4,12 +4,12 @@ const baseUrl = env.PUBLIC_API_BASE_URL || 'http://localhost:8080';
 
 export const getToken = () => {
 	if (typeof localStorage === 'undefined') return '';
-	return localStorage.getItem('wandr_token') ?? '';
+	return localStorage.getItem('tl_token') ?? '';
 };
 
 export const setToken = (token: string) => {
 	if (typeof localStorage === 'undefined') return;
-	localStorage.setItem('wandr_token', token);
+	localStorage.setItem('tl_token', token);
 };
 
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {

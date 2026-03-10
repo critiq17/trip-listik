@@ -14,9 +14,9 @@
 <style>
 	.chips {
 		display: flex;
-		gap: 0.6rem;
+		gap: 1.5rem;
 		overflow-x: auto;
-		padding: 0.1rem 0 0.65rem;
+		padding: 0.5rem 0 0.9rem;
 		scrollbar-width: none;
 	}
 
@@ -25,22 +25,28 @@
 	}
 
 	button {
-		padding: 0.6rem 1rem;
-		border-radius: var(--radius-pill);
-		background: rgba(255, 255, 255, 0.05);
+		position: relative;
+		padding-bottom: 0.55rem;
 		color: var(--text-secondary);
-		font-weight: 700;
+		font-weight: 600;
 		font-size: 0.85rem;
 		white-space: nowrap;
-		transition: all 0.2s ease;
-		border: 1px solid rgba(255, 255, 255, 0.06);
-		backdrop-filter: blur(14px);
+		transition: color 0.2s ease;
 	}
 
 	button.active {
-		background: linear-gradient(135deg, rgba(32, 146, 186, 0.32), rgba(122, 234, 244, 0.14));
-		color: white;
-		border-color: rgba(122, 234, 244, 0.5);
-		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+		color: var(--text-primary);
+		font-weight: 700;
+	}
+
+	button.active::after {
+		content: '';
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		height: 2px;
+		background: var(--primary);
+		border-radius: 999px;
 	}
 </style>

@@ -2,16 +2,29 @@
 	import { goto } from '$app/navigation';
 	import { apiFetch } from '$lib/api';
 	import { setDraft } from '$lib/tripDraft';
+	import { scalePress } from '$lib/actions/animate';
 
 	let title = '';
 	let destination = '';
-	let coverPhotoURL = '';
+	let coverPhotoPreview = '';
 	let creating = false;
 	let error = '';
+	let fileInput: HTMLInputElement | null = null;
+
+	const pickPhoto = () => {
+		fileInput?.click();
+	};
+
+	const onFile = (event: Event) => {
+		const target = event.currentTarget as HTMLInputElement;
+		const file = target.files?.[0];
+		if (!file) return;
+		coverPhotoPreview = URL.createObjectURL(file);
+	};
 
 	const next = async () => {
 		if (!title.trim()) {
-			error = 'Title is required';
+			error = 'Trip name is required';
 			return;
 		}
 		creating = true;
@@ -22,7 +35,7 @@
 				body: JSON.stringify({
 					title,
 					city: destination,
-					cover_photo_url: coverPhotoURL,
+					cover_photo_url: null,
 					status: 'draft',
 					visibility: 'public'
 				})
@@ -37,166 +50,193 @@
 	};
 </script>
 
-<section class="container">
-	<header class="header">
-		<p class="eyebrow">Create Trip</p>
-		<h1 class="headline">Set the core idea.</h1>
-		<p class="subtle">Trip name, destination and cover image URL for the first version.</p>
-	</header>
-
-	<div class="progress">
-		<div class="progress-top">
-			<span>Step 1 of 3</span>
-			<strong>33%</strong>
-		</div>
-		<div class="bar"><span></span></div>
+<section class="create-step">
+	<div class="progress-bar">
+		<div class="progress-fill"></div>
 	</div>
 
-	<div class="form panel">
-		<label>
-			<span>Trip name</span>
-			<input bind:value={title} placeholder="Summer in Lisbon" />
-		</label>
-		<label>
-			<span>Destination</span>
-			<div class="destination">
-				<span>✈</span>
-				<input bind:value={destination} placeholder="Lisbon, PT" />
+	<main>
+		<p class="eyebrow">Step 1 of 3</p>
+		<h1 class="serif-text">Where are you headed?</h1>
+
+		<div class="form">
+			<div class="field">
+				<label>Trip Name</label>
+				<input bind:value={title} placeholder="e.g. Summer in Tuscany" />
 			</div>
-		</label>
-		<label>
-			<span>Cover image URL</span>
-			<input bind:value={coverPhotoURL} placeholder="https://images.example/trip-cover.jpg" />
-		</label>
-		<div class="upload-box" class:has-image={Boolean(coverPhotoURL)}>
-			{#if coverPhotoURL}
-				<img src={coverPhotoURL} alt="Cover preview" />
-			{:else}
-				<div>
-					<strong>Add a cover preview</strong>
-					<p>Paste a real image URL now. Photo upload for trip galleries lives in trip detail.</p>
+
+			<div class="field">
+				<label>Destination</label>
+				<div class="field-row">
+					<input bind:value={destination} placeholder="Where to?" />
+					<span class="material-symbols-outlined">map</span>
 				</div>
+			</div>
+
+			<div class="field">
+				<label>Cover Photo</label>
+				<div class="upload" on:click={pickPhoto}>
+					{#if coverPhotoPreview}
+						<img src={coverPhotoPreview} alt="Cover preview" />
+					{:else}
+						<div class="upload-icon">
+							<span class="material-symbols-outlined">add_a_photo</span>
+						</div>
+						<span>Add a cover image</span>
+					{/if}
+				</div>
+				<input class="file-input" type="file" accept="image/*" bind:this={fileInput} on:change={onFile} />
+			</div>
+			{#if error}
+				<p class="error">{error}</p>
 			{/if}
 		</div>
-		{#if error}
-			<div class="error">{error}</div>
-		{/if}
-	</div>
 
-	<footer class="footer">
-		<button class="cta" on:click={next} disabled={creating}>
-			{creating ? 'Saving…' : 'Next Step'}
-		</button>
-	</footer>
+		<div class="actions">
+			<button use:scalePress on:click={next} disabled={creating}>
+				{creating ? 'Saving…' : 'Continue'}
+				<span class="material-symbols-outlined">arrow_forward</span>
+			</button>
+		</div>
+	</main>
 </section>
 
 <style>
-	.header {
-		display: grid;
-		gap: 0.45rem;
-		margin-bottom: 1rem;
+	.create-step {
+		min-height: 100dvh;
+		background: var(--background-dark);
+		color: var(--text-primary);
+		padding-bottom: 2rem;
 	}
 
-	.progress {
-		margin-bottom: 1rem;
+	.progress-bar {
+		width: 100%;
+		height: 4px;
+		background: rgba(77, 157, 109, 0.2);
 	}
 
-	.progress-top {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		color: var(--text-secondary);
-		font-size: 0.84rem;
-		margin-bottom: 0.55rem;
-	}
-
-	.bar {
-		height: 8px;
-		border-radius: var(--radius-pill);
-		background: rgba(255, 255, 255, 0.08);
-		overflow: hidden;
-	}
-
-	.bar span {
-		display: block;
-		width: 33%;
+	.progress-fill {
 		height: 100%;
-		border-radius: inherit;
-		background: var(--accent-grad);
+		width: 33.33%;
+		background: var(--primary);
+	}
+
+	main {
+		max-width: 480px;
+		margin: 0 auto;
+		padding: 2rem 1.5rem 3rem;
+		display: flex;
+		flex-direction: column;
+		gap: 1.5rem;
+	}
+
+	.eyebrow {
+		color: var(--primary);
+		font-size: 0.65rem;
+		font-weight: 700;
+		letter-spacing: 0.2em;
+		text-transform: uppercase;
+	}
+
+	h1 {
+		font-size: 2.4rem;
+		line-height: 1.05;
 	}
 
 	.form {
-		display: grid;
-		gap: 1.25rem;
-		padding: 1.2rem;
-		border-radius: var(--radius-2xl);
+		display: flex;
+		flex-direction: column;
+		gap: 2rem;
 	}
 
-	label {
-		display: grid;
-		gap: 0.5rem;
+	.field label {
+		display: block;
 		font-size: 0.85rem;
 		color: var(--text-secondary);
+		margin-bottom: 0.4rem;
 	}
 
-	input {
+	.field input {
+		width: 100%;
 		background: transparent;
 		border: none;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.16);
-		padding: 0.7rem 0;
-		font-size: 1rem;
+		border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+		padding: 0.6rem 0;
+		font-size: 1.4rem;
+		font-weight: 500;
+		color: var(--text-primary);
 	}
 
-	.destination {
+	.field-row {
 		display: flex;
 		align-items: center;
-		gap: 0.7rem;
+		position: relative;
 	}
 
-	.upload-box {
-		min-height: 180px;
-		border: 1px dashed rgba(255, 255, 255, 0.22);
-		border-radius: var(--radius-xl);
+	.field-row span {
+		position: absolute;
+		right: 0;
+		color: var(--text-secondary);
+	}
+
+	.upload {
+		width: 100%;
+		aspect-ratio: 16 / 9;
+		border-radius: 12px;
+		border: 2px dashed rgba(255, 255, 255, 0.12);
+		background: rgba(255, 255, 255, 0.02);
 		display: flex;
+		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		color: var(--text-secondary);
-		text-align: center;
-		padding: 1rem;
+		gap: 0.4rem;
+		cursor: pointer;
 		overflow: hidden;
-		background: rgba(255, 255, 255, 0.03);
+		text-align: center;
 	}
 
-	.upload-box img {
+	.upload img {
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
-		border-radius: 18px;
 	}
 
-	.upload-box.has-image {
-		padding: 0.4rem;
+	.upload-icon {
+		width: 3rem;
+		height: 3rem;
+		border-radius: 999px;
+		background: rgba(77, 157, 109, 0.12);
+		display: grid;
+		place-items: center;
+		color: var(--primary);
+	}
+
+	.upload span {
+		font-size: 0.7rem;
+		color: var(--text-secondary);
+		font-weight: 600;
+	}
+
+	.file-input {
+		display: none;
+	}
+
+	.actions button {
+		width: 100%;
+		padding: 1rem;
+		border-radius: 12px;
+		background: var(--primary);
+		color: white;
+		font-weight: 700;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.4rem;
+		box-shadow: 0 14px 30px rgba(77, 157, 109, 0.35);
 	}
 
 	.error {
-		color: var(--danger);
-		font-size: 0.85rem;
-	}
-
-	.footer {
-		position: sticky;
-		bottom: 0;
-		margin-top: 2rem;
-		padding-bottom: 5.8rem;
-	}
-
-	.cta {
-		width: 100%;
-		padding: 1rem;
-		border-radius: var(--radius-xl);
-		background: var(--accent-grad);
-		font-weight: 800;
-		color: #fff;
-		box-shadow: var(--shadow-glow);
+		color: #e11d48;
+		font-size: 0.8rem;
 	}
 </style>

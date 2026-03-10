@@ -1,4 +1,4 @@
-const key = 'wandr_trip_draft';
+const key = 'tl_trip_draft';
 
 type TripDraft = {
 	id: string;

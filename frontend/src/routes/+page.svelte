@@ -5,6 +5,7 @@
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import { apiFetch } from '$lib/api';
 	import { expandTelegram } from '$lib/telegram';
+	import { staggerList, scalePress } from '$lib/actions/animate';
 	import type { TripCardData } from '$lib/types';
 
 	const filters = ['All', 'Friends', 'Popular', 'Nearby'];
@@ -13,139 +14,219 @@
 	let loading = true;
 	let error = '';
 	let ready = false;
+	let cursor: string | null = null;
+	let loadingMore = false;
+	let hasMore = true;
+	let sentinel: HTMLDivElement | null = null;
 
-	async function loadFeed() {
-		loading = true;
+	const fetchFeed = async (mode: 'reset' | 'append' = 'reset') => {
+		if (mode === 'append' && (loadingMore || !hasMore)) return;
+		if (mode === 'append') loadingMore = true;
+		loading = mode === 'reset';
 		error = '';
 		const filter = active.toLowerCase();
-		const query = filter === 'all' ? '' : `?filter=${filter}`;
+		const query = filter === 'all' ? '' : `filter=${filter}`;
+		const cursorQuery = mode === 'append' && cursor ? `cursor=${cursor}` : '';
+		const queryString = [query, cursorQuery].filter(Boolean).join('&');
 		try {
-			const data = await apiFetch<{ items: TripCardData[] }>(`/v1/feed${query}`);
-			items = data.items ?? [];
+			const data = await apiFetch<{ items: TripCardData[]; next_cursor?: string; cursor?: string }>(
+				`/v1/feed${queryString ? `?${queryString}` : ''}`
+			);
+			const next = data.next_cursor ?? data.cursor ?? null;
+			if (mode === 'append') {
+				items = [...items, ...(data.items ?? [])];
+			} else {
+				items = data.items ?? [];
+			}
+			cursor = next;
+			hasMore = Boolean(next);
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load feed';
 		} finally {
 			loading = false;
+			loadingMore = false;
 		}
-	}
+	};
+
+	const observe = () => {
+		if (!sentinel) return;
+		const io = new IntersectionObserver((entries) => {
+			if (entries[0]?.isIntersecting) {
+				fetchFeed('append');
+			}
+		});
+		io.observe(sentinel);
+		return () => io.disconnect();
+	};
 
 	onMount(() => {
 		expandTelegram();
 		ready = true;
+		return observe();
 	});
 
 	$: if (ready && active) {
-		loadFeed();
+		cursor = null;
+		hasMore = true;
+		fetchFeed('reset');
 	}
 </script>
 
-<section class="container">
-	<header class="header">
-		<div class="copy">
-			<p class="eyebrow">Public Feed</p>
-			<h1 class="headline">Find trips worth joining.</h1>
-			<p class="subtle">Live public journeys, ranked by recency and engagement.</p>
-		</div>
-		<button class="icon-btn" aria-label="Search">
-			<span>⌕</span>
+<section class="feed-page">
+	<header class="topbar">
+		<button class="icon-btn" aria-label="Menu">
+			<span class="material-symbols-outlined">menu</span>
+		</button>
+		<h2>TripListik</h2>
+		<button class="icon-btn" aria-label="Notifications">
+			<span class="material-symbols-outlined">notifications</span>
 		</button>
 	</header>
 
-	<FilterChips {filters} bind:active />
-
-	<div class="hero-strip glass">
-		<div>
-			<p class="hero-label">Trending now</p>
-			<strong>{items.length || 0} public trips ready to explore</strong>
+	<main class="content">
+		<div class="headline">
+			<p class="eyebrow">Public Feed</p>
+			<h1 class="serif-text">Find trips worth joining.</h1>
+			<p class="subtext">Curated journeys from the community.</p>
 		</div>
-		<span class="hero-badge">{active}</span>
-	</div>
 
-	<div class="feed">
-		{#if loading}
-			{#each Array(3) as _}
-				<SkeletonCard />
-			{/each}
-		{:else if error}
-			<div class="error glass">{error}</div>
-		{:else if items.length === 0}
-			<div class="empty glass">No trips yet</div>
-		{:else}
-			{#each items as trip}
-				<TripCard {trip} />
-			{/each}
-		{/if}
-	</div>
+		<FilterChips {filters} bind:active />
+
+		<div class="trending">
+			<div class="trend-left">
+				<span class="material-symbols-outlined">trending_up</span>
+				<p>Trending Now: <strong>#Iceland2026</strong></p>
+			</div>
+			<span class="trend-count">(1.2k)</span>
+		</div>
+
+		<div class="cards" use:staggerList>
+			{#if loading}
+				{#each Array(2) as _}
+					<SkeletonCard ratio="4 / 5" />
+				{/each}
+			{:else if error}
+				<div class="state error">{error}</div>
+			{:else if items.length === 0}
+				<div class="state empty">No trips yet</div>
+			{:else}
+				{#each items as trip (trip.id)}
+					<div data-item use:scalePress>
+						<TripCard {trip} />
+					</div>
+				{/each}
+			{/if}
+			<div bind:this={sentinel} class="sentinel" aria-hidden="true"></div>
+		</div>
+	</main>
 </section>
 
 <style>
-	.header {
+	.feed-page {
+		min-height: 100dvh;
+		background: var(--background-dark);
+		color: var(--text-primary);
+		padding-bottom: 5.5rem;
+	}
+
+	.topbar {
+		position: sticky;
+		top: 0;
+		z-index: 10;
 		display: flex;
+		align-items: center;
 		justify-content: space-between;
-		align-items: flex-start;
-		gap: 1rem;
-		margin-bottom: 1rem;
+		padding: 1rem 1rem 0.75rem;
+		background: var(--background-dark);
+		border-bottom: 1px solid rgba(77, 157, 109, 0.12);
+	}
+
+	.topbar h2 {
+		font-size: 1.05rem;
+		font-weight: 700;
+		letter-spacing: -0.01em;
 	}
 
 	.icon-btn {
-		width: 3rem;
-		height: 3rem;
-		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.06);
-		font-size: 1.2rem;
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		backdrop-filter: blur(16px);
-		flex-shrink: 0;
-	}
-
-	.copy {
-		display: grid;
-		gap: 0.45rem;
-	}
-
-	.hero-strip {
 		display: flex;
-		justify-content: space-between;
 		align-items: center;
-		gap: 1rem;
-		padding: 1rem 1.1rem;
-		border-radius: var(--radius-xl);
-		margin: 0.15rem 0 1.15rem;
+		justify-content: center;
+		width: 2.75rem;
+		height: 2.75rem;
+		border-radius: 0.75rem;
+		color: var(--text-primary);
 	}
 
-	.hero-label {
-		font-size: 0.74rem;
-		letter-spacing: 0.12em;
+	.content {
+		padding: 1.5rem 1rem 1.25rem;
+		max-width: 480px;
+		margin: 0 auto;
+	}
+
+	.headline {
+		margin-bottom: 0.9rem;
+	}
+
+	.eyebrow {
+		color: var(--primary);
+		font-size: 0.65rem;
+		font-weight: 700;
+		letter-spacing: 0.2em;
 		text-transform: uppercase;
-		color: var(--text-muted);
-		margin-bottom: 0.25rem;
+		margin-bottom: 0.5rem;
 	}
 
-	.hero-strip strong {
+	h1 {
+		font-size: 2.25rem;
+		line-height: 1.05;
+		margin-bottom: 0.5rem;
+	}
+
+	.subtext {
+		color: var(--text-secondary);
 		font-size: 0.95rem;
 	}
 
-	.hero-badge {
-		padding: 0.6rem 0.9rem;
-		border-radius: var(--radius-pill);
-		background: rgba(32, 146, 186, 0.16);
-		border: 1px solid rgba(122, 234, 244, 0.24);
-		color: var(--accent-strong);
+	.trending {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.9rem 1rem;
+		background: rgba(77, 157, 109, 0.12);
+		border-radius: 12px;
+		margin: 0.8rem 0 2rem;
+	}
+
+	.trend-left {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		color: var(--primary);
+		font-weight: 600;
+		font-size: 0.85rem;
+	}
+
+	.trend-count {
+		color: rgba(77, 157, 109, 0.7);
+		font-weight: 700;
 		font-size: 0.75rem;
-		font-weight: 800;
-		text-transform: uppercase;
 	}
 
-	.feed {
-		display: grid;
-		gap: 1rem;
+	.cards {
+		display: flex;
+		flex-direction: column;
+		gap: 2rem;
 	}
 
-	.empty,
-	.error {
-		padding: 1.5rem;
-		border-radius: var(--radius-xl);
-		color: var(--text-secondary);
+	.state {
+		border-radius: 12px;
+		padding: 1.4rem;
 		text-align: center;
+		background: rgba(255, 255, 255, 0.04);
+		color: var(--text-secondary);
+	}
+
+	.sentinel {
+		height: 1px;
 	}
 </style>
