@@ -1,29 +1,30 @@
 :root {
-  --bg-primary: #042444;
-  --bg-secondary: #0d3460;
-  --bg-deep: #031223;
-  --surface: rgba(13, 52, 96, 0.64);
-  --surface-strong: rgba(17, 67, 122, 0.82);
-  --surface-soft: rgba(5, 25, 47, 0.55);
-  --accent: #2092ba;
-  --accent-strong: #7aeaf4;
-  --accent-grad: linear-gradient(135deg, #2092ba, #7aeaf4);
-  --text-primary: #ffffff;
-  --text-secondary: #b8c9d5;
-  --text-muted: #657b9f;
-  --danger: #e05c7a;
-  --success: #4ecdc4;
+  --primary: #4d9d6d;
+  --background-light: #f6f7f7;
+  --background-dark: #161c18;
 
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
-  --radius-2xl: 32px;
+  --text-primary: #f1f5f2;
+  --text-secondary: #9aa4a1;
+  --text-muted: #6f7a75;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
   --radius-pill: 9999px;
 
-  --shadow-soft: 0 18px 40px rgba(0, 0, 0, 0.24);
-  --shadow-glow: 0 16px 38px rgba(32, 146, 186, 0.3);
-  --shadow-card: 0 22px 60px rgba(2, 11, 24, 0.32);
+  --shadow-soft: 0 14px 30px rgba(0, 0, 0, 0.25);
+  --shadow-card: 0 20px 44px rgba(0, 0, 0, 0.35);
 
-  --font-display: "Plus Jakarta Sans", sans-serif;
+  --font-display: "Inter", sans-serif;
+  --font-serif: "DM Serif Display", serif;
+
+  /* Legacy aliases */
+  --accent: var(--primary);
+  --accent-strong: #8fd9b0;
+  --accent-grad: linear-gradient(135deg, #4d9d6d, #7fbf99);
+  --bg-primary: var(--background-dark);
+  --bg-deep: #121915;
+  --surface-soft: rgba(255, 255, 255, 0.05);
+  --shadow-glow: 0 16px 30px rgba(77, 157, 109, 0.35);
 }

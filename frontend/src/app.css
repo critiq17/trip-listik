@@ -1,5 +1,4 @@
 @import "$lib/styles/tokens.css";
-@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
 
 * {
   box-sizing: border-box;
@@ -14,13 +13,11 @@ body {
 
 body {
   font-family: var(--font-display);
-  background:
-    radial-gradient(900px 500px at 15% -10%, rgba(122, 234, 244, 0.12) 0%, transparent 60%),
-    radial-gradient(700px 500px at 85% 0%, rgba(32, 146, 186, 0.2) 0%, transparent 55%),
-    linear-gradient(180deg, var(--bg-deep) 0%, var(--bg-primary) 42%, #03101f 100%);
+  background: var(--background-dark);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  min-height: max(884px, 100dvh);
   overflow-x: hidden;
 }
 
@@ -42,109 +39,6 @@ button {
   cursor: pointer;
 }
 
-.container {
-  width: 100%;
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 1.25rem 1.25rem 7rem;
-}
-
-.section-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-}
-
-.muted {
-  color: var(--text-secondary);
-}
-
-.glass {
-  background: var(--surface-soft);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(20px);
-  box-shadow: var(--shadow-soft);
-}
-
-.panel {
-  background: linear-gradient(180deg, rgba(12, 45, 82, 0.86), rgba(5, 24, 44, 0.9));
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: var(--shadow-card);
-}
-
-.eyebrow {
-  color: var(--accent-strong);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.headline {
-  font-size: clamp(1.9rem, 5vw, 2.6rem);
-  font-weight: 800;
-  line-height: 1.02;
-  letter-spacing: -0.04em;
-}
-
-.subtle {
-  color: var(--text-secondary);
-  font-size: 0.92rem;
-  line-height: 1.5;
-}
-
-.pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.5rem 0.85rem;
-  border-radius: var(--radius-pill);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.cta-button {
-  width: 100%;
-  min-height: 56px;
-  border-radius: var(--radius-xl);
-  background: var(--accent-grad);
-  color: white;
-  font-size: 0.96rem;
-  font-weight: 800;
-  box-shadow: var(--shadow-glow);
-}
-
-.ghost-button {
-  min-height: 48px;
-  border-radius: var(--radius-lg);
-  padding: 0.8rem 1rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.avatar-ring {
-  position: relative;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: linear-gradient(145deg, rgba(122, 234, 244, 0.95), rgba(32, 146, 186, 0.18));
-  padding: 2px;
-}
-
-.avatar-ring > * {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
-  background: linear-gradient(145deg, rgba(12, 36, 64, 0.9), rgba(32, 74, 118, 0.7));
-}
-
-.avatar-fallback {
-  display: grid;
-  place-items: center;
-  color: white;
-  font-weight: 800;
-}
-
 input,
 textarea,
 select {
@@ -154,14 +48,84 @@ select {
 
 input::placeholder,
 textarea::placeholder {
-  color: rgba(184, 201, 213, 0.6);
+  color: rgba(154, 164, 161, 0.7);
+}
+
+.serif-text {
+  font-family: var(--font-serif);
+}
+
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+.material-symbols-outlined.fill-1 {
+  font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+.container {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 1.25rem 1.25rem 7rem;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+
+.panel {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+}
+
+.no-scrollbar::-webkit-scrollbar,
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar,
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #1e2a3a 0%, #263548 40%, #1e2a3a 80%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 12px;
+}
+
+@keyframes pulseGlow {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.5;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
   }
 }

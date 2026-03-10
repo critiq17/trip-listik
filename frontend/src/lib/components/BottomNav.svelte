@@ -1,30 +1,35 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { animate } from 'motion';
 
 	const tabs = [
-		{ href: '/', label: 'Feed', icon: '⌂' },
-		{ href: '/trips', label: 'Trips', icon: '◫' },
-		{ href: '/create', label: 'Create', icon: '+' , fab: true },
-		{ href: '/explore', label: 'Explore', icon: '◎' },
-		{ href: '/profile', label: 'Profile', icon: '◌' }
+		{ href: '/', label: 'Feed', icon: 'rss_feed' },
+		{ href: '/trips', label: 'Trips', icon: 'map' },
+		{ href: '/create', label: 'Create', icon: 'add_circle', fab: true },
+		{ href: '/explore', label: 'Explore', icon: 'explore' },
+		{ href: '/profile', label: 'Profile', icon: 'person' }
 	];
 
 	const isActive = (href: string) => {
 		if (href === '/') return $page.url.pathname === '/';
 		return $page.url.pathname.startsWith(href);
 	};
+
+	const bounce = (event: MouseEvent) => {
+		const target = event.currentTarget as HTMLElement | null;
+		if (!target) return;
+		animate(target, { y: ['0px', '-5px', '0px'] }, { duration: 0.28 });
+	};
 </script>
 
 <nav class="nav">
 	{#each tabs as tab}
-		<a class:active={isActive(tab.href)} class:fab={tab.fab} href={tab.href}>
+		<a class:active={isActive(tab.href)} class:fab={tab.fab} href={tab.href} on:click={bounce}>
 			{#if tab.fab}
-				<div class="fab-circle">
-					<span class="icon">{tab.icon}</span>
-				</div>
+				<span class="icon material-symbols-outlined fab-icon">{tab.icon}</span>
 				<span class="label">{tab.label}</span>
 			{:else}
-				<span class="icon">{tab.icon}</span>
+				<span class="icon material-symbols-outlined">{tab.icon}</span>
 				<span class="label">{tab.label}</span>
 			{/if}
 		</a>
@@ -34,19 +39,16 @@
 <style>
 	.nav {
 		position: fixed;
-		left: 0.75rem;
-		right: 0.75rem;
+		left: 0;
+		right: 0;
 		bottom: 0;
 		display: flex;
-		justify-content: space-around;
-		align-items: flex-end;
-		padding: 0.75rem 0.5rem calc(0.75rem + env(safe-area-inset-bottom));
-		background: rgba(4, 36, 68, 0.82);
+		justify-content: space-between;
+		align-items: center;
+		padding: 0.75rem 1.5rem calc(0.9rem + env(safe-area-inset-bottom));
+		background: rgba(22, 28, 24, 0.85);
 		backdrop-filter: blur(18px);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-bottom: none;
-		border-radius: 24px 24px 0 0;
-		box-shadow: 0 -16px 40px rgba(3, 18, 35, 0.4);
+		border-top: 1px solid rgba(77, 157, 109, 0.15);
 		z-index: 100;
 	}
 
@@ -54,45 +56,37 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 0.2rem;
+		gap: 0.25rem;
 		color: var(--text-muted);
-		font-size: 0.68rem;
-		font-weight: 600;
+		font-size: 0.62rem;
+		font-weight: 700;
 		text-transform: uppercase;
-		letter-spacing: 0.08em;
+		letter-spacing: 0.12em;
 		flex: 1;
 	}
 
 	a.active {
-		color: white;
+		color: var(--primary);
 	}
 
 	.fab {
-		transform: translateY(-18px);
-	}
-
-	.fab-circle {
-		width: 56px;
-		height: 56px;
-		border-radius: 50%;
-		background: var(--accent-grad);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		box-shadow: var(--shadow-glow);
+		transform: translateY(-6px);
 	}
 
 	.icon {
-		font-size: 1.15rem;
-		font-weight: 700;
+		font-size: 1.2rem;
 		line-height: 1;
+	}
+
+	.fab-icon {
+		font-size: 2rem;
+	}
+
+	a.active .material-symbols-outlined {
+		font-variation-settings: "FILL" 1, "wght" 500, "GRAD" 0, "opsz" 24;
 	}
 
 	.label {
 		line-height: 1;
-	}
-
-	a.active .icon {
-		transform: translateY(-2px);
 	}
 </style>

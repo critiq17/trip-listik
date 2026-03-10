@@ -15,13 +15,15 @@
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
-	<meta name="theme-color" content="#041a2f" />
+	<meta name="theme-color" content="#161c18" />
 </svelte:head>
 
 <div class="app">
 	{@render children()}
 	{#if $page.url.pathname !== '/auth'}
-		<BottomNav />
+		{#if !$page.url.pathname.startsWith('/create')}
+			<BottomNav />
+		{/if}
 	{/if}
 </div>
 

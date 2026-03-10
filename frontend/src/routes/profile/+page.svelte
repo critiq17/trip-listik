@@ -1,333 +1,364 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { apiFetch } from '$lib/api';
-	import {
-		formatDateRange,
-		getTripLocation,
-		getUserInitials,
-		getUserName,
-		normalizeStats
-	} from '$lib/format';
+	import { countUp } from '$lib/transitions';
+	import { formatDateRange, getTripLocation, getUserInitials, getUserName } from '$lib/format';
 	import type { TripCardData, User, UserStats } from '$lib/types';
 
 	let user: User | null = null;
-	let stats: UserStats = normalizeStats(null);
-	let world = 3.5;
+	let stats: UserStats | null = null;
+	let world = 0;
 	let history: TripCardData[] = [];
 	let error = '';
+	let statEls: Array<HTMLElement | null> = [];
+	let worldEl: HTMLElement | null = null;
+	let worldBar: HTMLDivElement | null = null;
 
 	onMount(async () => {
 		try {
-			const data = await apiFetch<{
-				user: User;
-				stats: Record<string, unknown>;
-				world_explored_percent: number;
-			}>('/v1/me');
-			user = data.user;
-			stats = normalizeStats(data.stats);
-			world = data.world_explored_percent;
+			const [me, statsRes, worldRes] = await Promise.all([
+				apiFetch<{ user: User }>('/v1/me'),
+				apiFetch<UserStats>('/v1/me/stats'),
+				apiFetch<{ world_explored_percent: number }>('/v1/me/world')
+			]);
+			user = me.user;
+			stats = statsRes;
+			world = worldRes.world_explored_percent ?? 0;
 			const trips = await apiFetch<{ items: TripCardData[] }>('/v1/trips?scope=mine');
 			history = (trips.items ?? []).slice(0, 6);
+
+			if (stats && statEls.length) {
+				const values = [stats.total_trips, stats.countries_visited, stats.cities_visited, stats.trips_with_friends];
+				statEls.forEach((el, idx) => {
+					if (el) countUp(el, values[idx] ?? 0);
+				});
+			}
+			if (worldEl) countUp(worldEl, world, 1.1);
+			if (worldBar) {
+				worldBar.style.width = '0%';
+				requestAnimationFrame(() => {
+					worldBar && (worldBar.style.width = `${world}%`);
+				});
+			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load profile';
 		}
 	});
 </script>
 
-<section class="container">
+<section class="profile-page">
 	<header class="header">
-		<div>
-			<p class="eyebrow">Profile</p>
-			<h1 class="headline">Your travel identity.</h1>
-		</div>
-		<button class="settings" aria-label="Settings">⚙</button>
+		<span class="eyebrow">Profile</span>
+		<button class="settings" aria-label="Settings">
+			<span class="material-symbols-outlined">settings</span>
+		</button>
 	</header>
 
-	{#if error}
-		<div class="glass card">{error}</div>
-	{:else}
-		<div class="profile-card panel">
-			<div class="avatar-ring avatar-shell">
-				{#if user?.photo_url}
-					<img src={user.photo_url} alt={getUserName(user)} />
-				{:else}
-					<div class="avatar-fallback">{getUserInitials(user?.first_name, user?.last_name, user?.username)}</div>
-				{/if}
-			</div>
-			<h2>{getUserName(user ?? {})}</h2>
-			<p class="muted">@{user?.username ?? 'traveler'}</p>
-			<button class="edit ghost-button">Edit profile</button>
-		</div>
+	<main class="content hide-scrollbar">
+		<h1>Your travel identity.</h1>
 
-		<div class="world panel">
-			<div class="world-head">
-				<div>
-					<h3>World Explored</h3>
-					<p class="muted">Based on completed trips in your real account data.</p>
+		{#if error}
+			<div class="state">{error}</div>
+		{:else}
+			<div class="profile-row">
+				<div class="avatar-wrap">
+					{#if user?.photo_url}
+						<div class="avatar" style={`background-image: url('${user.photo_url}')`}></div>
+					{:else}
+						<div class="avatar fallback">{getUserInitials(user?.first_name, user?.last_name, user?.username)}</div>
+					{/if}
 				</div>
-				<span>{world.toFixed(1)}%</span>
+				<div>
+					<h2>{getUserName(user ?? {})}</h2>
+					<p class="handle">@{user?.username ?? 'traveler'}</p>
+				</div>
 			</div>
-			<div class="map">
-				<div class="glow a"></div>
-				<div class="glow b"></div>
-				<div class="grid-line"></div>
-			</div>
-		</div>
 
-		<div class="stats">
-			<div class="stat glass">
-				<span>{stats.total_trips}</span>
-				<small>Trips</small>
-			</div>
-			<div class="stat glass">
-				<span>{stats.countries_visited}</span>
-				<small>Countries</small>
-			</div>
-			<div class="stat glass">
-				<span>{stats.cities_visited}</span>
-				<small>Cities</small>
-			</div>
-			<div class="stat glass">
-				<span>{stats.trips_with_friends}</span>
-				<small>Friends</small>
-			</div>
-		</div>
+			<button class="edit-btn">Edit profile</button>
 
-		<div class="history-head">
-			<h3>Travel History</h3>
-			<span class="muted">{history.length} recent</span>
-		</div>
+			<div class="world">
+				<div class="world-head">
+					<span>World explored</span>
+					<strong bind:this={worldEl}>0%</strong>
+				</div>
+				<div class="world-bar">
+					<div class="world-fill" bind:this={worldBar}></div>
+				</div>
+			</div>
 
-		<div class="history">
-			{#if history.length === 0}
-				<div class="card glass">No trips to show yet</div>
-			{:else}
-				{#each history as trip}
-					<a class="history-item glass" href={`/trips/${trip.id}`}>
-						{#if trip.cover_photo_url}
-							<img src={trip.cover_photo_url} alt={trip.title} />
-						{:else}
-							<div class="thumb-placeholder"></div>
-						{/if}
-						<div class="history-copy">
-							<strong>{trip.title}</strong>
-							<p>{getTripLocation(trip)}</p>
-							<small>{formatDateRange(trip.start_date, trip.end_date)}</small>
-						</div>
-						<span class="chevron">›</span>
-					</a>
-				{/each}
-			{/if}
-		</div>
-	{/if}
+			<div class="stats">
+				<div class="stat">
+					<p bind:this={statEls[0]}>0</p>
+					<span>Trips</span>
+				</div>
+				<div class="divider"></div>
+				<div class="stat">
+					<p bind:this={statEls[1]}>0</p>
+					<span>Countries</span>
+				</div>
+				<div class="divider"></div>
+				<div class="stat">
+					<p bind:this={statEls[2]}>0</p>
+					<span>Cities</span>
+				</div>
+				<div class="divider"></div>
+				<div class="stat">
+					<p bind:this={statEls[3]}>0</p>
+					<span>Friends</span>
+				</div>
+			</div>
+
+			<section class="history">
+				<div class="history-head">
+					<h3>Travel history</h3>
+					<button class="map-btn">View Map</button>
+				</div>
+				<div class="history-list">
+					{#if history.length === 0}
+						<div class="state">No trips to show yet.</div>
+					{:else}
+						{#each history as trip}
+							<a class="history-item" href={`/trips/${trip.id}`}>
+								<div
+									class="history-thumb"
+									style={`background-image: url('${trip.cover_photo_url ?? ''}')`}
+								></div>
+								<div class="history-copy">
+									<p>{getTripLocation(trip)}</p>
+									<span>{formatDateRange(trip.start_date, trip.end_date)}</span>
+								</div>
+							</a>
+						{/each}
+					{/if}
+				</div>
+			</section>
+		{/if}
+	</main>
 </section>
 
 <style>
+	.profile-page {
+		min-height: 100dvh;
+		background: var(--background-dark);
+		color: var(--text-primary);
+		padding-bottom: 5.5rem;
+	}
+
 	.header {
 		display: flex;
+		align-items: center;
 		justify-content: space-between;
-		align-items: flex-start;
-		gap: 1rem;
-		margin-bottom: 1rem;
+		padding: 2rem 1.5rem 0.5rem;
+		max-width: 480px;
+		margin: 0 auto;
+	}
+
+	.eyebrow {
+		color: var(--primary);
+		font-size: 0.6rem;
+		letter-spacing: 0.2em;
+		font-weight: 700;
+		text-transform: uppercase;
 	}
 
 	.settings {
-		width: 2.8rem;
-		height: 2.8rem;
-		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.06);
-		border: 1px solid rgba(255, 255, 255, 0.08);
+		width: 2.5rem;
+		height: 2.5rem;
+		border-radius: 999px;
+		display: grid;
+		place-items: center;
+		color: var(--text-secondary);
 	}
 
-	.card {
-		padding: 1.5rem;
-		border-radius: var(--radius-xl);
-		margin-bottom: 1rem;
-		text-align: center;
+	.content {
+		padding: 0 1.5rem 2rem;
+		overflow-y: auto;
+		max-width: 480px;
+		margin: 0 auto;
 	}
 
-	.profile-card {
-		padding: 1.6rem;
-		border-radius: var(--radius-2xl);
-		margin-bottom: 1rem;
-		text-align: center;
+	h1 {
+		font-size: 1.9rem;
+		font-weight: 700;
+		margin-bottom: 2rem;
 	}
 
-	.avatar-shell {
-		width: 96px;
-		height: 96px;
-		margin: 0 auto 0.9rem;
+	.profile-row {
+		display: flex;
+		align-items: center;
+		gap: 1.2rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.avatar-wrap {
+		border: 1px solid rgba(77, 157, 109, 0.4);
+		border-radius: 999px;
+		padding: 1px;
+	}
+
+	.avatar {
+		width: 6rem;
+		height: 6rem;
+		border-radius: 999px;
+		background-size: cover;
+		background-position: center;
+		border: 2px solid var(--background-dark);
+	}
+
+	.avatar.fallback {
+		display: grid;
+		place-items: center;
+		background: rgba(255, 255, 255, 0.08);
+		color: var(--text-primary);
+		font-weight: 700;
 	}
 
 	h2 {
-		font-size: 1.35rem;
-		font-weight: 800;
-		margin-bottom: 0.25rem;
+		font-size: 1.2rem;
+		font-weight: 700;
 	}
 
-	.edit {
-		margin-top: 1rem;
+	.handle {
+		color: var(--text-secondary);
+		font-size: 0.85rem;
+	}
+
+	.edit-btn {
 		width: 100%;
+		padding: 0.65rem;
+		border-radius: 8px;
+		border: 1px solid rgba(255, 255, 255, 0.12);
+		color: var(--text-primary);
+		font-weight: 600;
+		margin-bottom: 2rem;
 	}
 
 	.world {
-		padding: 1.35rem;
-		border-radius: var(--radius-2xl);
-		margin-bottom: 1rem;
+		margin-bottom: 2rem;
 	}
 
 	.world-head {
 		display: flex;
+		align-items: flex-end;
 		justify-content: space-between;
-		align-items: flex-start;
-		gap: 1rem;
-		margin-bottom: 1rem;
+		margin-bottom: 0.6rem;
 	}
 
-	.world span {
-		font-size: 2rem;
-		font-weight: 800;
-		color: var(--accent-strong);
+	.world-head span {
+		font-size: 0.65rem;
+		letter-spacing: 0.2em;
+		color: var(--text-secondary);
+		text-transform: uppercase;
+		font-weight: 700;
 	}
 
-	.map {
-		position: relative;
-		height: 144px;
-		border-radius: 20px;
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent),
-			radial-gradient(circle at 30% 40%, rgba(122, 234, 244, 0.25), transparent 12%),
-			radial-gradient(circle at 58% 55%, rgba(32, 146, 186, 0.25), transparent 13%),
-			radial-gradient(circle at 75% 38%, rgba(122, 234, 244, 0.22), transparent 10%),
-			#071a31;
-		overflow: hidden;
+	.world-head strong {
+		font-size: 1.5rem;
+		color: var(--primary);
 	}
 
-	.glow {
-		position: absolute;
-		width: 14px;
-		height: 14px;
-		border-radius: 50%;
-		background: var(--accent-strong);
-		box-shadow: 0 0 0 8px rgba(122, 234, 244, 0.12);
-		animation: pulse 2.2s infinite;
+	.world-bar {
+		width: 100%;
+		height: 1px;
+		background: rgba(255, 255, 255, 0.12);
 	}
 
-	.glow.a {
-		top: 34%;
-		left: 28%;
-	}
-
-	.glow.b {
-		top: 52%;
-		left: 64%;
-		animation-delay: 0.8s;
-	}
-
-	.grid-line {
-		position: absolute;
-		inset: 0;
-		background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-			linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-		background-size: 32px 32px;
-		opacity: 0.35;
+	.world-fill {
+		height: 100%;
+		background: var(--primary);
+		width: 0%;
+		transition: width 0.9s ease;
 	}
 
 	.stats {
 		display: grid;
 		grid-template-columns: repeat(4, 1fr);
-		gap: 0.75rem;
-		margin-bottom: 1.1rem;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 1rem 0;
+		border-top: 1px solid rgba(255, 255, 255, 0.08);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+		margin-bottom: 2rem;
 	}
 
 	.stat {
-		padding: 1rem 0.8rem;
-		border-radius: var(--radius-lg);
 		text-align: center;
 	}
 
-	.stat span {
-		display: block;
-		font-size: 1.45rem;
-		font-weight: 800;
-		color: var(--accent-strong);
-		margin-bottom: 0.25rem;
+	.stat p {
+		font-size: 1.05rem;
+		font-weight: 700;
 	}
 
-	small {
+	.stat span {
+		font-size: 0.55rem;
+		text-transform: uppercase;
+		letter-spacing: 0.2em;
 		color: var(--text-secondary);
+	}
+
+	.divider {
+		width: 1px;
+		height: 2rem;
+		background: rgba(255, 255, 255, 0.08);
 	}
 
 	.history-head {
 		display: flex;
-		justify-content: space-between;
 		align-items: center;
-		margin-bottom: 0.8rem;
+		justify-content: space-between;
+		margin-bottom: 1.5rem;
 	}
 
-	.history {
-		display: grid;
-		gap: 0.8rem;
+	.history-head h3 {
+		font-size: 0.8rem;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		font-weight: 700;
+	}
+
+	.map-btn {
+		font-size: 0.75rem;
+		color: var(--primary);
+		font-weight: 600;
+	}
+
+	.history-list {
+		display: flex;
+		flex-direction: column;
+		gap: 1.5rem;
+		padding-bottom: 2rem;
 	}
 
 	.history-item {
-		display: grid;
-		grid-template-columns: 68px minmax(0, 1fr) auto;
+		display: flex;
 		align-items: center;
-		gap: 0.85rem;
-		padding: 0.75rem;
-		border-radius: var(--radius-xl);
+		gap: 1rem;
 	}
 
-	.history-item img,
-	.thumb-placeholder {
-		width: 68px;
-		height: 68px;
-		border-radius: 16px;
-		object-fit: cover;
-	}
-
-	.thumb-placeholder {
-		background: linear-gradient(135deg, rgba(32, 146, 186, 0.45), rgba(13, 52, 96, 0.9));
-	}
-
-	.history-copy {
-		min-width: 0;
-	}
-
-	.history-copy strong,
-	.history-copy p,
-	.history-copy small {
-		display: block;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
+	.history-thumb {
+		width: 3rem;
+		height: 3rem;
+		border-radius: 0.5rem;
+		background-size: cover;
+		background-position: center;
+		background-color: rgba(255, 255, 255, 0.08);
 	}
 
 	.history-copy p {
+		font-weight: 600;
+	}
+
+	.history-copy span {
+		font-size: 0.75rem;
 		color: var(--text-secondary);
-		margin: 0.2rem 0;
 	}
 
-	.chevron {
-		font-size: 1.5rem;
-		color: var(--text-muted);
-	}
-
-	@keyframes pulse {
-		0%, 100% {
-			transform: scale(1);
-			opacity: 0.8;
-		}
-		50% {
-			transform: scale(1.25);
-			opacity: 1;
-		}
-	}
-
-	@media (max-width: 640px) {
-		.stats {
-			grid-template-columns: repeat(2, 1fr);
-		}
+	.state {
+		padding: 1rem;
+		background: rgba(255, 255, 255, 0.04);
+		border-radius: 12px;
+		text-align: center;
+		color: var(--text-secondary);
 	}
 </style>

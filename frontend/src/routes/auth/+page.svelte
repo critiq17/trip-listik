@@ -19,7 +19,7 @@
 
 <section class="auth">
 	<div class="orb"></div>
-	<div class="logo">Wandr</div>
+	<div class="logo">TripListik</div>
 	<p class="tag">Telegram Mini App</p>
 	<p class="muted">{status}</p>
 	{#if error}
@@ -44,8 +44,8 @@
 		margin: 0 auto 0.2rem;
 		background:
 			radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.9), transparent 25%),
-			var(--accent-grad);
-		box-shadow: var(--shadow-glow);
+			var(--primary);
+		box-shadow: 0 12px 30px rgba(77, 157, 109, 0.45);
 	}
 
 	.logo {
@@ -55,7 +55,7 @@
 	}
 
 	.tag {
-		color: var(--accent-strong);
+		color: var(--primary);
 		font-size: 0.78rem;
 		font-weight: 700;
 		letter-spacing: 0.12em;
@@ -63,6 +63,6 @@
 	}
 
 	.error {
-		color: var(--danger);
+		color: #e11d48;
 	}
 </style>
