@@ -3,6 +3,10 @@
   --background-light: #f6f7f7;
   --background-dark: #161c18;
 
+  --error: #e11d48;
+  --warning: #f97316;
+  --success: var(--primary);
+
   --text-primary: #f1f5f2;
   --text-secondary: #9aa4a1;
   --text-muted: #6f7a75;

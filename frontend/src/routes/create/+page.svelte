@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { apiFetch } from '$lib/api';
 	import { setDraft } from '$lib/tripDraft';
 	import { scalePress } from '$lib/actions/animate';
+	import { apiFetch } from '$lib/api';
+	import { onDestroy } from 'svelte';
 
 	let title = '';
 	let destination = '';
@@ -19,8 +20,13 @@
 		const target = event.currentTarget as HTMLInputElement;
 		const file = target.files?.[0];
 		if (!file) return;
+		if (coverPhotoPreview) URL.revokeObjectURL(coverPhotoPreview);
 		coverPhotoPreview = URL.createObjectURL(file);
 	};
+
+	onDestroy(() => {
+		if (coverPhotoPreview) URL.revokeObjectURL(coverPhotoPreview);
+	});
 
 	const next = async () => {
 		if (!title.trim()) {

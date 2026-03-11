@@ -5,6 +5,7 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { ensureAuth } from '$lib/auth';
+	import { pageEnter } from '$lib/transitions';
 
 	let { children } = $props();
 
@@ -19,7 +20,11 @@
 </svelte:head>
 
 <div class="app">
-	{@render children()}
+	{#key $page.url.pathname}
+		<div use:pageEnter>
+			{@render children()}
+		</div>
+	{/key}
 	{#if $page.url.pathname !== '/auth'}
 		{#if !$page.url.pathname.startsWith('/create')}
 			<BottomNav />

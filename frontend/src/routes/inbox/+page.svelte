@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { apiFetch } from '$lib/api';
+	import { staggerList } from '$lib/actions/animate';
 	import { formatRelativeDate, parseNotificationPayload } from '$lib/format';
 	import type { InviteItem, NotificationItem } from '$lib/types';
 
@@ -47,11 +48,15 @@
 	});
 
 	const respondInvite = async (inviteId: string, action: 'accept' | 'decline', comment?: string) => {
-		await apiFetch(`/v1/invites/${inviteId}/respond`, {
-			method: 'POST',
-			body: JSON.stringify({ action, comment })
-		});
-		invites = invites.filter((inv) => inv.id !== inviteId);
+		try {
+			await apiFetch(`/v1/invites/${inviteId}/respond`, {
+				method: 'POST',
+				body: JSON.stringify({ action, comment })
+			});
+			invites = invites.filter((inv) => inv.id !== inviteId);
+		} catch (err) {
+			error = err instanceof Error ? err.message : `Failed to ${action} invite`;
+		}
 	};
 </script>
 
@@ -62,7 +67,7 @@
 		<p class="subtle">Real notifications from the backend, ordered by latest activity.</p>
 	</header>
 
-	<div class="list">
+	<div class="list" use:staggerList>
 		{#if loading}
 			<div class="card glass">Loading updates...</div>
 		{:else if error}
@@ -70,7 +75,7 @@
 		{:else}
 			{#if invites.length > 0}
 				{#each invites as inv}
-					<div class="card glass invite-card">
+					<div class="card glass invite-card" data-item>
 						<div class="row">
 							<strong>Invite</strong>
 							<span class="pill">{inv.status}</span>
@@ -90,7 +95,7 @@
 				<div class="card glass">No notifications yet</div>
 			{:else}
 				{#each items as item}
-					<div class="card glass">
+					<div class="card glass" data-item>
 						<div class="row">
 							<strong>{typeLabels[item.type] ?? item.type}</strong>
 							<span class:unread={!item.read_at}>{item.read_at ? 'Read' : 'New'}</span>
