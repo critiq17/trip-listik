@@ -52,3 +52,16 @@ func (s *Store) GetUserByID(ctx context.Context, userID uuid.UUID) (*models.User
 	}
 	return &user, nil
 }
+
+func (s *Store) UpdateUserProfile(ctx context.Context, userID uuid.UUID, bio string, isPublic bool) (*models.User, error) {
+	if err := s.DB.WithContext(ctx).
+		Model(&models.User{}).
+		Where("id = ?", userID).
+		Updates(map[string]any{
+			"bio":       bio,
+			"is_public": isPublic,
+		}).Error; err != nil {
+		return nil, err
+	}
+	return s.GetUserByID(ctx, userID)
+}

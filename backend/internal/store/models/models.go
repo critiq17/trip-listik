@@ -13,6 +13,8 @@ type User struct {
 	FirstName  string    `json:"first_name"`
 	LastName   string    `json:"last_name"`
 	PhotoURL   string    `json:"photo_url"`
+	Bio        string    `json:"bio"`
+	IsPublic   bool      `json:"is_public"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
 }
@@ -57,6 +59,7 @@ type TripInvite struct {
 	InvitedUserID   uuid.UUID `gorm:"type:uuid;index" json:"invited_user_id"`
 	InvitedByUserID uuid.UUID `gorm:"type:uuid;index" json:"invited_by_user_id"`
 	Status          string    `json:"status"`
+	Comment         *string   `json:"comment"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 }
@@ -103,6 +106,15 @@ type UserStats struct {
 	TripsWithFriends int       `json:"trips_with_friends"`
 	SoloTrips        int       `json:"solo_trips"`
 	UpdatedAt        time.Time `json:"updated_at"`
+}
+
+type UserWishlistItem struct {
+	ID          uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	UserID      uuid.UUID `gorm:"type:uuid;index" json:"user_id"`
+	CountryCode string    `json:"country_code"`
+	City        string    `json:"city"`
+	Note        string    `json:"note"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 type Notification struct {

@@ -2,9 +2,10 @@
 	import { onMount } from 'svelte';
 	import { apiFetch } from '$lib/api';
 	import { formatRelativeDate, parseNotificationPayload } from '$lib/format';
-	import type { NotificationItem } from '$lib/types';
+	import type { InviteItem, NotificationItem } from '$lib/types';
 
 	let items: NotificationItem[] = [];
+	let invites: InviteItem[] = [];
 	let loading = true;
 	let error = '';
 
@@ -35,14 +36,23 @@
 
 	onMount(async () => {
 		try {
-			const data = await apiFetch<{ items: NotificationItem[] }>('/v1/inbox');
+			const data = await apiFetch<{ items: NotificationItem[]; invites?: InviteItem[] }>('/v1/inbox');
 			items = data.items ?? [];
+			invites = data.invites ?? [];
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load inbox';
 		} finally {
 			loading = false;
 		}
 	});
+
+	const respondInvite = async (inviteId: string, action: 'accept' | 'decline', comment?: string) => {
+		await apiFetch(`/v1/invites/${inviteId}/respond`, {
+			method: 'POST',
+			body: JSON.stringify({ action, comment })
+		});
+		invites = invites.filter((inv) => inv.id !== inviteId);
+	};
 </script>
 
 <section class="container">
@@ -57,19 +67,39 @@
 			<div class="card glass">Loading updates...</div>
 		{:else if error}
 			<div class="card glass">{error}</div>
-		{:else if items.length === 0}
-			<div class="card glass">No notifications yet</div>
 		{:else}
-			{#each items as item}
-				<div class="card glass">
-					<div class="row">
-						<strong>{typeLabels[item.type] ?? item.type}</strong>
-						<span class:unread={!item.read_at}>{item.read_at ? 'Read' : 'New'}</span>
+			{#if invites.length > 0}
+				{#each invites as inv}
+					<div class="card glass invite-card">
+						<div class="row">
+							<strong>Invite</strong>
+							<span class="pill">{inv.status}</span>
+						</div>
+						<p class="message">
+							{inv.inviter_username ? `@${inv.inviter_username}` : 'A friend'} invited you to
+							{inv.trip_title ? ` ${inv.trip_title}` : ' a trip'}
+						</p>
+						<div class="actions">
+							<button class="accept" onclick={() => respondInvite(inv.id, 'accept')}>Accept</button>
+							<button class="decline" onclick={() => respondInvite(inv.id, 'decline')}>Decline</button>
+						</div>
 					</div>
-					<p class="message">{describe(item)}</p>
-					<p class="muted">{formatRelativeDate(item.created_at)}</p>
-				</div>
-			{/each}
+				{/each}
+			{/if}
+			{#if items.length === 0 && invites.length === 0}
+				<div class="card glass">No notifications yet</div>
+			{:else}
+				{#each items as item}
+					<div class="card glass">
+						<div class="row">
+							<strong>{typeLabels[item.type] ?? item.type}</strong>
+							<span class:unread={!item.read_at}>{item.read_at ? 'Read' : 'New'}</span>
+						</div>
+						<p class="message">{describe(item)}</p>
+						<p class="muted">{formatRelativeDate(item.created_at)}</p>
+					</div>
+				{/each}
+			{/if}
 		{/if}
 	</div>
 </section>
@@ -114,6 +144,38 @@
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.08em;
+	}
+
+	.invite-card {
+		display: grid;
+		gap: 0.6rem;
+	}
+
+	.actions {
+		display: flex;
+		gap: 0.6rem;
+	}
+
+	.actions button {
+		flex: 1;
+		padding: 0.5rem 0.75rem;
+		border-radius: var(--radius-pill);
+		font-weight: 700;
+	}
+
+	.accept {
+		background: var(--primary);
+		color: #0b120f;
+	}
+
+	.decline {
+		background: rgba(255, 255, 255, 0.08);
+		color: var(--text-secondary);
+	}
+
+	.pill {
+		background: rgba(77, 157, 109, 0.15);
+		color: var(--primary);
 	}
 
 	.unread {

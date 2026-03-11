@@ -23,12 +23,17 @@ func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 	streamHandler := &handlers.StreamHandler{Hub: hub}
 	profileHandler := &handlers.ProfileHandler{Store: store}
 	inboxHandler := &handlers.InboxHandler{Store: store}
+	invitesHandler := &handlers.InvitesHandler{Store: store}
+	usersHandler := &handlers.UsersHandler{Store: store}
+	wishlistHandler := &handlers.WishlistHandler{Store: store}
+	publicProfileHandler := &handlers.PublicProfileHandler{Store: store}
 
 	v1.Post("/auth/telegram", authHandler.TelegramAuth)
 	v1.Post("/auth/refresh", authHandler.Refresh)
 	v1.Get("/feed", feedHandler.Feed)
 	v1.Get("/explore", feedHandler.Explore)
 	v1.Get("/trips/:id", tripsHandler.GetTrip)
+	v1.Get("/users/:id/profile", publicProfileHandler.GetPublicProfile)
 	v1.Get("/trips/:id/stream", middleware.RequireAuthQuery(cfg), streamHandler.TripStream)
 
 	protected := v1.Group("", middleware.RequireAuth(cfg))
@@ -53,10 +58,19 @@ func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 	protected.Post("/trips/:id/photos/presign", photosHandler.PresignUpload)
 	protected.Post("/trips/:id/photos", photosHandler.CreatePhoto)
 	protected.Delete("/trips/:id/photos/:photoId", photosHandler.DeletePhoto)
+	protected.Post("/trips/:id/invite", invitesHandler.InviteUser)
+	protected.Get("/trips/:id/invites", invitesHandler.ListTripInvites)
+	protected.Post("/invites/:id/respond", invitesHandler.RespondInvite)
+	protected.Get("/users/search", usersHandler.Search)
 
 	protected.Get("/me", profileHandler.Me)
+	protected.Patch("/me", profileHandler.Update)
 	protected.Get("/me/stats", profileHandler.Stats)
 	protected.Get("/me/world", profileHandler.World)
+	protected.Get("/me/map", profileHandler.Map)
+	protected.Get("/me/wishlist", wishlistHandler.List)
+	protected.Post("/me/wishlist", wishlistHandler.Create)
+	protected.Delete("/me/wishlist/:id", wishlistHandler.Delete)
 
 	protected.Get("/inbox", inboxHandler.ListInbox)
 }

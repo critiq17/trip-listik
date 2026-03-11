@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -12,6 +13,12 @@ type UserStatsSummary struct {
 	CitiesVisited    int64
 	TripsWithFriends int64
 	SoloTrips        int64
+}
+
+type CountryVisit struct {
+	Code       string    `json:"code"`
+	VisitCount int64     `json:"visit_count"`
+	LastVisit  time.Time `json:"last_visit"`
 }
 
 func (s *Store) ComputeUserStats(ctx context.Context, userID uuid.UUID) (*UserStatsSummary, error) {
@@ -43,4 +50,22 @@ func (s *Store) ComputeUserStats(ctx context.Context, userID uuid.UUID) (*UserSt
 	}
 
 	return &stats, nil
+}
+
+func (s *Store) GetUserCountryVisits(ctx context.Context, userID uuid.UUID) ([]CountryVisit, error) {
+	var rows []CountryVisit
+	if err := s.DB.WithContext(ctx).Raw(`
+		SELECT
+			t.country_code AS code,
+			COUNT(*) AS visit_count,
+			MAX(COALESCE(t.end_date, t.start_date, t.created_at)) AS last_visit
+		FROM trips t
+		JOIN trip_members tm ON tm.trip_id = t.id
+		WHERE tm.user_id = ? AND t.country_code IS NOT NULL AND t.country_code <> '' AND t.deleted_at IS NULL
+		GROUP BY t.country_code
+		ORDER BY visit_count DESC, last_visit DESC
+	`, userID).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
 }
