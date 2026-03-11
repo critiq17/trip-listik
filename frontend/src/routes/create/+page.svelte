@@ -75,7 +75,7 @@
 
 			<div class="field">
 				<label for="cover-photo">Cover Photo</label>
-				<button type="button" class="upload" on:click={pickPhoto}>
+				<button type="button" class="upload" onclick={pickPhoto}>
 					{#if coverPhotoPreview}
 						<img src={coverPhotoPreview} alt="Cover preview" />
 					{:else}
@@ -91,7 +91,7 @@
 					type="file"
 					accept="image/*"
 					bind:this={fileInput}
-					on:change={onFile}
+					onchange={onFile}
 				/>
 			</div>
 			{#if error}
@@ -100,7 +100,7 @@
 		</div>
 
 		<div class="actions">
-			<button use:scalePress on:click={next} disabled={creating}>
+			<button use:scalePress onclick={next} disabled={creating}>
 				{creating ? 'Saving…' : 'Continue'}
 				<span class="material-symbols-outlined">arrow_forward</span>
 			</button>

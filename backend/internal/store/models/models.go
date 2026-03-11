@@ -13,6 +13,8 @@ type User struct {
 	FirstName  string    `json:"first_name"`
 	LastName   string    `json:"last_name"`
 	PhotoURL   string    `json:"photo_url"`
+	Bio        string    `json:"bio"`
+	IsPublic   bool      `json:"is_public"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
 }
@@ -57,6 +59,7 @@ type TripInvite struct {
 	InvitedUserID   uuid.UUID `gorm:"type:uuid;index" json:"invited_user_id"`
 	InvitedByUserID uuid.UUID `gorm:"type:uuid;index" json:"invited_by_user_id"`
 	Status          string    `json:"status"`
+	Comment         *string   `json:"comment"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 }
@@ -105,6 +108,15 @@ type UserStats struct {
 	UpdatedAt        time.Time `json:"updated_at"`
 }
 
+type UserWishlistItem struct {
+	ID          uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	UserID      uuid.UUID `gorm:"type:uuid;index" json:"user_id"`
+	CountryCode string    `json:"country_code"`
+	City        string    `json:"city"`
+	Note        string    `json:"note"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
 type Notification struct {
 	ID        uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 	UserID    uuid.UUID  `gorm:"type:uuid;index" json:"user_id"`
@@ -114,4 +126,14 @@ type Notification struct {
 	Payload   []byte     `gorm:"type:jsonb" json:"payload"`
 	ReadAt    *time.Time `json:"read_at"`
 	CreatedAt time.Time  `json:"created_at"`
+}
+
+type RefreshToken struct {
+	ID         uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	UserID     uuid.UUID  `gorm:"type:uuid;index" json:"user_id"`
+	TokenHash  string     `gorm:"uniqueIndex" json:"-"`
+	ExpiresAt  time.Time  `json:"expires_at"`
+	CreatedAt  time.Time  `json:"created_at"`
+	LastUsedAt *time.Time `json:"last_used_at"`
+	RevokedAt  *time.Time `json:"revoked_at"`
 }

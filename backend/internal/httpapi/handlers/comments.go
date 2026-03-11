@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/critiq17/tripListik/internal/httpapi/middleware"
+	"github.com/critiq17/tripListik/internal/httpapi/validate"
 	"github.com/critiq17/tripListik/internal/realtime"
 	"github.com/critiq17/tripListik/internal/store"
 	"github.com/critiq17/tripListik/internal/store/models"
@@ -18,7 +19,7 @@ type CommentsHandler struct {
 }
 
 type createCommentRequest struct {
-	Body string `json:"body"`
+	Body string `json:"body" validate:"required"`
 }
 
 func (h *CommentsHandler) ListComments(c *fiber.Ctx) error {
@@ -31,7 +32,7 @@ func (h *CommentsHandler) ListComments(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnauthorized, "unauthorized")
 	}
 
-	_, allowed, err := ensureTripAccess(h.Store, tripID, &userID)
+	_, allowed, err := ensureTripAccess(c.Context(), h.Store, tripID, &userID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to load trip")
 	}
@@ -53,7 +54,7 @@ func (h *CommentsHandler) ListComments(c *fiber.Ctx) error {
 		cursor = parsed
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 	defer cancel()
 
 	comments, err := h.Store.ListCommentsWithUsers(ctx, tripID, limit, cursor)
@@ -75,7 +76,7 @@ func (h *CommentsHandler) CreateComment(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid trip id")
 	}
 
-	_, allowed, err := ensureTripAccess(h.Store, tripID, &userID)
+	_, allowed, err := ensureTripAccess(c.Context(), h.Store, tripID, &userID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to load trip")
 	}
@@ -87,11 +88,11 @@ func (h *CommentsHandler) CreateComment(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
 	}
-	if req.Body == "" {
+	if err := validate.Struct(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "body is required")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 	defer cancel()
 
 	comment := &models.TripComment{

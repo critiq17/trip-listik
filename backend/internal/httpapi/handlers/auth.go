@@ -6,6 +6,7 @@ import (
 
 	"github.com/critiq17/tripListik/internal/auth"
 	"github.com/critiq17/tripListik/internal/config"
+	"github.com/critiq17/tripListik/internal/httpapi/validate"
 	"github.com/critiq17/tripListik/internal/store"
 	"github.com/critiq17/tripListik/internal/store/models"
 	"github.com/gofiber/fiber/v2"
@@ -17,12 +18,13 @@ type AuthHandler struct {
 }
 
 type telegramAuthRequest struct {
-	InitData string `json:"initData"`
+	InitData string `json:"initData" validate:"required"`
 }
 
 type telegramAuthResponse struct {
-	Token string       `json:"token"`
-	User  userResponse `json:"user"`
+	Token        string       `json:"token"`
+	RefreshToken string       `json:"refresh_token"`
+	User         userResponse `json:"user"`
 }
 
 type userResponse struct {
@@ -34,12 +36,26 @@ type userResponse struct {
 	PhotoURL   string `json:"photo_url"`
 }
 
+type refreshRequest struct {
+	RefreshToken string `json:"refresh_token" validate:"required"`
+}
+
+type refreshResponse struct {
+	Token        string `json:"token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+const (
+	accessTokenTTL  = 2 * time.Hour
+	refreshTokenTTL = 30 * 24 * time.Hour
+)
+
 func (h *AuthHandler) TelegramAuth(c *fiber.Ctx) error {
 	var req telegramAuthRequest
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
 	}
-	if req.InitData == "" {
+	if err := validate.Struct(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "initData is required")
 	}
 
@@ -48,7 +64,7 @@ func (h *AuthHandler) TelegramAuth(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnauthorized, "invalid telegram init data")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 	defer cancel()
 
 	user := &models.User{
@@ -64,13 +80,19 @@ func (h *AuthHandler) TelegramAuth(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to upsert user")
 	}
 
-	token, err := auth.NewToken(stored.ID, stored.TelegramID, h.Cfg.JWTSecret, 30*24*time.Hour)
+	token, err := auth.NewToken(stored.ID, stored.TelegramID, h.Cfg.JWTSecret, accessTokenTTL)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to generate token")
 	}
 
+	refreshToken, err := h.Store.CreateRefreshToken(ctx, stored.ID, refreshTokenTTL)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "failed to generate refresh token")
+	}
+
 	resp := telegramAuthResponse{
-		Token: token,
+		Token:        token,
+		RefreshToken: refreshToken,
 		User: userResponse{
 			ID:         stored.ID.String(),
 			TelegramID: stored.TelegramID,
@@ -82,4 +104,40 @@ func (h *AuthHandler) TelegramAuth(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(resp)
+}
+
+func (h *AuthHandler) Refresh(c *fiber.Ctx) error {
+	var req refreshRequest
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
+	}
+	if err := validate.Struct(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "refresh_token is required")
+	}
+
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
+	defer cancel()
+
+	userID, newRefreshToken, err := h.Store.RotateRefreshToken(ctx, req.RefreshToken, refreshTokenTTL)
+	if err != nil {
+		if err == store.ErrInvalidRefreshToken {
+			return fiber.NewError(fiber.StatusUnauthorized, "invalid refresh token")
+		}
+		return fiber.NewError(fiber.StatusInternalServerError, "failed to refresh token")
+	}
+
+	user, err := h.Store.GetUserByID(ctx, userID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "failed to load user")
+	}
+
+	token, err := auth.NewToken(user.ID, user.TelegramID, h.Cfg.JWTSecret, accessTokenTTL)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "failed to generate token")
+	}
+
+	return c.JSON(refreshResponse{
+		Token:        token,
+		RefreshToken: newRefreshToken,
+	})
 }

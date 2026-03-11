@@ -1,0 +1,5 @@
+ALTER TABLE users
+  DROP COLUMN IF EXISTS bio,
+  DROP COLUMN IF EXISTS is_public;
+
+DROP TABLE IF EXISTS user_wishlist;

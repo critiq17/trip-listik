@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#4d9d6d",
+                        "background-light": "#f6f7f7",
+                        "background-dark": "#161c18",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<title>TripListik - Create Trip Step 2</title>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen flex flex-col">
+<!-- Header Section -->
+<header class="flex items-center p-4 justify-between border-b border-primary/10 bg-background-light dark:bg-background-dark sticky top-0 z-50">
+<button class="flex size-10 items-center justify-center rounded-full hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-slate-700 dark:text-slate-300">arrow_back</span>
+</button>
+<h2 class="text-lg font-bold leading-tight tracking-tight flex-1 text-center pr-10">Create Trip</h2>
+</header>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col p-4 max-w-md mx-auto w-full">
+<!-- Progress Bar -->
+<div class="flex flex-col gap-3 py-4">
+<div class="flex justify-between items-end">
+<p class="text-primary font-bold text-sm uppercase tracking-wider">Step 2 of 3</p>
+<p class="text-slate-500 dark:text-slate-400 text-xs font-medium">66% Complete</p>
+</div>
+<div class="h-2 w-full rounded-full bg-slate-200 dark:bg-primary/10 overflow-hidden">
+<div class="h-full bg-primary rounded-full transition-all duration-500" style="width: 66%;"></div>
+</div>
+</div>
+<!-- Headline -->
+<h1 class="text-2xl font-bold mt-4 mb-6 leading-tight">When does the journey begin?</h1>
+<!-- Date Inputs -->
+<div class="grid grid-cols-2 gap-4 mb-8">
+<div class="relative group">
+<p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-tighter mb-1 ml-1">From</p>
+<div class="flex items-center border-b-2 border-primary/30 group-focus-within:border-primary transition-colors py-2 px-1">
+<span class="material-symbols-outlined text-primary text-xl mr-2">calendar_today</span>
+<input class="bg-transparent border-none p-0 focus:ring-0 text-base font-medium w-full" readonly="" type="text" value="Oct 12, 2023"/>
+</div>
+</div>
+<div class="relative group">
+<p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-tighter mb-1 ml-1">To</p>
+<div class="flex items-center border-b-2 border-primary/30 group-focus-within:border-primary transition-colors py-2 px-1">
+<span class="material-symbols-outlined text-primary text-xl mr-2">event</span>
+<input class="bg-transparent border-none p-0 focus:ring-0 text-base font-medium w-full" readonly="" type="text" value="Oct 18, 2023"/>
+</div>
+</div>
+</div>
+<!-- Floating Calendar UI -->
+<div class="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-primary/20 rounded-xl p-4 shadow-xl mb-8">
+<div class="flex items-center justify-between mb-4">
+<button class="material-symbols-outlined text-slate-400">chevron_left</button>
+<h3 class="font-bold text-sm">October 2023</h3>
+<button class="material-symbols-outlined text-slate-400">chevron_right</button>
+</div>
+<div class="grid grid-cols-7 text-center text-[10px] font-bold text-slate-400 mb-2">
+<span>SU</span><span>MO</span><span>TU</span><span>WE</span><span>TH</span><span>FR</span><span>SA</span>
+</div>
+<div class="grid grid-cols-7 text-center gap-y-1">
+<span class="text-xs py-2 text-slate-400">1</span>
+<span class="text-xs py-2 text-slate-400">2</span>
+<span class="text-xs py-2 text-slate-400">3</span>
+<span class="text-xs py-2 text-slate-400">4</span>
+<span class="text-xs py-2 text-slate-400">5</span>
+<span class="text-xs py-2 text-slate-400">6</span>
+<span class="text-xs py-2 text-slate-400">7</span>
+<span class="text-xs py-2">8</span>
+<span class="text-xs py-2">9</span>
+<span class="text-xs py-2">10</span>
+<span class="text-xs py-2">11</span>
+<!-- Selection Range Start -->
+<div class="bg-primary/20 rounded-l-lg relative">
+<span class="relative z-10 text-xs py-2 bg-primary text-white flex items-center justify-center h-full rounded-lg">12</span>
+</div>
+<div class="bg-primary/20">
+<span class="text-xs py-2 flex items-center justify-center h-full">13</span>
+</div>
+<div class="bg-primary/20">
+<span class="text-xs py-2 flex items-center justify-center h-full">14</span>
+</div>
+<div class="bg-primary/20">
+<span class="text-xs py-2 flex items-center justify-center h-full">15</span>
+</div>
+<div class="bg-primary/20">
+<span class="text-xs py-2 flex items-center justify-center h-full">16</span>
+</div>
+<div class="bg-primary/20">
+<span class="text-xs py-2 flex items-center justify-center h-full">17</span>
+</div>
+<!-- Selection Range End -->
+<div class="bg-primary/20 rounded-r-lg relative">
+<span class="relative z-10 text-xs py-2 bg-primary text-white flex items-center justify-center h-full rounded-lg">18</span>
+</div>
+<span class="text-xs py-2">19</span>
+<span class="text-xs py-2">20</span>
+<span class="text-xs py-2">21</span>
+<span class="text-xs py-2">22</span>
+<span class="text-xs py-2">23</span>
+<span class="text-xs py-2">24</span>
+<span class="text-xs py-2">25</span>
+<span class="text-xs py-2">26</span>
+<span class="text-xs py-2">27</span>
+<span class="text-xs py-2">28</span>
+<span class="text-xs py-2">29</span>
+<span class="text-xs py-2">30</span>
+<span class="text-xs py-2">31</span>
+</div>
+</div>
+<!-- Visibility Toggle -->
+<div class="flex items-center justify-between p-4 bg-primary/5 dark:bg-primary/10 rounded-xl border border-primary/20 mb-8">
+<div class="flex flex-col">
+<span class="font-bold text-sm">Trip Visibility</span>
+<span class="text-xs text-slate-500 dark:text-slate-400">Who can see your itinerary?</span>
+</div>
+<div class="flex bg-slate-200 dark:bg-background-dark p-1 rounded-full relative w-32 h-10">
+<div class="absolute inset-y-1 left-1 w-[calc(50%-4px)] bg-primary rounded-full z-0 transition-transform"></div>
+<button class="flex-1 relative z-10 text-[11px] font-bold text-white uppercase">Public</button>
+<button class="flex-1 relative z-10 text-[11px] font-bold text-slate-400 uppercase">Private</button>
+</div>
+</div>
+<!-- Action Button -->
+<button class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 mb-10">
+            Continue
+            <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="sticky bottom-0 w-full border-t border-slate-200 dark:border-primary/10 bg-background-light dark:bg-background-dark px-4 pb-6 pt-2 z-50">
+<div class="flex items-center justify-between max-w-md mx-auto">
+<a class="flex flex-1 flex-col items-center gap-1 text-slate-400 dark:text-slate-500" href="#">
+<span class="material-symbols-outlined">home</span>
+<p class="text-[10px] font-semibold uppercase tracking-tighter">Home</p>
+</a>
+<a class="flex flex-1 flex-col items-center gap-1 text-slate-400 dark:text-slate-500" href="#">
+<span class="material-symbols-outlined">luggage</span>
+<p class="text-[10px] font-semibold uppercase tracking-tighter">Trips</p>
+</a>
+<a class="flex flex-1 flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined fill-1">add_circle</span>
+<p class="text-[10px] font-bold uppercase tracking-tighter">Create</p>
+</a>
+<a class="flex flex-1 flex-col items-center gap-1 text-slate-400 dark:text-slate-500" href="#">
+<span class="material-symbols-outlined">person</span>
+<p class="text-[10px] font-semibold uppercase tracking-tighter">Profile</p>
+</a>
+</div>
+</nav>
+</body></html>

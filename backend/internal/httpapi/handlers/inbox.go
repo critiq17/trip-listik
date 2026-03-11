@@ -34,7 +34,7 @@ func (h *InboxHandler) ListInbox(c *fiber.Ctx) error {
 		cursor = parsed
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 	defer cancel()
 
 	items, err := h.Store.ListNotifications(ctx, userID, limit, cursor)
@@ -42,5 +42,10 @@ func (h *InboxHandler) ListInbox(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to load inbox")
 	}
 
-	return c.JSON(fiber.Map{"items": items})
+	invites, err := h.Store.ListUserInvites(ctx, userID, limit)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "failed to load invites")
+	}
+
+	return c.JSON(fiber.Map{"items": items, "invites": invites})
 }

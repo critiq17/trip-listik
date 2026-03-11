@@ -17,6 +17,13 @@ func New(db *gorm.DB) *Store {
 	return &Store{DB: db}
 }
 
+func (s *Store) WithTx(tx *gorm.DB) *Store {
+	if tx == nil {
+		return s
+	}
+	return &Store{DB: tx}
+}
+
 func (s *Store) UpsertTelegramUser(ctx context.Context, u *models.User) (*models.User, error) {
 	if err := s.DB.WithContext(ctx).
 		Clauses(clause.OnConflict{
@@ -44,4 +51,17 @@ func (s *Store) GetUserByID(ctx context.Context, userID uuid.UUID) (*models.User
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (s *Store) UpdateUserProfile(ctx context.Context, userID uuid.UUID, bio string, isPublic bool) (*models.User, error) {
+	if err := s.DB.WithContext(ctx).
+		Model(&models.User{}).
+		Where("id = ?", userID).
+		Updates(map[string]any{
+			"bio":       bio,
+			"is_public": isPublic,
+		}).Error; err != nil {
+		return nil, err
+	}
+	return s.GetUserByID(ctx, userID)
 }

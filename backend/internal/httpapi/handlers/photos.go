@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/critiq17/tripListik/internal/httpapi/middleware"
+	"github.com/critiq17/tripListik/internal/httpapi/validate"
 	"github.com/critiq17/tripListik/internal/realtime"
 	"github.com/critiq17/tripListik/internal/store"
 	"github.com/critiq17/tripListik/internal/store/models"
@@ -22,12 +23,12 @@ type PhotosHandler struct {
 }
 
 type createPhotoRequest struct {
-	StoragePath string `json:"storage_path"`
-	URL         string `json:"url"`
+	StoragePath string `json:"storage_path" validate:"required"`
+	URL         string `json:"url" validate:"required,url"`
 }
 
 type presignRequest struct {
-	FileName    string `json:"file_name"`
+	FileName    string `json:"file_name" validate:"required"`
 	ContentType string `json:"content_type"`
 }
 
@@ -41,7 +42,7 @@ func (h *PhotosHandler) ListPhotos(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnauthorized, "unauthorized")
 	}
 
-	_, allowed, err := ensureTripAccess(h.Store, tripID, &userID)
+	_, allowed, err := ensureTripAccess(c.Context(), h.Store, tripID, &userID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to load trip")
 	}
@@ -52,11 +53,20 @@ func (h *PhotosHandler) ListPhotos(c *fiber.Ctx) error {
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
+	cursorStr := c.Query("cursor", "")
+	var cursor time.Time
+	if cursorStr != "" {
+		parsed, err := time.Parse(time.RFC3339Nano, cursorStr)
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid cursor")
+		}
+		cursor = parsed
+	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 	defer cancel()
 
-	photos, err := h.Store.ListPhotos(ctx, tripID, limit)
+	photos, err := h.Store.ListPhotos(ctx, tripID, limit, cursor)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to load photos")
 	}
@@ -75,7 +85,7 @@ func (h *PhotosHandler) CreatePhoto(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid trip id")
 	}
 
-	_, allowed, err := ensureTripAccess(h.Store, tripID, &userID)
+	_, allowed, err := ensureTripAccess(c.Context(), h.Store, tripID, &userID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to load trip")
 	}
@@ -87,11 +97,11 @@ func (h *PhotosHandler) CreatePhoto(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
 	}
-	if req.StoragePath == "" || req.URL == "" {
+	if err := validate.Struct(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "storage_path and url are required")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 	defer cancel()
 
 	photo := &models.TripPhoto{
@@ -126,7 +136,7 @@ func (h *PhotosHandler) DeletePhoto(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid photo id")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 	defer cancel()
 
 	if err := h.Store.DeletePhoto(ctx, photoID, userID); err != nil {
@@ -147,7 +157,7 @@ func (h *PhotosHandler) PresignUpload(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid trip id")
 	}
 
-	_, allowed, err := ensureTripAccess(h.Store, tripID, &userID)
+	_, allowed, err := ensureTripAccess(c.Context(), h.Store, tripID, &userID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to load trip")
 	}
@@ -159,7 +169,7 @@ func (h *PhotosHandler) PresignUpload(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
 	}
-	if req.FileName == "" {
+	if err := validate.Struct(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "file_name is required")
 	}
 

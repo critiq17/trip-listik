@@ -38,7 +38,7 @@
 
 <section class="step-three">
 	<header class="header">
-		<button class="round-btn" on:click={back} aria-label="Back">
+		<button class="round-btn" onclick={back} aria-label="Back">
 			<span class="material-symbols-outlined">arrow_back</span>
 		</button>
 		<h2>Create Trip</h2>
@@ -91,7 +91,7 @@
 		</div>
 
 		<div class="actions">
-			<button use:scalePress on:click={submit} disabled={loading}>
+			<button use:scalePress onclick={submit} disabled={loading}>
 				{loading ? 'Creating…' : 'Create Trip'}
 			</button>
 			{#if error}

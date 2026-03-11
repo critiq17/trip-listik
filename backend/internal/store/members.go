@@ -43,6 +43,25 @@ func (s *Store) GetTripMembersWithUsers(ctx context.Context, tripID uuid.UUID) (
 	return members, nil
 }
 
+func (s *Store) GetTripMembersWithUsersPaged(ctx context.Context, tripID uuid.UUID, limit int, cursor time.Time) ([]TripMemberView, error) {
+	var members []TripMemberView
+	q := s.DB.WithContext(ctx).
+		Table("trip_members tm").
+		Select(`tm.trip_id, tm.user_id, tm.role, tm.joined_at, u.username, u.first_name, u.last_name, u.photo_url`).
+		Joins("JOIN users u ON u.id = tm.user_id").
+		Where("tm.trip_id = ?", tripID)
+	if !cursor.IsZero() {
+		q = q.Where("tm.joined_at > ?", cursor)
+	}
+	if limit > 0 {
+		q = q.Limit(limit)
+	}
+	if err := q.Order("tm.joined_at ASC").Scan(&members).Error; err != nil {
+		return nil, err
+	}
+	return members, nil
+}
+
 func (s *Store) IsTripMember(ctx context.Context, tripID, userID uuid.UUID) (bool, error) {
 	var count int64
 	if err := s.DB.WithContext(ctx).Model(&models.TripMember{}).

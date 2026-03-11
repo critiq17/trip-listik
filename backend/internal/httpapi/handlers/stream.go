@@ -34,6 +34,8 @@ func (h *StreamHandler) TripStream(c *fiber.Ctx) error {
 
 		for {
 			select {
+			case <-c.Context().Done():
+				return
 			case ev, ok := <-ch:
 				if !ok {
 					return

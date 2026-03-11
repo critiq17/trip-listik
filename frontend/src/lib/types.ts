@@ -23,6 +23,8 @@ export type User = {
 	first_name?: string;
 	last_name?: string;
 	photo_url?: string;
+	bio?: string;
+	is_public?: boolean;
 };
 
 export type UserStats = {
@@ -31,6 +33,12 @@ export type UserStats = {
 	cities_visited: number;
 	trips_with_friends: number;
 	solo_trips: number;
+};
+
+export type CountryVisit = {
+	code: string;
+	visit_count: number;
+	last_visit: string;
 };
 
 export type Member = {
@@ -84,4 +92,29 @@ export type NotificationItem = {
 	payload?: string | Record<string, unknown> | null;
 	read_at?: string | null;
 	created_at: string;
+};
+
+export type UserSummary = {
+	id: string;
+	username?: string;
+	first_name?: string;
+	last_name?: string;
+	photo_url?: string;
+};
+
+export type InviteItem = {
+	id: string;
+	trip_id: string;
+	invited_user_id: string;
+	invited_by_user_id: string;
+	status: string;
+	comment?: string | null;
+	created_at: string;
+	updated_at: string;
+	trip_title?: string;
+	trip_cover_photo_url?: string;
+	inviter_username?: string;
+	inviter_first_name?: string;
+	inviter_last_name?: string;
+	inviter_photo_url?: string;
 };
