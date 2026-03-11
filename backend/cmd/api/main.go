@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,14 +16,21 @@ import (
 )
 
 func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+	slog.SetDefault(logger)
+
 	cfg := config.LoadConfig()
 	if err := cfg.ValidateAPI(); err != nil {
-		log.Fatalf("config error: %v", err)
+		slog.Error("config error", "err", err)
+		os.Exit(1)
 	}
 
 	gormDB, sqlDB, err := db.Connect(cfg.DSN)
 	if err != nil {
-		log.Fatalf("db connect error: %v", err)
+		slog.Error("db connect error", "err", err)
+		os.Exit(1)
 	}
 	defer sqlDB.Close()
 
@@ -31,7 +38,8 @@ func main() {
 
 	go func() {
 		if err := app.Listen(cfg.HTTPAddr); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("server error: %v", err)
+			slog.Error("server error", "err", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -43,6 +51,7 @@ func main() {
 	defer cancel()
 
 	if err := app.ShutdownWithContext(ctx); err != nil {
-		log.Fatalf("shutdown error: %v", err)
+		slog.Error("shutdown error", "err", err)
+		os.Exit(1)
 	}
 }

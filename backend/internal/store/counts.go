@@ -27,6 +27,14 @@ type TripPhotoCount struct {
 	Count  int64
 }
 
+type TripAggregates struct {
+	MemberCount  int64
+	VoteCount    int64
+	VoteAverage  float64
+	CommentCount int64
+	PhotoCount   int64
+}
+
 func (s *Store) GetTripMemberCounts(ctx context.Context, tripIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
 	if len(tripIDs) == 0 {
 		return map[uuid.UUID]int64{}, nil
@@ -105,4 +113,19 @@ func (s *Store) GetTripPhotoCounts(ctx context.Context, tripIDs []uuid.UUID) (ma
 		out[r.TripID] = r.Count
 	}
 	return out, nil
+}
+
+func (s *Store) GetTripAggregates(ctx context.Context, tripID uuid.UUID) (*TripAggregates, error) {
+	var agg TripAggregates
+	if err := s.DB.WithContext(ctx).Raw(`
+		SELECT
+			(SELECT COUNT(*) FROM trip_members WHERE trip_id = ?) AS member_count,
+			(SELECT COUNT(*) FROM trip_votes WHERE trip_id = ?) AS vote_count,
+			(SELECT COALESCE(AVG(vote), 0) FROM trip_votes WHERE trip_id = ?) AS vote_average,
+			(SELECT COUNT(*) FROM trip_comments WHERE trip_id = ?) AS comment_count,
+			(SELECT COUNT(*) FROM trip_photos WHERE trip_id = ?) AS photo_count
+	`, tripID, tripID, tripID, tripID, tripID).Scan(&agg).Error; err != nil {
+		return nil, err
+	}
+	return &agg, nil
 }

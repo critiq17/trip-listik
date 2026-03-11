@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { formatDateRange } from '$lib/format';
 	import type { TripCardData } from '$lib/types';
-	export let trip: TripCardData;
+	let { trip }: { trip: TripCardData } = $props();
 </script>
 
 <a class="card" href={`/trips/${trip.id}`}>

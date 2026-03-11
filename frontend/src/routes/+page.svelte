@@ -9,15 +9,15 @@
 	import type { TripCardData } from '$lib/types';
 
 	const filters = ['All', 'Friends', 'Popular', 'Nearby'];
-	let active = 'All';
-	let items: TripCardData[] = [];
-	let loading = true;
-	let error = '';
-	let ready = false;
-	let cursor: string | null = null;
-	let loadingMore = false;
-	let hasMore = true;
-	let sentinel: HTMLDivElement | null = null;
+	let active = $state('All');
+	let items = $state<TripCardData[]>([]);
+	let loading = $state(true);
+	let error = $state('');
+	let ready = $state(false);
+	let cursor = $state<string | null>(null);
+	let loadingMore = $state(false);
+	let hasMore = $state(true);
+	let sentinel = $state<HTMLDivElement | null>(null);
 
 	const fetchFeed = async (mode: 'reset' | 'append' = 'reset') => {
 		if (mode === 'append' && (loadingMore || !hasMore)) return;
@@ -65,11 +65,13 @@
 		return observe();
 	});
 
-	$: if (ready && active) {
-		cursor = null;
-		hasMore = true;
-		fetchFeed('reset');
-	}
+	$effect(() => {
+		if (ready && active) {
+			cursor = null;
+			hasMore = true;
+			fetchFeed('reset');
+		}
+	});
 </script>
 
 <section class="feed-page">

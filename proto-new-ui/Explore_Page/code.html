@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TripListik - Explore</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#4d9d6d",
+                        "background-light": "#f6f7f7",
+                        "background-dark": "#161c18",
+                    },
+                    fontFamily: {
+                        "display": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-display">
+<header class="pt-8 px-6 pb-4">
+<div class="flex items-center justify-between mb-8">
+<span class="text-primary text-xs font-bold tracking-[0.2em] uppercase">Explore</span>
+<button class="text-slate-900 dark:text-slate-100">
+<span class="material-symbols-outlined">menu</span>
+</button>
+</div>
+<h1 class="text-3xl font-bold leading-tight mb-2">Find the next route.</h1>
+<p class="text-slate-600 dark:text-slate-400 text-sm">Search for destinations and itineraries.</p>
+</header>
+<main class="flex-1 px-6 space-y-8">
+<div class="space-y-6">
+<div class="relative">
+<label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Destination</label>
+<input class="w-full bg-transparent border-t-0 border-x-0 border-b border-slate-300 dark:border-slate-700 focus:ring-0 focus:border-primary px-0 py-3 text-lg placeholder:text-slate-400 dark:placeholder:text-slate-600 transition-colors" placeholder="Where to?" type="text"/>
+</div>
+<div class="relative">
+<label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Country Filter</label>
+<select class="w-full bg-transparent border-t-0 border-x-0 border-b border-slate-300 dark:border-slate-700 focus:ring-0 focus:border-primary px-0 py-3 text-lg appearance-none transition-colors">
+<option class="bg-background-dark">All Regions</option>
+<option class="bg-background-dark">Europe</option>
+<option class="bg-background-dark">Asia</option>
+<option class="bg-background-dark">North America</option>
+</select>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pt-4">
+<span class="material-symbols-outlined text-slate-400">expand_more</span>
+</div>
+</div>
+<button class="w-full bg-primary hover:bg-primary/90 text-white py-4 rounded-lg font-normal text-lg transition-all shadow-lg shadow-primary/20">
+                Search Destinations
+            </button>
+</div>
+<section class="pb-24">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-sm font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">Recommended Routes</h3>
+</div>
+<div class="space-y-4">
+<div class="relative group bg-slate-100 dark:bg-slate-800/50 rounded-xl overflow-hidden shadow-xl border border-slate-200 dark:border-slate-800">
+<div class="h-48 w-full bg-cover bg-center" data-alt="Breathtaking scenery of Iceland Ring Road landscape" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBMRi8iCnGp7NqxMJSwE9nVQ-TDTsyXDD6r8Few4repXTfbfVFj1IVTpLjo2xBIdLwJAJeFWFmOWKT30Yf6ssCvZZQ20fXN1DkVBX64g19LPBvFjEMwh4kjRjNNQnPnNtov-6x1xpq5w6L2zUBbU9nJeotR4agGONtJXXG3DhLRXTKOlBZSYH-AigAR9ucbAw0wogl8KPIHgeSup2nopyHAEzyNqHp9mHBcdyuXO53RL9AGXn1lqHm_iDv6VFv0fKkQQZ0N0DIfJJw')"></div>
+<div class="p-4">
+<div class="flex justify-between items-start mb-1">
+<h4 class="text-lg font-bold">Iceland Ring Road</h4>
+<span class="text-primary font-bold">$1,250</span>
+</div>
+<div class="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span>10 Days</span>
+<span class="mx-1">•</span>
+<span class="material-symbols-outlined text-sm">distance</span>
+<span>1,332 km</span>
+</div>
+</div>
+<button class="absolute top-4 right-4 bg-white/20 backdrop-blur-md p-2 rounded-full text-white">
+<span class="material-symbols-outlined">favorite</span>
+</button>
+</div>
+<div class="relative group bg-slate-100 dark:bg-slate-800/50 rounded-xl overflow-hidden shadow-xl border border-slate-200 dark:border-slate-800">
+<div class="h-48 w-full bg-cover bg-center" data-alt="Snow capped peaks of the Swiss Alps" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBEDj6yOINBJxeqishcPHMyoqDyjYV5HclGPk3GCeF9F_haAYTnAw9tU6UBZ4hhsaGKLy3UpnEdmoDs3Sot3noPEMNvmcJncto6E9y0FWT8V_oO0t_s-YmMr09gtNZsZlBbGOE7D8hUrQSL1AUoOF5llYxOiJTCyPcJCTACjDKuvWzdsBLKqhXpkzQ_Q3O-ByQi-VmCO3EJYzmlgC44oV_Ui7K2CDZMHOa0a6nCqQdQRKJBL-NODRNDNv7NdQ9adTsDNfs4F9oqmv4')"></div>
+<div class="p-4">
+<div class="flex justify-between items-start mb-1">
+<h4 class="text-lg font-bold">Swiss Alps</h4>
+<span class="text-primary font-bold">$2,100</span>
+</div>
+<div class="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span>7 Days</span>
+<span class="mx-1">•</span>
+<span class="material-symbols-outlined text-sm">mountain_flag</span>
+<span>High Altitude</span>
+</div>
+</div>
+<button class="absolute top-4 right-4 bg-white/20 backdrop-blur-md p-2 rounded-full text-white">
+<span class="material-symbols-outlined">favorite</span>
+</button>
+</div>
+</div>
+</section>
+</main>
+<nav class="fixed bottom-0 left-0 right-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 px-6 py-3">
+<div class="flex items-center justify-between max-w-md mx-auto">
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="text-[10px] font-medium uppercase tracking-tighter">Home</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1">explore</span>
+<span class="text-[10px] font-bold uppercase tracking-tighter">Explore</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">favorite</span>
+<span class="text-[10px] font-medium uppercase tracking-tighter">Saved</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="text-[10px] font-medium uppercase tracking-tighter">Profile</span>
+</a>
+</div>
+</nav>
+</body></html>

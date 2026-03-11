@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/critiq17/tripListik/internal/httpapi/middleware"
+	"github.com/critiq17/tripListik/internal/httpapi/validate"
 	"github.com/critiq17/tripListik/internal/store"
 	"github.com/critiq17/tripListik/internal/store/models"
 	"github.com/gofiber/fiber/v2"
@@ -17,7 +18,7 @@ type TripsHandler struct {
 }
 
 type createTripRequest struct {
-	Title         string `json:"title"`
+	Title         string `json:"title" validate:"required"`
 	Description   string `json:"description"`
 	StartDate     string `json:"start_date"`
 	EndDate       string `json:"end_date"`
@@ -50,7 +51,7 @@ func (h *TripsHandler) CreateTrip(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
 	}
-	if req.Title == "" {
+	if err := validate.Struct(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "title is required")
 	}
 
@@ -84,7 +85,7 @@ func (h *TripsHandler) CreateTrip(c *fiber.Ctx) error {
 		CoverPhotoURL: req.CoverPhotoURL,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), 3*time.Second)
 	defer cancel()
 
 	err := h.Store.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -107,7 +108,7 @@ func (h *TripsHandler) GetTrip(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid trip id")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), 3*time.Second)
 	defer cancel()
 
 	trip, err := h.Store.GetTripByID(ctx, id)
@@ -132,32 +133,18 @@ func (h *TripsHandler) GetTrip(c *fiber.Ctx) error {
 		}
 	}
 
-	memberCounts, err := h.Store.GetTripMemberCounts(ctx, []uuid.UUID{trip.ID})
+	agg, err := h.Store.GetTripAggregates(ctx, trip.ID)
 	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "failed to load members")
+		return fiber.NewError(fiber.StatusInternalServerError, "failed to load stats")
 	}
-	voteStats, err := h.Store.GetTripVoteStats(ctx, []uuid.UUID{trip.ID})
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "failed to load votes")
-	}
-	commentCounts, err := h.Store.GetTripCommentCounts(ctx, []uuid.UUID{trip.ID})
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "failed to load comments")
-	}
-	photoCounts, err := h.Store.GetTripPhotoCounts(ctx, []uuid.UUID{trip.ID})
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "failed to load photos")
-	}
-
-	vs := voteStats[trip.ID]
 
 	return c.JSON(fiber.Map{
 		"trip":          trip,
-		"member_count":  memberCounts[trip.ID],
-		"vote_count":    vs.Count,
-		"vote_average":  vs.Average,
-		"comment_count": commentCounts[trip.ID],
-		"photo_count":   photoCounts[trip.ID],
+		"member_count":  agg.MemberCount,
+		"vote_count":    agg.VoteCount,
+		"vote_average":  agg.VoteAverage,
+		"comment_count": agg.CommentCount,
+		"photo_count":   agg.PhotoCount,
 	})
 }
 
@@ -177,7 +164,7 @@ func (h *TripsHandler) UpdateTrip(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), 3*time.Second)
 	defer cancel()
 
 	trip, err := h.Store.GetTripByID(ctx, tripID)
@@ -246,35 +233,18 @@ func (h *TripsHandler) ListMyTrips(c *fiber.Ctx) error {
 	}
 	status := c.Query("status", "")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), 3*time.Second)
 	defer cancel()
 
-	trips, err := h.Store.ListUserTrips(ctx, userID)
+	trips, err := h.Store.ListUserTripsByStatus(ctx, userID, status)
 	if err != nil {
+		if err == gorm.ErrInvalidData {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid status")
+		}
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to list trips")
 	}
 
-	filtered := make([]models.Trip, 0, len(trips))
-	for _, t := range trips {
-		switch status {
-		case "upcoming":
-			if t.StartDate != nil && t.StartDate.After(time.Now()) {
-				filtered = append(filtered, t)
-			}
-		case "past":
-			if t.EndDate != nil && t.EndDate.Before(time.Now()) {
-				filtered = append(filtered, t)
-			}
-		case "draft":
-			if t.Status == "draft" {
-				filtered = append(filtered, t)
-			}
-		default:
-			filtered = append(filtered, t)
-		}
-	}
-
-	return c.JSON(fiber.Map{"items": filtered})
+	return c.JSON(fiber.Map{"items": trips})
 }
 
 func defaultString(v, fallback string) string {

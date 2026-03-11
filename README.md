@@ -2,7 +2,7 @@
 
 This repo is split into:
 
-- `backend/` Go API + bot + migrations
+- `backend/` Go API + migrations
 - `frontend/` SvelteKit Telegram Mini App
 
 ## Backend

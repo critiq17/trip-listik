@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/critiq17/tripListik/internal/httpapi/middleware"
+	"github.com/critiq17/tripListik/internal/httpapi/validate"
 	"github.com/critiq17/tripListik/internal/realtime"
 	"github.com/critiq17/tripListik/internal/store"
 	"github.com/gofiber/fiber/v2"
@@ -17,7 +18,7 @@ type VotesHandler struct {
 }
 
 type voteRequest struct {
-	Vote int16 `json:"vote"`
+	Vote int16 `json:"vote" validate:"required,gte=1,lte=5"`
 }
 
 func (h *VotesHandler) CastVote(c *fiber.Ctx) error {
@@ -31,7 +32,7 @@ func (h *VotesHandler) CastVote(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid trip id")
 	}
 
-	_, allowed, err := ensureTripAccess(h.Store, tripID, &userID)
+	_, allowed, err := ensureTripAccess(c.Context(), h.Store, tripID, &userID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to load trip")
 	}
@@ -43,11 +44,11 @@ func (h *VotesHandler) CastVote(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
 	}
-	if req.Vote < 1 || req.Vote > 5 {
+	if err := validate.Struct(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "vote must be between 1 and 5")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 	defer cancel()
 
 	if err := h.Store.UpsertVote(ctx, tripID, userID, req.Vote); err != nil {
@@ -79,7 +80,7 @@ func (h *VotesHandler) GetVotes(c *fiber.Ctx) error {
 	if !ok {
 		return fiber.NewError(fiber.StatusUnauthorized, "unauthorized")
 	}
-	_, allowed, err := ensureTripAccess(h.Store, tripID, &userID)
+	_, allowed, err := ensureTripAccess(c.Context(), h.Store, tripID, &userID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to load trip")
 	}
@@ -87,7 +88,7 @@ func (h *VotesHandler) GetVotes(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusForbidden, "forbidden")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 	defer cancel()
 
 	summary, err := h.Store.GetVoteSummary(ctx, tripID)

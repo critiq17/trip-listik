@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"time"
 
 	"github.com/critiq17/tripListik/internal/store/models"
 	"github.com/google/uuid"
@@ -11,11 +12,14 @@ func (s *Store) CreatePhoto(ctx context.Context, p *models.TripPhoto) error {
 	return s.DB.WithContext(ctx).Create(p).Error
 }
 
-func (s *Store) ListPhotos(ctx context.Context, tripID uuid.UUID, limit int) ([]models.TripPhoto, error) {
+func (s *Store) ListPhotos(ctx context.Context, tripID uuid.UUID, limit int, cursor time.Time) ([]models.TripPhoto, error) {
 	var photos []models.TripPhoto
 	q := s.DB.WithContext(ctx).
 		Where("trip_id = ?", tripID).
 		Order("created_at DESC")
+	if !cursor.IsZero() {
+		q = q.Where("created_at < ?", cursor)
+	}
 	if limit > 0 {
 		q = q.Limit(limit)
 	}

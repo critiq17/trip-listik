@@ -9,8 +9,8 @@ import (
 	"github.com/google/uuid"
 )
 
-func ensureTripAccess(store *store.Store, tripID uuid.UUID, userID *uuid.UUID) (*models.Trip, bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+func ensureTripAccess(ctx context.Context, store *store.Store, tripID uuid.UUID, userID *uuid.UUID) (*models.Trip, bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
 	trip, err := store.GetTripByID(ctx, tripID)

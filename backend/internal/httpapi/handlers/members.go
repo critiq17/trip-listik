@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/critiq17/tripListik/internal/httpapi/middleware"
+	"github.com/critiq17/tripListik/internal/httpapi/validate"
 	"github.com/critiq17/tripListik/internal/store"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -28,7 +29,7 @@ func (h *MembersHandler) ListJoinRequests(c *fiber.Ctx) error {
 
 	status := c.Query("status", "pending")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), 3*time.Second)
 	defer cancel()
 
 	trip, err := h.Store.GetTripByID(ctx, tripID)
@@ -60,7 +61,7 @@ func (h *MembersHandler) ListMembers(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnauthorized, "unauthorized")
 	}
 
-	_, allowed, err := ensureTripAccess(h.Store, tripID, &userID)
+	_, allowed, err := ensureTripAccess(c.Context(), h.Store, tripID, &userID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to load trip")
 	}
@@ -68,10 +69,24 @@ func (h *MembersHandler) ListMembers(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusForbidden, "forbidden")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), 3*time.Second)
 	defer cancel()
 
-	members, err := h.Store.GetTripMembersWithUsers(ctx, tripID)
+	limit := c.QueryInt("limit", 50)
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	cursorStr := c.Query("cursor", "")
+	var cursor time.Time
+	if cursorStr != "" {
+		parsed, err := time.Parse(time.RFC3339Nano, cursorStr)
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid cursor")
+		}
+		cursor = parsed
+	}
+
+	members, err := h.Store.GetTripMembersWithUsersPaged(ctx, tripID, limit, cursor)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to load members")
 	}
@@ -90,7 +105,7 @@ func (h *MembersHandler) JoinTrip(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid trip id")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), 3*time.Second)
 	defer cancel()
 
 	trip, err := h.Store.GetTripByID(ctx, tripID)
@@ -143,17 +158,20 @@ func (h *MembersHandler) ApproveJoin(c *fiber.Ctx) error {
 	}
 
 	var req struct {
-		UserID string `json:"user_id"`
+		UserID string `json:"user_id" validate:"required,uuid4"`
 	}
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
+	}
+	if err := validate.Struct(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid user_id")
 	}
 	userID, err := uuid.Parse(req.UserID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid user_id")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), 3*time.Second)
 	defer cancel()
 
 	trip, err := h.Store.GetTripByID(ctx, tripID)
@@ -168,10 +186,11 @@ func (h *MembersHandler) ApproveJoin(c *fiber.Ctx) error {
 	}
 
 	err = h.Store.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := h.Store.UpdateJoinRequestStatus(ctx, tripID, userID, "approved"); err != nil {
+		txStore := h.Store.WithTx(tx)
+		if err := txStore.UpdateJoinRequestStatus(ctx, tripID, userID, "approved"); err != nil {
 			return err
 		}
-		return h.Store.AddTripMember(ctx, tripID, userID, "member")
+		return txStore.AddTripMember(ctx, tripID, userID, "member")
 	})
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to approve join request")
@@ -192,17 +211,20 @@ func (h *MembersHandler) RejectJoin(c *fiber.Ctx) error {
 	}
 
 	var req struct {
-		UserID string `json:"user_id"`
+		UserID string `json:"user_id" validate:"required,uuid4"`
 	}
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
+	}
+	if err := validate.Struct(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid user_id")
 	}
 	userID, err := uuid.Parse(req.UserID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid user_id")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), 3*time.Second)
 	defer cancel()
 
 	trip, err := h.Store.GetTripByID(ctx, tripID)
@@ -238,7 +260,7 @@ func (h *MembersHandler) RemoveMember(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid user id")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), 3*time.Second)
 	defer cancel()
 
 	trip, err := h.Store.GetTripByID(ctx, tripID)

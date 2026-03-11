@@ -108,7 +108,7 @@
 
 <section class="step-two">
 	<header class="header">
-		<button class="round-btn" on:click={back} aria-label="Back">
+		<button class="round-btn" onclick={back} aria-label="Back">
 			<span class="material-symbols-outlined">arrow_back</span>
 		</button>
 		<h2>Create Trip</h2>
@@ -150,7 +150,7 @@
 				<button
 					class="material-symbols-outlined"
 					aria-label="Previous month"
-					on:click={() => (viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))}
+					onclick={() => (viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))}
 				>
 					chevron_left
 				</button>
@@ -160,7 +160,7 @@
 				<button
 					class="material-symbols-outlined"
 					aria-label="Next month"
-					on:click={() => (viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))}
+					onclick={() => (viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))}
 				>
 					chevron_right
 				</button>
@@ -176,7 +176,7 @@
 								class:range={isInRange(day)}
 								class:start={isSameDay(day, startDate)}
 								class:end={isSameDay(day, endDate)}
-								on:click={() => selectDay(day)}
+								onclick={() => selectDay(day)}
 							>
 								{day.getDate()}
 							</button>
@@ -195,12 +195,12 @@
 			</div>
 			<div class="toggle" class:private={!isPublic}>
 				<div class="toggle-pill"></div>
-				<button class:is-active={isPublic} on:click={() => toggle(true)}>Public</button>
-				<button class:is-active={!isPublic} on:click={() => toggle(false)}>Private</button>
+				<button class:is-active={isPublic} onclick={() => toggle(true)}>Public</button>
+				<button class:is-active={!isPublic} onclick={() => toggle(false)}>Private</button>
 			</div>
 		</div>
 
-		<button class="continue" on:click={next} disabled={saving || !startDate || !endDate}>
+		<button class="continue" onclick={next} disabled={saving || !startDate || !endDate}>
 			{saving ? 'Saving…' : 'Continue'}
 			<span class="material-symbols-outlined">arrow_forward</span>
 		</button>

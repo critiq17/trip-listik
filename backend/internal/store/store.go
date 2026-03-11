@@ -17,6 +17,13 @@ func New(db *gorm.DB) *Store {
 	return &Store{DB: db}
 }
 
+func (s *Store) WithTx(tx *gorm.DB) *Store {
+	if tx == nil {
+		return s
+	}
+	return &Store{DB: tx}
+}
+
 func (s *Store) UpsertTelegramUser(ctx context.Context, u *models.User) (*models.User, error) {
 	if err := s.DB.WithContext(ctx).
 		Clauses(clause.OnConflict{

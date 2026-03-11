@@ -29,27 +29,33 @@
 		photo_count: number;
 	};
 
-	let trip: TripCardData | null = null;
-	let loading = true;
-	let error = '';
-	let activeTab = 'Details';
-	let members: Member[] = [];
-	let comments: Comment[] = [];
-	let photos: Photo[] = [];
-	let voteAverage = 0;
-	let voteCount = 0;
-	let memberCount = 0;
-	let commentCount = 0;
-	let photoCount = 0;
-	let newComment = '';
-	let uploading = false;
-	let uploadError = '';
-	let joinStatus = '';
-	let joinLoading = false;
-	let meId = '';
-	let joinRequests: JoinRequest[] = [];
+	let trip = $state<TripCardData | null>(null);
+	let loading = $state(true);
+	let error = $state('');
+	let activeTab = $state('Details');
+	let members = $state<Member[]>([]);
+	let comments = $state<Comment[]>([]);
+	let photos = $state<Photo[]>([]);
+	let voteAverage = $state(0);
+	let voteCount = $state(0);
+	let memberCount = $state(0);
+	let commentCount = $state(0);
+	let photoCount = $state(0);
+	let newComment = $state('');
+	let uploading = $state(false);
+	let uploadError = $state('');
+	let joinStatus = $state('');
+	let joinLoading = $state(false);
+	let meId = $state('');
+	let joinRequests = $state<JoinRequest[]>([]);
 	let stream: EventSource | null = null;
-	let viewerPhoto: Photo | null = null;
+	let viewerPhoto = $state<Photo | null>(null);
+	let membersCursor = $state<string | null>(null);
+	let membersLoading = $state(false);
+	let membersHasMore = $state(true);
+	let photosCursor = $state<string | null>(null);
+	let photosLoading = $state(false);
+	let photosHasMore = $state(true);
 
 	const tabs = ['Details', 'Members', 'Photos', 'Discussion'];
 
@@ -71,10 +77,30 @@
 		}
 	}
 
-	async function loadMembers(id: string) {
-		const data = await apiFetch<{ items: Member[] }>(`/v1/trips/${id}/members`);
-		members = data.items ?? [];
-		memberCount = members.length;
+	async function loadMembers(id: string, mode: 'reset' | 'append' = 'reset') {
+		if (membersLoading) return;
+		if (mode === 'append' && !membersHasMore) return;
+		membersLoading = true;
+		const limit = 50;
+		const cursorQuery =
+			mode === 'append' && membersCursor ? `&cursor=${encodeURIComponent(membersCursor)}` : '';
+		try {
+			const data = await apiFetch<{ items: Member[] }>(
+				`/v1/trips/${id}/members?limit=${limit}${cursorQuery}`
+			);
+			const items = data.items ?? [];
+			if (mode === 'append') {
+				members = [...members, ...items];
+			} else {
+				members = items;
+			}
+			const last = members[members.length - 1];
+			membersCursor = last?.joined_at ?? null;
+			membersHasMore = items.length === limit;
+			memberCount = Math.max(memberCount, members.length);
+		} finally {
+			membersLoading = false;
+		}
 	}
 
 	async function loadComments(id: string) {
@@ -83,10 +109,30 @@
 		commentCount = comments.length;
 	}
 
-	async function loadPhotos(id: string) {
-		const data = await apiFetch<{ items: Photo[] }>(`/v1/trips/${id}/photos`);
-		photos = data.items ?? [];
-		photoCount = photos.length;
+	async function loadPhotos(id: string, mode: 'reset' | 'append' = 'reset') {
+		if (photosLoading) return;
+		if (mode === 'append' && !photosHasMore) return;
+		photosLoading = true;
+		const limit = 50;
+		const cursorQuery =
+			mode === 'append' && photosCursor ? `&cursor=${encodeURIComponent(photosCursor)}` : '';
+		try {
+			const data = await apiFetch<{ items: Photo[] }>(
+				`/v1/trips/${id}/photos?limit=${limit}${cursorQuery}`
+			);
+			const items = data.items ?? [];
+			if (mode === 'append') {
+				photos = [...photos, ...items];
+			} else {
+				photos = items;
+			}
+			const last = photos[photos.length - 1];
+			photosCursor = last?.created_at ?? null;
+			photosHasMore = items.length === limit;
+			photoCount = Math.max(photoCount, photos.length);
+		} finally {
+			photosLoading = false;
+		}
 	}
 
 	async function loadVotes(id: string) {
@@ -208,8 +254,11 @@
 		});
 		stream.addEventListener('photo_created', (event) => {
 			const data = JSON.parse((event as MessageEvent).data) as Photo;
+			const exists = photos.find((item) => item.id === data.id);
 			photos = [data, ...photos.filter((item) => item.id !== data.id)];
-			photoCount = photos.length;
+			if (!exists) {
+				photoCount += 1;
+			}
 		});
 	});
 
@@ -217,24 +266,38 @@
 		stream?.close();
 	});
 
-	$: if (trip && activeTab === 'Members') {
-		loadMembers(trip.id);
-		if (isOwner()) {
-			loadJoinRequests(trip.id);
+	$effect(() => {
+		if (trip && activeTab === 'Members') {
+			members = [];
+			membersCursor = null;
+			membersHasMore = true;
+			loadMembers(trip.id, 'reset');
+			if (isOwner()) {
+				loadJoinRequests(trip.id);
+			}
 		}
-	}
+	});
 
-	$: if (trip && activeTab === 'Photos') {
-		loadPhotos(trip.id);
-	}
+	$effect(() => {
+		if (trip && activeTab === 'Photos') {
+			photos = [];
+			photosCursor = null;
+			photosHasMore = true;
+			loadPhotos(trip.id, 'reset');
+		}
+	});
 
-	$: if (trip && activeTab === 'Discussion') {
-		loadComments(trip.id);
-	}
+	$effect(() => {
+		if (trip && activeTab === 'Discussion') {
+			loadComments(trip.id);
+		}
+	});
 
-	$: if (trip && activeTab === 'Details') {
-		loadVotes(trip.id);
-	}
+	$effect(() => {
+		if (trip && activeTab === 'Details') {
+			loadVotes(trip.id);
+		}
+	});
 </script>
 
 <section class="trip">
@@ -270,7 +333,7 @@
 		<div class="tabs-wrap">
 			<div class="tabs">
 				{#each tabs as tab}
-					<button class:active={tab === activeTab} on:click={() => (activeTab = tab)}>
+					<button class:active={tab === activeTab} onclick={() => (activeTab = tab)}>
 						{tab}
 					</button>
 				{/each}
@@ -327,12 +390,12 @@
 						</div>
 						<div class="vote-buttons">
 							{#each [1, 2, 3, 4, 5] as score}
-								<button on:click={() => castVote(score)}>{score}</button>
+								<button onclick={() => castVote(score)}>{score}</button>
 							{/each}
 						</div>
 					</div>
 
-					<button class="cta-button" on:click={joinTrip} disabled={joinLoading}>
+					<button class="cta-button" onclick={joinTrip} disabled={joinLoading}>
 						{joinLoading ? 'Joining...' : joinStatus || 'Join Trip'}
 					</button>
 				</div>
@@ -365,6 +428,11 @@
 								</div>
 							{/each}
 						</div>
+						{#if membersHasMore}
+							<button class="load-more" onclick={() => trip && loadMembers(trip.id, 'append')}>
+								{membersLoading ? 'Loading...' : 'Load more'}
+							</button>
+						{/if}
 					{/if}
 
 					{#if isOwner()}
@@ -383,8 +451,8 @@
 											<p class="muted">{formatRelativeDate(req.created_at)}</p>
 										</div>
 										<div class="actions">
-											<button class="approve" on:click={() => approveJoin(req.user_id)}>Approve</button>
-											<button class="reject" on:click={() => rejectJoin(req.user_id)}>Reject</button>
+											<button class="approve" onclick={() => approveJoin(req.user_id)}>Approve</button>
+											<button class="reject" onclick={() => rejectJoin(req.user_id)}>Reject</button>
 										</div>
 									</div>
 								{/each}
@@ -400,7 +468,7 @@
 							<p class="muted">Real uploads stored through the backend presign flow.</p>
 						</div>
 						<label class="upload-fab">
-							<input type="file" accept="image/*" on:change={handlePhotoUpload} />
+							<input type="file" accept="image/*" onchange={handlePhotoUpload} />
 							<span>{uploading ? '...' : '+'}</span>
 						</label>
 					</div>
@@ -414,11 +482,16 @@
 					{:else}
 						<div class="photo-grid">
 							{#each photos as photo}
-								<button class="photo" on:click={() => (viewerPhoto = photo)}>
+								<button class="photo" onclick={() => (viewerPhoto = photo)}>
 									<img src={photo.url} alt="Trip" loading="lazy" />
 								</button>
 							{/each}
 						</div>
+						{#if photosHasMore}
+							<button class="load-more" onclick={() => trip && loadPhotos(trip.id, 'append')}>
+								{photosLoading ? 'Loading...' : 'Load more'}
+							</button>
+						{/if}
 					{/if}
 				</div>
 			{:else}
@@ -445,7 +518,7 @@
 
 					<div class="composer glass">
 						<input bind:value={newComment} placeholder="Write a comment..." />
-						<button on:click={submitComment}>Send</button>
+						<button onclick={submitComment}>Send</button>
 					</div>
 				</div>
 			{/if}
@@ -455,8 +528,8 @@
 
 {#if viewerPhoto}
 	<div class="viewer">
-		<button class="viewer-backdrop" on:click={() => (viewerPhoto = null)} aria-label="Close photo viewer"></button>
-		<button class="viewer-close" on:click={() => (viewerPhoto = null)}>×</button>
+		<button class="viewer-backdrop" onclick={() => (viewerPhoto = null)} aria-label="Close photo viewer"></button>
+		<button class="viewer-close" onclick={() => (viewerPhoto = null)}>×</button>
 		<img src={viewerPhoto.url} alt="Fullscreen trip" />
 	</div>
 {/if}

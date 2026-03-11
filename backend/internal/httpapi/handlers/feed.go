@@ -39,14 +39,14 @@ func (h *FeedHandler) Feed(c *fiber.Ctx) error {
 	cursorStr := c.Query("cursor", "")
 	var cursor time.Time
 	if cursorStr != "" {
-		parsed, err := time.Parse(time.RFC3339, cursorStr)
+		parsed, err := time.Parse(time.RFC3339Nano, cursorStr)
 		if err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, "invalid cursor")
 		}
 		cursor = parsed
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 	defer cancel()
 
 	var trips []models.Trip
@@ -105,8 +105,15 @@ func (h *FeedHandler) Feed(c *fiber.Ctx) error {
 		})
 	}
 
+	nextCursor := ""
+	if len(trips) == limit {
+		last := trips[len(trips)-1]
+		nextCursor = last.CreatedAt.UTC().Format(time.RFC3339Nano)
+	}
+
 	return c.JSON(fiber.Map{
-		"items": items,
+		"items":       items,
+		"next_cursor": nextCursor,
 	})
 }
 
@@ -121,14 +128,14 @@ func (h *FeedHandler) Explore(c *fiber.Ctx) error {
 	cursorStr := c.Query("cursor", "")
 	var cursor time.Time
 	if cursorStr != "" {
-		parsed, err := time.Parse(time.RFC3339, cursorStr)
+		parsed, err := time.Parse(time.RFC3339Nano, cursorStr)
 		if err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, "invalid cursor")
 		}
 		cursor = parsed
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 	defer cancel()
 
 	trips, err := h.Store.SearchPublicTrips(ctx, query, country, limit, cursor)
@@ -167,7 +174,14 @@ func (h *FeedHandler) Explore(c *fiber.Ctx) error {
 		})
 	}
 
+	nextCursor := ""
+	if len(trips) == limit {
+		last := trips[len(trips)-1]
+		nextCursor = last.CreatedAt.UTC().Format(time.RFC3339Nano)
+	}
+
 	return c.JSON(fiber.Map{
-		"items": items,
+		"items":       items,
+		"next_cursor": nextCursor,
 	})
 }

@@ -1,6 +1,6 @@
 # ✈️ TripListik
 
-> Telegram bot to easily save, manage, and explore your travel wishlist 🧳
+> Backend API for the TripListik Telegram Mini App 🧳
 
 <img src="../assets/images/ReadmeImage.jpg" alt="TripListik Preview" width="150"/>
 
@@ -9,15 +9,15 @@
 
 ## 🚀 Features
 
-- 💬 Manage your personal travel wishlist via Telegram
-- 🗺️ Add and remove destinations
+- ✈️ Trips, members, comments, votes, photos
+- 🔐 Telegram WebApp auth + JWT
 - 🤖 Optional AI integration for travel ideas
 
 ---
 
 ## 🧩 Tech Stack
 
-- **Go (Fiber + GORM)** — backend & Telegram bot
+- **Go (Fiber + GORM)** — backend API
 - **PostgreSQL** — database
 - **Docker Compose** — infrastructure setup and container orchestration
 
@@ -37,9 +37,6 @@ DSN="host=localhost user=$POSTGRES_USER password=$POSTGRES_PASSWORD dbname=$POST
 POSTGRES_USER=your_db_user
 POSTGRES_PASSWORD=your_db_password
 POSTGRES_DB=trip_listik
-
-# Telegram Bot Token
-BOT_TOKEN=your_telegram_bot_token_here
 
 # Optional AI API key
 API_KEY_AI=your_api_key_here
