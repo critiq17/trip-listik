@@ -2,18 +2,16 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { apiFetch } from '$lib/api';
-	import WorldMap from '$lib/components/WorldMap.svelte';
 	import TripCard from '$lib/components/TripCard.svelte';
 	import { countUp } from '$lib/transitions';
 	import { getUserInitials, getUserName } from '$lib/format';
-	import type { CountryVisit, TripCardData, User, UserStats } from '$lib/types';
+	import type { TripCardData, User, UserStats } from '$lib/types';
 
 	type PublicProfileResponse = {
 		user: User;
 		stats: UserStats;
 		world_explored_percent: number;
 		public_trips: TripCardData[];
-		country_map: CountryVisit[];
 		wishlist: Array<{ id: string; country_code: string; city?: string; note?: string }>;
 	};
 
@@ -107,7 +105,6 @@
 					<circle cx="50" cy="50" r="44" class="ring-fill" bind:this={ringEl}></circle>
 				</svg>
 			</div>
-			<WorldMap countries={data.country_map} />
 		</section>
 
 		<section class="section">
@@ -239,21 +236,6 @@
 	.ring svg {
 		width: 70px;
 		height: 70px;
-	}
-
-	.ring-bg {
-		fill: none;
-		stroke: rgba(255, 255, 255, 0.08);
-		stroke-width: 8;
-	}
-
-	.ring-fill {
-		fill: none;
-		stroke: var(--primary);
-		stroke-width: 8;
-		transform: rotate(-90deg);
-		transform-origin: 50% 50%;
-		transition: stroke-dashoffset 0.9s ease;
 	}
 
 	.section h3 {

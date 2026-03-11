@@ -58,23 +58,6 @@
 	<main>
 		<h1>Who's coming along?</h1>
 
-		<div class="chips">
-			<div class="chip">
-				<div class="chip-avatar"></div>
-				<span>Alex Rivera</span>
-				<button>
-					<span class="material-symbols-outlined">close</span>
-				</button>
-			</div>
-			<div class="chip">
-				<div class="chip-avatar"></div>
-				<span>Sarah Chen</span>
-				<button>
-					<span class="material-symbols-outlined">close</span>
-				</button>
-			</div>
-		</div>
-
 		<div class="field">
 			<input placeholder="Search friends..." />
 			<span class="material-symbols-outlined">search</span>
@@ -184,35 +167,6 @@
 		font-weight: 700;
 	}
 
-	.chips {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.6rem;
-	}
-
-	.chip {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.4rem;
-		padding: 0.3rem 0.6rem 0.3rem 0.3rem;
-		border-radius: 999px;
-		background: rgba(77, 157, 109, 0.2);
-		border: 1px solid rgba(77, 157, 109, 0.3);
-		font-size: 0.8rem;
-	}
-
-	.chip-avatar {
-		width: 1.75rem;
-		height: 1.75rem;
-		border-radius: 999px;
-		background: rgba(255, 255, 255, 0.2);
-	}
-
-	.chip button {
-		display: grid;
-		place-items: center;
-	}
-
 	.field {
 		position: relative;
 	}
@@ -264,7 +218,7 @@
 
 	.error {
 		margin-top: 0.75rem;
-		color: #e11d48;
+		color: var(--error);
 		font-size: 0.8rem;
 		text-align: center;
 	}

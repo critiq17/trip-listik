@@ -127,26 +127,6 @@
 			{/if}
 		</div>
 
-		{#if !loading && !error}
-			<div class="drafts">
-				<div class="drafts-head">
-					<h4>Quick Drafts</h4>
-				</div>
-				<div class="drafts-box">
-					<div class="drafts-icon">
-						<span class="material-symbols-outlined">edit_note</span>
-					</div>
-					<div>
-						<p>No active drafts</p>
-						<span>Start planning your next escape today.</span>
-					</div>
-					<button class="empty-action">
-						<span class="material-symbols-outlined">add</span>
-						Create new trip
-					</button>
-				</div>
-			</div>
-		{/if}
 	</main>
 </section>
 
@@ -309,46 +289,4 @@
 		font-size: 1rem;
 	}
 
-	.drafts {
-		margin-top: 2rem;
-	}
-
-	.drafts-head h4 {
-		font-size: 0.65rem;
-		letter-spacing: 0.2em;
-		text-transform: uppercase;
-		color: var(--text-secondary);
-		margin-bottom: 1rem;
-	}
-
-	.drafts-box {
-		border: 2px dashed rgba(255, 255, 255, 0.12);
-		border-radius: 12px;
-		padding: 2rem 1.5rem;
-		text-align: center;
-		display: flex;
-		flex-direction: column;
-		gap: 0.8rem;
-	}
-
-	.drafts-icon {
-		width: 3rem;
-		height: 3rem;
-		border-radius: 999px;
-		background: rgba(255, 255, 255, 0.08);
-		display: grid;
-		place-items: center;
-		margin: 0 auto;
-		color: rgba(255, 255, 255, 0.6);
-	}
-
-	.drafts-box p {
-		font-weight: 600;
-		color: var(--text-primary);
-	}
-
-	.drafts-box span {
-		font-size: 0.75rem;
-		color: var(--text-secondary);
-	}
 </style>

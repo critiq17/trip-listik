@@ -1,23 +1,19 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { apiFetch } from '$lib/api';
-	import { countUp } from '$lib/transitions';
 	import TripCard from '$lib/components/TripCard.svelte';
-	import WorldMap from '$lib/components/WorldMap.svelte';
+	import { countUp } from '$lib/transitions';
+	import { staggerList } from '$lib/actions/animate';
 	import { getUserInitials, getUserName } from '$lib/format';
-	import type { CountryVisit, TripCardData, User, UserStats } from '$lib/types';
+	import type { TripCardData, User, UserStats } from '$lib/types';
 
 	let user = $state<User | null>(null);
 	let stats = $state<UserStats | null>(null);
-	let world = $state(0);
 	let history = $state<TripCardData[]>([]);
-	let mapCountries = $state<CountryVisit[]>([]);
-	let error = $state('');
 	let statEls = $state<Array<HTMLElement | null>>([]);
 	let worldEl = $state<HTMLElement | null>(null);
 	let worldBar = $state<HTMLDivElement | null>(null);
 	let ringEl = $state<SVGCircleElement | null>(null);
-	let totalCountries = $state(0);
 	let wishlist = $state<Array<{ id: string; country_code: string; city?: string; note?: string }>>(
 		[]
 	);
@@ -31,26 +27,26 @@
 	let saveError = $state('');
 	let wishlistError = $state('');
 	let historyError = $state('');
+	let error = $state('');
 
 	onMount(async () => {
 		try {
-			const [me, statsRes, worldRes, mapRes] = await Promise.all([
+			const [meRes, statsRes] = await Promise.allSettled([
 				apiFetch<{ user: User }>('/v1/me'),
-				apiFetch<UserStats>('/v1/me/stats'),
-				apiFetch<{ world_explored_percent: number }>('/v1/me/world'),
-				apiFetch<{ countries: CountryVisit[]; total_countries: number; world_explored_percent: number }>(
-					'/v1/me/map'
-				)
+				apiFetch<UserStats>('/v1/me/stats')
 			]);
-			user = me.user;
-			bio = user?.bio ?? '';
-			isPublic = user?.is_public ?? true;
-			stats = statsRes;
-			world = worldRes.world_explored_percent ?? 0;
-			mapCountries = mapRes.countries ?? [];
-			totalCountries = mapRes.total_countries ?? 0;
-			if (user?.id) {
-				shareURL = `${window.location.origin}/profile/${user.id}`;
+			
+			if (meRes.status === 'fulfilled') {
+				user = meRes.value.user;
+				bio = user?.bio ?? '';
+				isPublic = user?.is_public ?? true;
+				if (user?.id) {
+					shareURL = `${window.location.origin}/profile/${user.id}`;
+				}
+			}
+			
+			if (statsRes.status === 'fulfilled') {
+				stats = statsRes.value;
 			}
 
 			try {
@@ -58,38 +54,30 @@
 					items: Array<{ id: string; country_code: string; city?: string; note?: string }>;
 				}>('/v1/me/wishlist');
 				wishlist = wishlistRes.items ?? [];
-			} catch (err) {
-				wishlistError = err instanceof Error ? err.message : 'Failed to load wishlist';
+			} catch (e) {
+				wishlistError = e instanceof Error ? e.message : 'Failed to load wishlist';
 			}
 
 			try {
 				const trips = await apiFetch<{ items: TripCardData[] }>('/v1/trips?scope=mine');
 				history = (trips.items ?? []).slice(0, 6);
-			} catch (err) {
-				historyError = err instanceof Error ? err.message : 'Failed to load trips';
+			} catch (e) {
+				historyError = e instanceof Error ? e.message : 'Failed to load trips';
 			}
 
-			if (stats && statEls.length) {
-				const values = [stats.total_trips, stats.countries_visited, stats.cities_visited, stats.trips_with_friends];
+			if (statsRes.status === 'fulfilled' && statsRes.value && statEls.length) {
+				const values = [
+					statsRes.value.total_trips,
+					statsRes.value.countries_visited,
+					statsRes.value.cities_visited,
+					statsRes.value.trips_with_friends
+				];
 				statEls.forEach((el, idx) => {
 					if (el) countUp(el, values[idx] ?? 0);
 				});
 			}
-			if (worldEl) countUp(worldEl, world, 1.1);
-			if (worldBar) {
-				worldBar.style.width = '0%';
-				requestAnimationFrame(() => {
-					worldBar && (worldBar.style.width = `${world}%`);
-				});
-			}
-			if (ringEl) {
-				const circumference = 2 * Math.PI * 44;
-				const offset = circumference - (world / 100) * circumference;
-				ringEl.style.strokeDasharray = `${circumference}`;
-				ringEl.style.strokeDashoffset = `${offset}`;
-			}
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to load profile';
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to load profile';
 		}
 	});
 
@@ -191,26 +179,6 @@
 				</div>
 			{/if}
 
-			<div class="world">
-				<div class="world-head">
-					<span>World explored</span>
-					<strong bind:this={worldEl}>0%</strong>
-				</div>
-				<div class="world-ring">
-					<svg viewBox="0 0 100 100">
-						<circle cx="50" cy="50" r="44" class="ring-bg"></circle>
-						<circle cx="50" cy="50" r="44" class="ring-fill" bind:this={ringEl}></circle>
-					</svg>
-					<div class="ring-meta">
-						<strong>{totalCountries}</strong>
-						<span>countries</span>
-					</div>
-				</div>
-				<div class="world-bar">
-					<div class="world-fill" bind:this={worldBar}></div>
-				</div>
-			</div>
-
 			<div class="stats">
 				<div class="stat">
 					<p bind:this={statEls[0]}>0</p>
@@ -236,16 +204,6 @@
 			<section class="history">
 				<div class="history-head">
 					<h3>Travel history</h3>
-					<button class="map-btn">World Map</button>
-				</div>
-				<WorldMap countries={mapCountries} />
-				<div class="top-countries">
-					<h4>Top countries</h4>
-					<div class="chips">
-						{#each mapCountries.slice(0, 5) as item}
-							<span class="chip">{item.code} · {item.visit_count}</span>
-						{/each}
-					</div>
 				</div>
 				<div class="history-list">
 					{#if historyError}
@@ -480,43 +438,6 @@
 		font-size: 0.8rem;
 	}
 
-	.world {
-		margin-bottom: 2rem;
-	}
-
-	.world-head {
-		display: flex;
-		align-items: flex-end;
-		justify-content: space-between;
-		margin-bottom: 0.6rem;
-	}
-
-	.world-head span {
-		font-size: 0.65rem;
-		letter-spacing: 0.2em;
-		color: var(--text-secondary);
-		text-transform: uppercase;
-		font-weight: 700;
-	}
-
-	.world-head strong {
-		font-size: 1.5rem;
-		color: var(--primary);
-	}
-
-	.world-bar {
-		width: 100%;
-		height: 1px;
-		background: rgba(255, 255, 255, 0.12);
-	}
-
-	.world-fill {
-		height: 100%;
-		background: var(--primary);
-		width: 0%;
-		transition: width 0.9s ease;
-	}
-
 	.stats {
 		display: grid;
 		grid-template-columns: repeat(4, 1fr);
@@ -564,84 +485,11 @@
 		font-weight: 700;
 	}
 
-	.map-btn {
-		font-size: 0.75rem;
-		color: var(--primary);
-		font-weight: 600;
-	}
-
-	.top-countries {
-		margin-top: 1rem;
-		margin-bottom: 1.5rem;
-	}
-
-	.top-countries h4 {
-		font-size: 0.65rem;
-		letter-spacing: 0.2em;
-		text-transform: uppercase;
-		color: var(--text-secondary);
-		margin-bottom: 0.5rem;
-	}
-
-	.chips {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-	}
-
-	.chip {
-		padding: 0.35rem 0.6rem;
-		border-radius: var(--radius-pill);
-		background: rgba(255, 255, 255, 0.08);
-		font-size: 0.7rem;
-		color: var(--text-secondary);
-	}
-
 	.history-list {
 		display: flex;
 		flex-direction: column;
 		gap: 1.5rem;
 		padding-bottom: 2rem;
-	}
-
-	.world-ring {
-		display: grid;
-		grid-template-columns: auto 1fr;
-		gap: 1rem;
-		align-items: center;
-		margin-bottom: 0.6rem;
-	}
-
-	.world-ring svg {
-		width: 88px;
-		height: 88px;
-	}
-
-	.ring-bg {
-		fill: none;
-		stroke: rgba(255, 255, 255, 0.08);
-		stroke-width: 8;
-	}
-
-	.ring-fill {
-		fill: none;
-		stroke: var(--primary);
-		stroke-width: 8;
-		transform: rotate(-90deg);
-		transform-origin: 50% 50%;
-		transition: stroke-dashoffset 0.9s ease;
-	}
-
-	.ring-meta strong {
-		font-size: 1.2rem;
-		display: block;
-	}
-
-	.ring-meta span {
-		font-size: 0.65rem;
-		letter-spacing: 0.2em;
-		text-transform: uppercase;
-		color: var(--text-secondary);
 	}
 
 	.state {

@@ -16,7 +16,15 @@
 <a class={`card ${variant}`} href={`/trips/${trip.id}`}>
 	<div class="media">
 		{#if trip.cover_photo_url}
-			<img src={trip.cover_photo_url} alt={trip.title} loading="lazy" />
+			<div class="img-skeleton skeleton"></div>
+			<img
+				class="trip-img"
+				src={trip.cover_photo_url}
+				alt={trip.title}
+				loading="lazy"
+				onload={(e) => e.currentTarget.classList.add('loaded')}
+				onerror={(e) => e.currentTarget.classList.add('error')}
+			/>
 		{:else}
 			<div class="placeholder"></div>
 		{/if}
@@ -68,6 +76,11 @@
 		border-color: rgba(77, 157, 109, 0.28);
 	}
 
+	.card:active {
+		transform: scale(0.97);
+		transition-duration: 0.1s;
+	}
+
 	.media {
 		aspect-ratio: 4 / 5;
 		position: relative;
@@ -96,6 +109,25 @@
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
+	}
+
+	.img-skeleton {
+		position: absolute;
+		inset: 0;
+	}
+
+	.trip-img {
+		position: relative;
+		opacity: 0;
+		transition: opacity 0.4s ease;
+	}
+
+	.trip-img.loaded {
+		opacity: 1;
+	}
+
+	.trip-img.error {
+		display: none;
 	}
 
 	.placeholder {

@@ -10,6 +10,8 @@
 	} from '$lib/api';
 	import { connectTripStream } from '$lib/realtime';
 	import InviteModal from '$lib/components/InviteModal.svelte';
+	import { staggerList, scalePress } from '$lib/actions/animate';
+	import { animate } from 'motion';
 	import {
 		formatDateRange,
 		formatLongDate,
@@ -61,6 +63,7 @@
 	let photosHasMore = $state(true);
 
 	const tabs = ['Details', 'Members', 'Photos', 'Discussion'];
+	let loadedTabs = new Set<string>();
 
 	async function loadTrip(id: string) {
 		loading = true;
@@ -254,6 +257,14 @@
 			const data = JSON.parse((event as MessageEvent).data) as Comment;
 			comments = [data, ...comments.filter((item) => item.id !== data.id)];
 			commentCount = comments.length;
+			requestAnimationFrame(() => {
+				const first = document.querySelector('.comments .comment:first-child');
+				if (first) {
+					import('motion').then(({ animate }) => {
+						animate(first, { y: ['20px', '0px'], opacity: [0, 1] } as any, { duration: 0.3 } as any);
+					});
+				}
+			});
 		});
 		stream.addEventListener('vote_updated', (event) => {
 			const data = JSON.parse((event as MessageEvent).data) as { average: number; count: number };
@@ -268,6 +279,13 @@
 				photoCount += 1;
 			}
 		});
+
+		stream.onerror = () => {
+			stream?.close();
+			setTimeout(() => {
+				stream = connectTripStream(id);
+			}, 3000);
+		};
 	});
 
 	onDestroy(() => {
@@ -275,7 +293,8 @@
 	});
 
 	$effect(() => {
-		if (trip && activeTab === 'Members') {
+		if (trip && activeTab === 'Members' && !loadedTabs.has('Members')) {
+			loadedTabs.add('Members');
 			members = [];
 			membersCursor = null;
 			membersHasMore = true;
@@ -288,7 +307,8 @@
 	});
 
 	$effect(() => {
-		if (trip && activeTab === 'Photos') {
+		if (trip && activeTab === 'Photos' && !loadedTabs.has('Photos')) {
+			loadedTabs.add('Photos');
 			photos = [];
 			photosCursor = null;
 			photosHasMore = true;
@@ -297,13 +317,15 @@
 	});
 
 	$effect(() => {
-		if (trip && activeTab === 'Discussion') {
+		if (trip && activeTab === 'Discussion' && !loadedTabs.has('Discussion')) {
+			loadedTabs.add('Discussion');
 			loadComments(trip.id);
 		}
 	});
 
 	$effect(() => {
-		if (trip && activeTab === 'Details') {
+		if (trip && activeTab === 'Details' && !loadedTabs.has('Details')) {
+			loadedTabs.add('Details');
 			loadVotes(trip.id);
 		}
 	});
@@ -325,7 +347,14 @@
 	{:else if trip}
 		<div class="hero">
 			{#if trip.cover_photo_url}
-				<img src={trip.cover_photo_url} alt={trip.title} />
+				<div class="img-skeleton skeleton"></div>
+				<img
+					class="trip-img top-image"
+					src={trip.cover_photo_url}
+					alt={trip.title}
+					onload={(e) => e.currentTarget.classList.add('loaded')}
+					onerror={(e) => e.currentTarget.classList.add('error')}
+				/>
 			{:else}
 				<div class="placeholder"></div>
 			{/if}
@@ -405,12 +434,19 @@
 						</div>
 						<div class="vote-buttons">
 							{#each [1, 2, 3, 4, 5] as score}
-								<button onclick={() => castVote(score)}>{score}</button>
+								<button
+									onclick={(e) => {
+										animate(e.currentTarget, { scale: [1, 1.2, 0.95, 1] }, { duration: 0.3 });
+										castVote(score);
+									}}
+								>
+									{score}
+								</button>
 							{/each}
 						</div>
 					</div>
 
-					<button class="cta-button" onclick={joinTrip} disabled={joinLoading}>
+					<button class="cta-button" onclick={joinTrip} disabled={joinLoading} use:scalePress>
 						{joinLoading ? 'Joining...' : joinStatus || 'Join Trip'}
 					</button>
 				</div>
@@ -520,7 +556,15 @@
 						<div class="photo-grid">
 							{#each photos as photo}
 								<button class="photo" onclick={() => (viewerPhoto = photo)}>
-									<img src={photo.url} alt="Trip" loading="lazy" />
+									<div class="img-skeleton skeleton"></div>
+									<img
+										class="trip-img grid-img"
+										src={photo.url}
+										alt="Trip"
+										loading="lazy"
+										onload={(e) => e.currentTarget.classList.add('loaded')}
+										onerror={(e) => e.currentTarget.classList.add('error')}
+									/>
 								</button>
 							{/each}
 						</div>
@@ -554,8 +598,17 @@
 					</div>
 
 					<div class="composer glass">
-						<input bind:value={newComment} placeholder="Write a comment..." />
-						<button onclick={submitComment}>Send</button>
+						<input
+							bind:value={newComment}
+							placeholder="Write a comment..."
+							onkeydown={(e) => {
+								if (e.key === 'Enter' && !e.shiftKey) {
+									e.preventDefault();
+									submitComment();
+								}
+							}}
+						/>
+						<button onclick={submitComment} use:scalePress>Send</button>
 					</div>
 				</div>
 			{/if}
@@ -588,17 +641,29 @@
 
 	.hero img,
 	.placeholder,
-	.skeleton {
+	.skeleton,
+	.img-skeleton {
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
 	}
 
+	.img-skeleton {
+		position: absolute;
+		inset: 0;
+	}
+
+	.trip-img {
+		position: relative;
+		opacity: 0;
+		transition: opacity 0.4s ease;
+	}
+
 	.placeholder,
 	.skeleton {
 		background:
-			radial-gradient(circle at top right, rgba(122, 234, 244, 0.12), transparent 30%),
-			linear-gradient(135deg, #08294b, #0d3460 60%, #05162a);
+			radial-gradient(circle at top right, rgba(127, 191, 153, 0.12), transparent 30%),
+			linear-gradient(135deg, rgba(30, 38, 32, 1), rgba(38, 48, 40, 1) 60%, rgba(30, 38, 32, 1));
 	}
 
 	.overlay {
@@ -682,7 +747,7 @@
 		top: 0;
 		z-index: 4;
 		padding: 0.85rem 1rem 0;
-		background: linear-gradient(180deg, rgba(4, 36, 68, 0.98), rgba(4, 36, 68, 0.72));
+		background: linear-gradient(180deg, rgba(22, 28, 24, 0.98), rgba(22, 28, 24, 0.72));
 		backdrop-filter: blur(18px);
 	}
 
@@ -793,7 +858,7 @@
 		border-radius: var(--radius-xl);
 		background:
 			linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent),
-			#071a31;
+			#0f1411;
 		border: 1px solid rgba(255, 255, 255, 0.06);
 		margin-top: 0.75rem;
 	}
@@ -875,7 +940,7 @@
 	.role {
 		padding: 0.35rem 0.6rem;
 		border-radius: var(--radius-pill);
-		background: rgba(32, 146, 186, 0.16);
+		background: rgba(77, 157, 109, 0.16);
 		color: var(--accent-strong);
 		font-size: 0.72rem;
 		font-weight: 700;
