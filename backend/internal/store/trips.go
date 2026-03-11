@@ -84,6 +84,18 @@ func (s *Store) ListUserTripsByStatus(ctx context.Context, userID uuid.UUID, sta
 	return trips, nil
 }
 
+func (s *Store) ListUserPublicTrips(ctx context.Context, userID uuid.UUID) ([]models.Trip, error) {
+	var trips []models.Trip
+	err := s.DB.WithContext(ctx).
+		Where("owner_id = ? AND visibility = ? AND deleted_at IS NULL", userID, "public").
+		Order("start_date DESC NULLS LAST").
+		Find(&trips).Error
+	if err != nil {
+		return nil, err
+	}
+	return trips, nil
+}
+
 func (s *Store) ListFriendTrips(ctx context.Context, userID uuid.UUID, limit int, cursor time.Time) ([]models.Trip, error) {
 	var trips []models.Trip
 	q := s.DB.WithContext(ctx).

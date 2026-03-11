@@ -9,6 +9,7 @@
 		uploadSignedPhoto
 	} from '$lib/api';
 	import { connectTripStream } from '$lib/realtime';
+	import InviteModal from '$lib/components/InviteModal.svelte';
 	import {
 		formatDateRange,
 		formatLongDate,
@@ -18,7 +19,7 @@
 		getUserInitials,
 		getUserName
 	} from '$lib/format';
-	import type { Comment, JoinRequest, Member, Photo, TripCardData } from '$lib/types';
+	import type { Comment, InviteItem, JoinRequest, Member, Photo, TripCardData } from '$lib/types';
 
 	type TripDetailResponse = {
 		trip: TripCardData;
@@ -48,6 +49,8 @@
 	let joinLoading = $state(false);
 	let meId = $state('');
 	let joinRequests = $state<JoinRequest[]>([]);
+	let tripInvites = $state<InviteItem[]>([]);
+	let inviteOpen = $state(false);
 	let stream: EventSource | null = null;
 	let viewerPhoto = $state<Photo | null>(null);
 	let membersCursor = $state<string | null>(null);
@@ -167,6 +170,11 @@
 		joinRequests = data.items ?? [];
 	}
 
+	async function loadInvites(id: string) {
+		const data = await apiFetch<{ items: InviteItem[] }>(`/v1/trips/${id}/invites`);
+		tripInvites = data.items ?? [];
+	}
+
 	async function approveJoin(userId: string) {
 		if (!trip) return;
 		await apiFetch(`/v1/trips/${trip.id}/join/approve`, {
@@ -274,6 +282,7 @@
 			loadMembers(trip.id, 'reset');
 			if (isOwner()) {
 				loadJoinRequests(trip.id);
+				loadInvites(trip.id);
 			}
 		}
 	});
@@ -296,6 +305,12 @@
 	$effect(() => {
 		if (trip && activeTab === 'Details') {
 			loadVotes(trip.id);
+		}
+	});
+
+	$effect(() => {
+		if (!inviteOpen && trip && isOwner()) {
+			loadInvites(trip.id);
 		}
 	});
 </script>
@@ -405,6 +420,9 @@
 						<h2>Members</h2>
 						<span>{memberCount} total</span>
 					</div>
+					{#if isOwner()}
+						<button class="invite-btn" onclick={() => (inviteOpen = true)}>Invite friends</button>
+					{/if}
 					{#if members.length === 0}
 						<div class="empty glass">No members yet</div>
 					{:else}
@@ -454,6 +472,25 @@
 											<button class="approve" onclick={() => approveJoin(req.user_id)}>Approve</button>
 											<button class="reject" onclick={() => rejectJoin(req.user_id)}>Reject</button>
 										</div>
+									</div>
+								{/each}
+							{/if}
+						</div>
+						<div class="requests">
+							<div class="section-head">
+								<h3>Pending invites</h3>
+								<span>{tripInvites.length}</span>
+							</div>
+							{#if tripInvites.length === 0}
+								<div class="empty glass">No pending invites</div>
+							{:else}
+								{#each tripInvites as inv}
+									<div class="request glass">
+										<div>
+											<strong>{inv.inviter_username ? `@${inv.inviter_username}` : 'Invite sent'}</strong>
+											<p class="muted">{inv.trip_title}</p>
+										</div>
+										<span class="role">{inv.status}</span>
 									</div>
 								{/each}
 							{/if}
@@ -525,6 +562,8 @@
 		</div>
 	{/if}
 </section>
+
+<InviteModal bind:open={inviteOpen} tripId={trip?.id ?? ''} />
 
 {#if viewerPhoto}
 	<div class="viewer">
@@ -728,6 +767,18 @@
 		font-size: 1rem;
 		font-weight: 800;
 		margin-bottom: 0.35rem;
+	}
+
+	.invite-btn {
+		padding: 0.6rem 0.9rem;
+		border-radius: var(--radius-pill);
+		background: var(--accent-grad);
+		color: #06110b;
+		font-weight: 800;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		font-size: 0.65rem;
+		justify-self: start;
 	}
 
 	.detail-block p,

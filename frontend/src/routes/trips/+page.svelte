@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
+	import TripCard from '$lib/components/TripCard.svelte';
 	import { apiFetch } from '$lib/api';
-	import { formatDateRange, getStatusLabel } from '$lib/format';
 	import { staggerList, scalePress } from '$lib/actions/animate';
 	import { animate } from 'motion';
 	import type { TripCardData } from '$lib/types';
@@ -120,30 +120,9 @@
 				</div>
 			{:else}
 				{#each items as trip (trip.id)}
-					<a class="trip-card" data-item use:scalePress href={`/trips/${trip.id}`}>
-						<div class="trip-media">
-							{#if trip.cover_photo_url}
-								<img src={trip.cover_photo_url} alt={trip.title} loading="lazy" />
-							{:else}
-								<div class="trip-placeholder"></div>
-							{/if}
-							<div class="trip-overlay"></div>
-							<div class="trip-status">{getStatusLabel(trip.status)}</div>
-							<div class="trip-content">
-								<div>
-									<h3>{trip.title}</h3>
-									<p>
-										<span class="material-symbols-outlined">calendar_today</span>
-										{formatDateRange(trip.start_date, trip.end_date)}
-									</p>
-								</div>
-								<div class="avatars">
-									<div class="avatar"></div>
-									<div class="avatar count">+{Math.max((trip.member_count ?? 1) - 1, 1)}</div>
-								</div>
-							</div>
-						</div>
-					</a>
+					<div data-item use:scalePress>
+						<TripCard {trip} variant="compact" />
+					</div>
 				{/each}
 			{/if}
 		</div>
@@ -274,106 +253,6 @@
 		flex-direction: column;
 		gap: 1.5rem;
 		margin-top: 1rem;
-	}
-
-	.trip-card {
-		border-radius: 12px;
-		overflow: hidden;
-		box-shadow: var(--shadow-card);
-	}
-
-	.trip-media {
-		position: relative;
-		aspect-ratio: 16 / 10;
-	}
-
-	.trip-media img,
-	.trip-placeholder {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
-
-	.trip-placeholder {
-		background: linear-gradient(135deg, #0f1411, #1a251f);
-	}
-
-	.trip-overlay {
-		position: absolute;
-		inset: 0;
-		background: linear-gradient(to top, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.2), transparent);
-	}
-
-	.trip-status {
-		position: absolute;
-		top: 1rem;
-		right: 1rem;
-		padding: 0.3rem 0.6rem;
-		border-radius: 0.4rem;
-		background: rgba(255, 255, 255, 0.2);
-		color: white;
-		font-size: 0.6rem;
-		text-transform: uppercase;
-		letter-spacing: 0.1em;
-		font-weight: 700;
-		backdrop-filter: blur(10px);
-	}
-
-	.trip-content {
-		position: absolute;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		padding: 1.1rem;
-		display: flex;
-		justify-content: space-between;
-		align-items: flex-end;
-		color: white;
-	}
-
-	.trip-content h3 {
-		font-size: 1.2rem;
-		font-weight: 700;
-		margin-bottom: 0.25rem;
-	}
-
-	.trip-content p {
-		display: flex;
-		align-items: center;
-		gap: 0.3rem;
-		font-size: 0.78rem;
-		color: rgba(255, 255, 255, 0.8);
-	}
-
-	.trip-content .material-symbols-outlined {
-		font-size: 0.95rem;
-	}
-
-	.avatars {
-		display: flex;
-		align-items: center;
-	}
-
-	.avatar {
-		width: 2rem;
-		height: 2rem;
-		border-radius: 999px;
-		border: 2px solid white;
-		background: #6b7280;
-		margin-left: -0.5rem;
-		display: grid;
-		place-items: center;
-		color: white;
-		font-size: 0.6rem;
-		font-weight: 700;
-	}
-
-	.avatar:first-child {
-		margin-left: 0;
-	}
-
-	.avatar.count {
-		background: var(--primary);
 	}
 
 	.state {
