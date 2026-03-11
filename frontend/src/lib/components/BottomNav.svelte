@@ -24,7 +24,7 @@
 
 <nav class="nav">
 	{#each tabs as tab}
-		<a class:active={isActive(tab.href)} class:fab={tab.fab} href={tab.href} on:click={bounce}>
+		<a class:active={isActive(tab.href)} class:fab={tab.fab} href={tab.href} onclick={bounce}>
 			{#if tab.fab}
 				<span class="icon material-symbols-outlined fab-icon">{tab.icon}</span>
 				<span class="label">{tab.label}</span>

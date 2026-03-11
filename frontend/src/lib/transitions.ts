@@ -1,7 +1,11 @@
 import { animate } from 'motion';
 
 export function pageEnter(node: HTMLElement) {
-	animate(node, { x: ['20px', '0px'], opacity: [0, 1] }, { duration: 0.25, easing: [0.25, 0.46, 0.45, 0.94] });
+	animate(
+		node,
+		{ x: ['20px', '0px'], opacity: [0, 1] } as any,
+		{ duration: 0.25, easing: [0.25, 0.46, 0.45, 0.94] } as any
+	);
 }
 
 export function countUp(node: HTMLElement, target: number, duration = 1.1) {

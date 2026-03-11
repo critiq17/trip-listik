@@ -78,7 +78,13 @@
 				</select>
 				<span class="material-symbols-outlined">expand_more</span>
 			</div>
-			<button class="search-btn" on:click|preventDefault={search}>
+			<button
+				class="search-btn"
+				onclick={(event) => {
+					event.preventDefault();
+					search();
+				}}
+			>
 				Search Destinations
 			</button>
 		</div>

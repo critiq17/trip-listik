@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/critiq17/tripListik/internal/store/models"
@@ -53,6 +54,31 @@ func (s *Store) ListUserTrips(ctx context.Context, userID uuid.UUID) ([]models.T
 		Order("trips.start_date DESC NULLS LAST").
 		Find(&trips).Error
 	if err != nil {
+		return nil, err
+	}
+	return trips, nil
+}
+
+func (s *Store) ListUserTripsByStatus(ctx context.Context, userID uuid.UUID, status string) ([]models.Trip, error) {
+	var trips []models.Trip
+	q := s.DB.WithContext(ctx).
+		Joins("JOIN trip_members tm ON tm.trip_id = trips.id").
+		Where("tm.user_id = ? AND trips.deleted_at IS NULL", userID)
+
+	switch status {
+	case "upcoming":
+		q = q.Where("trips.start_date IS NOT NULL AND trips.start_date > CURRENT_DATE")
+	case "past":
+		q = q.Where("trips.end_date IS NOT NULL AND trips.end_date < CURRENT_DATE")
+	case "draft":
+		q = q.Where("trips.status = ?", "draft")
+	case "":
+		// no extra filter
+	default:
+		return nil, gorm.ErrInvalidData
+	}
+
+	if err := q.Order("trips.start_date DESC NULLS LAST").Find(&trips).Error; err != nil {
 		return nil, err
 	}
 	return trips, nil
@@ -119,8 +145,8 @@ func (s *Store) SearchPublicTrips(ctx context.Context, query, countryCode string
 		Where("visibility = ? AND deleted_at IS NULL", "public")
 
 	if query != "" {
-		like := "%" + query + "%"
-		q = q.Where("title ILIKE ? OR city ILIKE ?", like, like)
+		like := "%" + escapeLike(query) + "%"
+		q = q.Where("title ILIKE ? ESCAPE '\\' OR city ILIKE ? ESCAPE '\\'", like, like)
 	}
 	if countryCode != "" {
 		q = q.Where("country_code = ?", countryCode)
@@ -135,4 +161,13 @@ func (s *Store) SearchPublicTrips(ctx context.Context, query, countryCode string
 		return nil, err
 	}
 	return trips, nil
+}
+
+func escapeLike(input string) string {
+	replacer := strings.NewReplacer(
+		"\\", "\\\\",
+		"%", "\\%",
+		"_", "\\_",
+	)
+	return replacer.Replace(input)
 }

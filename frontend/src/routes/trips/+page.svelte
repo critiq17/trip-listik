@@ -8,14 +8,14 @@
 	import type { TripCardData } from '$lib/types';
 
 	const tabs = ['Upcoming', 'Past', 'Drafts'];
-	let active = 'Upcoming';
-	let items: TripCardData[] = [];
-	let loading = true;
-	let error = '';
-	let ready = false;
-	let tabBar: HTMLDivElement | null = null;
-	let indicator: HTMLDivElement | null = null;
-	let tabRefs: HTMLButtonElement[] = [];
+	let active = $state('Upcoming');
+	let items = $state<TripCardData[]>([]);
+	let loading = $state(true);
+	let error = $state('');
+	let ready = $state(false);
+	let tabBar = $state<HTMLElement | null>(null);
+	let indicator = $state<HTMLDivElement | null>(null);
+	let tabRefs = $state<HTMLButtonElement[]>([]);
 
 	async function loadTrips() {
 		loading = true;
@@ -43,8 +43,11 @@
 		const left = tabRect.left - barRect.left;
 		animate(
 			indicator,
-			{ x: [`${indicator.offsetLeft}px`, `${left}px`], width: [`${indicator.offsetWidth}px`, `${tabRect.width}px`] },
-			{ duration: 0.25, easing: [0.25, 0.46, 0.45, 0.94] }
+			{
+				x: [`${indicator.offsetLeft}px`, `${left}px`],
+				width: [`${indicator.offsetWidth}px`, `${tabRect.width}px`]
+			} as any,
+			{ duration: 0.25, easing: [0.25, 0.46, 0.45, 0.94] } as any
 		);
 		indicator.style.transform = `translateX(${left}px)`;
 		indicator.style.width = `${tabRect.width}px`;
@@ -55,10 +58,12 @@
 		setTimeout(moveIndicator, 0);
 	});
 
-	$: if (ready && active) {
-		loadTrips();
-		setTimeout(moveIndicator, 0);
-	}
+	$effect(() => {
+		if (ready && active) {
+			loadTrips();
+			setTimeout(moveIndicator, 0);
+		}
+	});
 </script>
 
 <section class="trips-page">
@@ -80,7 +85,7 @@
 
 	<nav class="tabs" bind:this={tabBar}>
 		{#each tabs as tab, i}
-			<button bind:this={tabRefs[i]} class:active={tab === active} on:click={() => (active = tab)}>
+			<button bind:this={tabRefs[i]} class:active={tab === active} onclick={() => (active = tab)}>
 				{tab}
 			</button>
 		{/each}

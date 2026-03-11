@@ -12,7 +12,50 @@ export const setToken = (token: string) => {
 	localStorage.setItem('tl_token', token);
 };
 
-export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+export const getRefreshToken = () => {
+	if (typeof localStorage === 'undefined') return '';
+	return localStorage.getItem('tl_refresh') ?? '';
+};
+
+export const setRefreshToken = (token: string) => {
+	if (typeof localStorage === 'undefined') return;
+	localStorage.setItem('tl_refresh', token);
+};
+
+export const clearTokens = () => {
+	if (typeof localStorage === 'undefined') return;
+	localStorage.removeItem('tl_token');
+	localStorage.removeItem('tl_refresh');
+};
+
+const refreshSession = async () => {
+	const refreshToken = getRefreshToken();
+	if (!refreshToken) {
+		throw new Error('Missing refresh token');
+	}
+
+	const res = await fetch(`${baseUrl}/v1/auth/refresh`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ refresh_token: refreshToken })
+	});
+
+	if (!res.ok) {
+		clearTokens();
+		throw new Error('Session expired');
+	}
+
+	const data = await res.json();
+	if (data?.token) setToken(data.token);
+	if (data?.refresh_token) setRefreshToken(data.refresh_token);
+	return data;
+};
+
+export async function apiFetch<T>(
+	path: string,
+	options: RequestInit = {},
+	retry = true
+): Promise<T> {
 	const token = getToken();
 	const headers = new Headers(options.headers ?? {});
 	if (!headers.has('Content-Type')) {
@@ -27,12 +70,20 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
 		headers
 	});
 
+	if (res.status === 401 && retry && getRefreshToken()) {
+		await refreshSession();
+		return apiFetch<T>(path, options, false);
+	}
+
 	if (!res.ok) {
 		const err = await res.json().catch(() => ({}));
 		const message = err?.error?.message ?? 'Request failed';
 		throw new Error(message);
 	}
 
+	if (res.status === 204) {
+		return {} as T;
+	}
 	return res.json();
 }
 

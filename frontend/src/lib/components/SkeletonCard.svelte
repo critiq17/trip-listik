@@ -1,5 +1,5 @@
 <script lang="ts">
-	export let ratio = '4 / 5';
+	let { ratio = '4 / 5' } = $props<{ ratio?: string }>();
 </script>
 
 <div class="skeleton-card skeleton" style={`aspect-ratio: ${ratio};`}></div>

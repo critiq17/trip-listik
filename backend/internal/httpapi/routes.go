@@ -25,6 +25,7 @@ func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 	inboxHandler := &handlers.InboxHandler{Store: store}
 
 	v1.Post("/auth/telegram", authHandler.TelegramAuth)
+	v1.Post("/auth/refresh", authHandler.Refresh)
 	v1.Get("/feed", feedHandler.Feed)
 	v1.Get("/explore", feedHandler.Explore)
 	v1.Get("/trips/:id", tripsHandler.GetTrip)

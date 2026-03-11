@@ -8,7 +8,9 @@ import (
 	"errors"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 )
 
 type TelegramUser struct {
@@ -28,6 +30,20 @@ func ValidateTelegramInitData(initData string, botToken string) (*TelegramUser, 
 	hash := values.Get("hash")
 	if hash == "" {
 		return nil, errors.New("missing hash")
+	}
+
+	authDateStr := values.Get("auth_date")
+	if authDateStr == "" {
+		return nil, errors.New("missing auth_date")
+	}
+	authDateUnix, err := strconv.ParseInt(authDateStr, 10, 64)
+	if err != nil {
+		return nil, errors.New("invalid auth_date")
+	}
+	const maxAuthAge = 5 * time.Minute
+	authTime := time.Unix(authDateUnix, 0)
+	if time.Since(authTime) > maxAuthAge || authTime.After(time.Now().Add(1*time.Minute)) {
+		return nil, errors.New("init data expired")
 	}
 
 	dataCheckString := buildDataCheckString(values)

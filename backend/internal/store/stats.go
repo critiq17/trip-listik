@@ -18,39 +18,26 @@ func (s *Store) ComputeUserStats(ctx context.Context, userID uuid.UUID) (*UserSt
 	var stats UserStatsSummary
 
 	if err := s.DB.WithContext(ctx).Raw(`
-		SELECT
-			COUNT(DISTINCT t.id) AS total_trips
-		FROM trips t
-		JOIN trip_members tm ON tm.trip_id = t.id
-		WHERE tm.user_id = ? AND t.deleted_at IS NULL
-	`, userID).Scan(&stats).Error; err != nil {
-		return nil, err
-	}
-
-	if err := s.DB.WithContext(ctx).Raw(`
-		SELECT
-			COUNT(DISTINCT t.country_code) AS countries_visited,
-			COUNT(DISTINCT t.city) AS cities_visited
-		FROM trips t
-		JOIN trip_members tm ON tm.trip_id = t.id
-		WHERE tm.user_id = ? AND t.status = 'completed' AND t.deleted_at IS NULL
-	`, userID).Scan(&stats).Error; err != nil {
-		return nil, err
-	}
-
-	if err := s.DB.WithContext(ctx).Raw(`
-		SELECT
-			COUNT(*) FILTER (WHERE member_count > 1) AS trips_with_friends,
-			COUNT(*) FILTER (WHERE member_count = 1) AS solo_trips
-		FROM (
-			SELECT t.id, COUNT(tm.user_id) AS member_count
+		WITH user_trips AS (
+			SELECT t.id, t.country_code, t.city, t.status
 			FROM trips t
 			JOIN trip_members tm ON tm.trip_id = t.id
-			WHERE t.deleted_at IS NULL
-			GROUP BY t.id
-		) x
-		JOIN trip_members tmu ON tmu.trip_id = x.id
-		WHERE tmu.user_id = ?
+			WHERE tm.user_id = ? AND t.deleted_at IS NULL
+		),
+		member_counts AS (
+			SELECT tm.trip_id, COUNT(*) AS member_count
+			FROM trip_members tm
+			JOIN user_trips ut ON ut.id = tm.trip_id
+			GROUP BY tm.trip_id
+		)
+		SELECT
+			COUNT(*) AS total_trips,
+			COUNT(DISTINCT CASE WHEN ut.status = 'completed' THEN ut.country_code END) AS countries_visited,
+			COUNT(DISTINCT CASE WHEN ut.status = 'completed' THEN ut.city END) AS cities_visited,
+			COUNT(*) FILTER (WHERE mc.member_count > 1) AS trips_with_friends,
+			COUNT(*) FILTER (WHERE mc.member_count = 1) AS solo_trips
+		FROM user_trips ut
+		LEFT JOIN member_counts mc ON mc.trip_id = ut.id
 	`, userID).Scan(&stats).Error; err != nil {
 		return nil, err
 	}

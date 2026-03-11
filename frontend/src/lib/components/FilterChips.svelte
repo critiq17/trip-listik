@@ -1,11 +1,13 @@
 <script lang="ts">
-	export let filters: string[] = [];
-	export let active: string;
+	let { filters = [], active = $bindable() } = $props<{
+		filters?: string[];
+		active: string;
+	}>();
 </script>
 
 <div class="chips">
 	{#each filters as filter}
-		<button class:active={filter === active} on:click={() => (active = filter)}>
+		<button class:active={filter === active} onclick={() => (active = filter)}>
 			{filter}
 		</button>
 	{/each}
