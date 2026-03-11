@@ -79,8 +79,8 @@
 		display: flex;
 		justify-content: space-around;
 		align-items: center;
-		height: var(--nav-height);
-		padding: 0 1.25rem calc(env(safe-area-inset-bottom) / 2);
+		height: calc(var(--nav-height) + env(safe-area-inset-bottom));
+		padding: 0.2rem 1.25rem calc(env(safe-area-inset-bottom) + 6px);
 		background: rgba(22, 28, 24, 0.75);
 		backdrop-filter: blur(24px) saturate(1.6);
 		border-top: 1px solid rgba(255, 255, 255, 0.06);
@@ -89,8 +89,8 @@
 
 	.tab {
 		position: relative;
-		width: 48px;
-		height: 48px;
+		width: 52px;
+		height: 52px;
 		display: grid;
 		place-items: center;
 		color: var(--text-muted);

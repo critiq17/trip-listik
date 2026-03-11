@@ -29,18 +29,17 @@
 	let bio = $state('');
 	let isPublic = $state(true);
 	let saveError = $state('');
+	let wishlistError = $state('');
+	let historyError = $state('');
 
 	onMount(async () => {
 		try {
-			const [me, statsRes, worldRes, mapRes, wishlistRes] = await Promise.all([
+			const [me, statsRes, worldRes, mapRes] = await Promise.all([
 				apiFetch<{ user: User }>('/v1/me'),
 				apiFetch<UserStats>('/v1/me/stats'),
 				apiFetch<{ world_explored_percent: number }>('/v1/me/world'),
 				apiFetch<{ countries: CountryVisit[]; total_countries: number; world_explored_percent: number }>(
 					'/v1/me/map'
-				),
-				apiFetch<{ items: Array<{ id: string; country_code: string; city?: string; note?: string }> }>(
-					'/v1/me/wishlist'
 				)
 			]);
 			user = me.user;
@@ -50,12 +49,25 @@
 			world = worldRes.world_explored_percent ?? 0;
 			mapCountries = mapRes.countries ?? [];
 			totalCountries = mapRes.total_countries ?? 0;
-			wishlist = wishlistRes.items ?? [];
 			if (user?.id) {
 				shareURL = `${window.location.origin}/profile/${user.id}`;
 			}
-			const trips = await apiFetch<{ items: TripCardData[] }>('/v1/trips?scope=mine');
-			history = (trips.items ?? []).slice(0, 6);
+
+			try {
+				const wishlistRes = await apiFetch<{
+					items: Array<{ id: string; country_code: string; city?: string; note?: string }>;
+				}>('/v1/me/wishlist');
+				wishlist = wishlistRes.items ?? [];
+			} catch (err) {
+				wishlistError = err instanceof Error ? err.message : 'Failed to load wishlist';
+			}
+
+			try {
+				const trips = await apiFetch<{ items: TripCardData[] }>('/v1/trips?scope=mine');
+				history = (trips.items ?? []).slice(0, 6);
+			} catch (err) {
+				historyError = err instanceof Error ? err.message : 'Failed to load trips';
+			}
 
 			if (stats && statEls.length) {
 				const values = [stats.total_trips, stats.countries_visited, stats.cities_visited, stats.trips_with_friends];
@@ -236,7 +248,9 @@
 					</div>
 				</div>
 				<div class="history-list">
-					{#if history.length === 0}
+					{#if historyError}
+						<div class="state">{historyError}</div>
+					{:else if history.length === 0}
 						<div class="state">No trips to show yet.</div>
 					{:else}
 						{#each history as trip}
@@ -257,7 +271,9 @@
 					<button class="save-btn" onclick={addWishlist}>Add</button>
 				</div>
 				<div class="history-list">
-					{#if wishlist.length === 0}
+					{#if wishlistError}
+						<div class="state">{wishlistError}</div>
+					{:else if wishlist.length === 0}
 						<div class="state">No wishlist items yet.</div>
 					{:else}
 						{#each wishlist as item}
