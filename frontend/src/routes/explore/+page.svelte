@@ -3,11 +3,11 @@
 	import { apiFetch } from '$lib/api';
 	import { staggerList } from '$lib/actions/animate';
 
-	let query = '';
-	let country = '';
-	let items: Array<Record<string, any>> = [];
-	let loading = false;
-	let error = '';
+	let query = $state('');
+	let country = $state('');
+	let items = $state<Array<Record<string, any>>>([]);
+	let loading = $state(false);
+	let error = $state('');
 	let timer: ReturnType<typeof setTimeout> | null = null;
 	let ready = false;
 
@@ -38,11 +38,13 @@
 		search();
 	});
 
-	$: if (ready) {
-		query;
-		country;
-		debounceSearch();
-	}
+	$effect(() => {
+		if (ready) {
+			query;
+			country;
+			debounceSearch();
+		}
+	});
 </script>
 
 <section class="explore-page">
@@ -103,10 +105,16 @@
 				<div class="cards" use:staggerList>
 					{#each items as item (item.id ?? item.title)}
 						<article class="route-card" data-item>
-							<div
-								class="route-image"
-								style={`background-image: url('${item.cover_photo_url ?? item.image ?? ''}')`}
-							></div>
+							<div class="route-image-wrap">
+								<div class="img-skeleton skeleton"></div>
+								<img
+									class="trip-img route-image-element"
+									src={item.cover_photo_url ?? item.image ?? ''}
+									alt={item.title ?? item.name ?? ''}
+									onload={(e) => e.currentTarget.classList.add('loaded')}
+									onerror={(e) => e.currentTarget.classList.add('error')}
+								/>
+							</div>
 							<div class="route-body">
 								<div class="route-top">
 									<h4>{item.title ?? item.name ?? 'Untitled Route'}</h4>
@@ -263,13 +271,6 @@
 		overflow: hidden;
 		border: 1px solid rgba(255, 255, 255, 0.08);
 		box-shadow: var(--shadow-card);
-	}
-
-	.route-image {
-		height: 12rem;
-		background-size: cover;
-		background-position: center;
-		background-color: #202a25;
 	}
 
 	.route-body {

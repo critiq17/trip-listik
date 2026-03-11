@@ -475,7 +475,7 @@
 	}
 
 	.error {
-		color: #e11d48;
+		color: var(--error);
 		font-size: 0.8rem;
 	}
 </style>

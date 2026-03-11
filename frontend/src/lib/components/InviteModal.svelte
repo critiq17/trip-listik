@@ -18,12 +18,45 @@
 	let error = $state('');
 	let inviteLoading = $state<string | null>(null);
 
+	import { animate } from 'motion';
+
+	let sheetEl: HTMLElement | null = null;
+	let backdropEl: HTMLButtonElement | null = null;
+
 	const close = () => {
-		open = false;
-		query = '';
-		results = [];
-		error = '';
+		if (sheetEl && backdropEl) {
+			animate(backdropEl, { opacity: [1, 0] }, { duration: 0.2 });
+			animate(
+				sheetEl,
+				// @ts-ignore
+				{ transform: ['translateY(0%)', 'translateY(100%)'], opacity: [1, 0] },
+				{ duration: 0.3 }
+			);
+			setTimeout(() => {
+				open = false;
+				query = '';
+				results = [];
+				error = '';
+			}, 300);
+		} else {
+			open = false;
+			query = '';
+			results = [];
+			error = '';
+		}
 	};
+
+	$effect(() => {
+		if (open && sheetEl && backdropEl) {
+			animate(backdropEl, { opacity: [0, 1] }, { duration: 0.2 });
+			animate(
+				sheetEl,
+				// @ts-ignore
+				{ transform: ['translateY(100%)', 'translateY(0%)'], opacity: [0.5, 1] },
+				{ duration: 0.35, easing: [0.16, 1, 0.3, 1] }
+			);
+		}
+	});
 
 	const loadInvites = async () => {
 		if (!tripId) return;
@@ -207,7 +240,7 @@
 	.error {
 		display: block;
 		margin-top: 0.4rem;
-		color: #f97316;
+		color: var(--error);
 		font-size: 0.75rem;
 	}
 

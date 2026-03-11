@@ -47,6 +47,7 @@
 	});
 
 	$effect(() => {
+		$page.url.pathname;
 		moveDot();
 	});
 </script>
@@ -118,6 +119,11 @@
 		text-transform: uppercase;
 		color: var(--primary);
 		font-weight: 700;
+		opacity: 0;
+		transition: opacity 0.25s ease-out;
+	}
+
+	.tab.active .label {
 		opacity: 0.9;
 	}
 
