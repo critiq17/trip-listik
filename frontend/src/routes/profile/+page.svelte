@@ -28,6 +28,7 @@
 	let wishlistError = $state('');
 	let historyError = $state('');
 	let error = $state('');
+	let historyTab = $state<'active' | 'past'>('active');
 
 	onMount(async () => {
 		try {
@@ -41,7 +42,15 @@
 				bio = user?.bio ?? '';
 				isPublic = user?.is_public ?? true;
 				if (user?.id) {
-					shareURL = `${window.location.origin}/profile/${user.id}`;
+					const tg = (window as any).Telegram?.WebApp;
+					const botUsername = import.meta.env.PUBLIC_BOT_USERNAME || 'triplistikbot';
+					if (tg?.initData) {
+						// Inside Telegram WebApp — use deep link
+						shareURL = `https://t.me/${botUsername}?startapp=profile_${user.id}`;
+					} else {
+						// Regular browser — use web URL
+						shareURL = `${window.location.origin}/profile/${user.id}`;
+					}
 				}
 			}
 			
@@ -60,7 +69,7 @@
 
 			try {
 				const trips = await apiFetch<{ items: TripCardData[] }>('/v1/trips?scope=mine');
-				history = (trips.items ?? []).slice(0, 6);
+				history = trips.items ?? [];
 			} catch (e) {
 				historyError = e instanceof Error ? e.message : 'Failed to load trips';
 			}
@@ -123,6 +132,16 @@
 		await apiFetch(`/v1/me/wishlist/${id}`, { method: 'DELETE' });
 		wishlist = wishlist.filter((item) => item.id !== id);
 	};
+
+	let activeHistory = $derived(history.filter((trip) => {
+		if (!trip.end_date) return true;
+		return new Date(trip.end_date) >= new Date();
+	}));
+
+	let pastHistory = $derived(history.filter((trip) => {
+		if (!trip.end_date) return false;
+		return new Date(trip.end_date) < new Date();
+	}));
 </script>
 
 <section class="profile-page">
@@ -204,16 +223,32 @@
 			<section class="history">
 				<div class="history-head">
 					<h3>Travel history</h3>
+					<div class="tabs">
+						<button class:active={historyTab === 'active'} onclick={() => historyTab = 'active'}>Active / Upcoming</button>
+						<button class:active={historyTab === 'past'} onclick={() => historyTab = 'past'}>Past</button>
+					</div>
 				</div>
 				<div class="history-list">
 					{#if historyError}
 						<div class="state">{historyError}</div>
-					{:else if history.length === 0}
-						<div class="state">No trips to show yet.</div>
 					{:else}
-						{#each history as trip}
-							<TripCard {trip} variant="horizontal" />
-						{/each}
+						{#if historyTab === 'active'}
+							{#if activeHistory.length === 0}
+								<div class="state">No active or upcoming trips.</div>
+							{:else}
+								{#each activeHistory as trip}
+									<TripCard {trip} variant="horizontal" />
+								{/each}
+							{/if}
+						{:else}
+							{#if pastHistory.length === 0}
+								<div class="state">No past trips yet.</div>
+							{:else}
+								{#each pastHistory as trip}
+									<TripCard {trip} variant="horizontal" />
+								{/each}
+							{/if}
+						{/if}
 					{/if}
 				</div>
 			</section>
@@ -483,6 +518,30 @@
 		letter-spacing: 0.12em;
 		text-transform: uppercase;
 		font-weight: 700;
+	}
+
+	.history-head .tabs {
+		display: flex;
+		background: rgba(255, 255, 255, 0.05);
+		border-radius: var(--radius-pill);
+		padding: 0.2rem;
+	}
+
+	.history-head .tabs button {
+		background: transparent;
+		border: none;
+		color: var(--text-secondary);
+		padding: 0.4rem 0.8rem;
+		border-radius: var(--radius-pill);
+		font-size: 0.7rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.history-head .tabs button.active {
+		background: var(--text-primary);
+		color: #000;
 	}
 
 	.history-list {

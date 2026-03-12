@@ -12,6 +12,7 @@
 	import InviteModal from '$lib/components/InviteModal.svelte';
 	import { staggerList, scalePress } from '$lib/actions/animate';
 	import { animate } from 'motion';
+	import { hapticImpact, hapticNotification, setupBackButton, hideBackButton } from '$lib/telegram';
 	import {
 		formatDateRange,
 		formatLongDate,
@@ -48,6 +49,12 @@
 	let uploading = $state(false);
 	let uploadError = $state('');
 	let joinStatus = $state('');
+
+	const joinStatusLabel: Record<string, string> = {
+		joined: 'Joined ✓',
+		already_member: 'Already a member',
+		pending: 'Request sent ✓'
+	};
 	let joinLoading = $state(false);
 	let meId = $state('');
 	let joinRequests = $state<JoinRequest[]>([]);
@@ -154,13 +161,17 @@
 
 	async function joinTrip() {
 		if (!trip) return;
+		hapticImpact('soft');
 		joinLoading = true;
 		try {
 			const data = await apiFetch<{ status: string }>(`/v1/trips/${trip.id}/join`, {
 				method: 'POST'
 			});
 			joinStatus = data.status;
+			hapticNotification('success');
 			await loadMembers(trip.id);
+		} catch (err) {
+			hapticNotification('error');
 		} finally {
 			joinLoading = false;
 		}
@@ -199,6 +210,7 @@
 
 	async function castVote(value: number) {
 		if (!trip) return;
+		hapticImpact('light');
 		await apiFetch(`/v1/trips/${trip.id}/votes`, {
 			method: 'POST',
 			body: JSON.stringify({ vote: value })
@@ -244,6 +256,7 @@
 	const isOwner = () => trip?.owner_id && meId && trip.owner_id === meId;
 
 	onMount(() => {
+		setupBackButton(() => history.back());
 		const id = $page.params.id ?? '';
 		if (!id) {
 			error = 'Trip id is missing';
@@ -290,6 +303,7 @@
 
 	onDestroy(() => {
 		stream?.close();
+		hideBackButton();
 	});
 
 	$effect(() => {
@@ -436,6 +450,7 @@
 							{#each [1, 2, 3, 4, 5] as score}
 								<button
 									onclick={(e) => {
+										hapticImpact('light');
 										animate(e.currentTarget, { scale: [1, 1.2, 0.95, 1] }, { duration: 0.3 });
 										castVote(score);
 									}}
@@ -446,8 +461,8 @@
 						</div>
 					</div>
 
-					<button class="cta-button" onclick={joinTrip} disabled={joinLoading} use:scalePress>
-						{joinLoading ? 'Joining...' : joinStatus || 'Join Trip'}
+					<button class="cta-button" onclick={joinTrip} disabled={joinLoading || !!joinStatus} use:scalePress>
+						{joinLoading ? 'Joining...' : (joinStatusLabel[joinStatus] ?? joinStatus) || 'Join Trip'}
 					</button>
 				</div>
 			{:else if activeTab === 'Members'}

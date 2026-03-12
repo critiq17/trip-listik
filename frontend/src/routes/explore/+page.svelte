@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { apiFetch } from '$lib/api';
 	import { staggerList } from '$lib/actions/animate';
+	import CityAutocomplete from '$lib/components/CityAutocomplete.svelte';
 
 	let query = $state('');
 	let country = $state('');
@@ -10,6 +11,7 @@
 	let error = $state('');
 	let timer: ReturnType<typeof setTimeout> | null = null;
 	let ready = false;
+
 
 	const search = async () => {
 		loading = true;
@@ -61,24 +63,14 @@
 
 	<main class="content">
 		<div class="form">
-			<div class="field">
-				<label for="explore-destination">Destination</label>
-				<input
-					id="explore-destination"
-					type="text"
-					placeholder="Where to?"
-					bind:value={query}
+			<div class="field autocomplete-field">
+				<label for="explore-destination">Destination or Country</label>
+				<CityAutocomplete 
+					bind:value={query} 
+					bind:countryCode={country}
+					id="explore-destination" 
+					placeholder="Search cities or countries..." 
 				/>
-			</div>
-			<div class="field select">
-				<label for="explore-country">Country Filter</label>
-				<select id="explore-country" bind:value={country}>
-					<option value="">All Regions</option>
-					<option value="europe">Europe</option>
-					<option value="asia">Asia</option>
-					<option value="north-america">North America</option>
-				</select>
-				<span class="material-symbols-outlined">expand_more</span>
 			</div>
 			<button
 				class="search-btn"
@@ -211,31 +203,7 @@
 		margin-bottom: 0.3rem;
 	}
 
-	.field input,
-	.field select {
-		width: 100%;
-		background: transparent;
-		border: none;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.18);
-		padding: 0.6rem 0;
-		font-size: 1.05rem;
-		color: var(--text-primary);
-	}
 
-	.field select {
-		appearance: none;
-	}
-
-	.field.select {
-		position: relative;
-	}
-
-	.field.select span {
-		position: absolute;
-		right: 0;
-		bottom: 0.55rem;
-		color: var(--text-secondary);
-	}
 
 	.search-btn {
 		width: 100%;

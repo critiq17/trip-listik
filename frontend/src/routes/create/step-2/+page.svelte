@@ -2,15 +2,28 @@
 	import { goto } from '$app/navigation';
 	import { apiFetch } from '$lib/api';
 	import { getDraft } from '$lib/tripDraft';
+	import { onMount, onDestroy } from 'svelte';
+	import { setupMainButton, setMainButtonState, hideMainButton } from '$lib/telegram';
 
-	let isPublic = true;
-	let startDate: Date | null = new Date(2023, 9, 12);
-	let endDate: Date | null = new Date(2023, 9, 18);
-	let saving = false;
-	let error = '';
+	let visibility = $state('public');
+	let startDate: Date | null = $state(null);
+	let endDate: Date | null = $state(null);
+	let saving = $state(false);
+	let error = $state('');
 
-	let viewMonth = new Date();
-	viewMonth.setDate(1);
+	$effect(() => {
+		if (startDate && endDate && !saving) {
+			setupMainButton('Continue', next, true, true);
+		} else {
+			setupMainButton('Continue', next, true, false);
+		}
+	});
+
+	onDestroy(() => {
+		hideMainButton();
+	});
+
+	let viewMonth = $state(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
 
 	const formatDisplay = (value: Date | null) => {
 		if (!value) return '';
@@ -80,7 +93,9 @@
 			error = 'Draft not found';
 			return;
 		}
+		if (!draft || saving) return;
 		saving = true;
+		setMainButtonState(true);
 		error = '';
 		try {
 			await apiFetch(`/v1/trips/${draft.id}`, {
@@ -88,7 +103,7 @@
 				body: JSON.stringify({
 					start_date: toISO(startDate),
 					end_date: toISO(endDate),
-					visibility: isPublic ? 'public' : 'private'
+					visibility: visibility
 				})
 			});
 			goto('/create/step-3');
@@ -96,13 +111,14 @@
 			error = err instanceof Error ? err.message : 'Failed to save';
 		} finally {
 			saving = false;
+			setMainButtonState(false);
 		}
 	};
 
 	const back = () => history.back();
 
-	const toggle = (value: boolean) => {
-		isPublic = value;
+	const selectVisibility = (value: string) => {
+		visibility = value;
 	};
 </script>
 
@@ -188,22 +204,42 @@
 			</div>
 		</div>
 
-		<div class="visibility">
-			<div>
-				<strong>Trip Visibility</strong>
-				<p>Who can see your itinerary?</p>
+		<div class="visibility-section">
+			<div class="section-head">
+				<strong>Trip Type</strong>
+				<p>Who can join and see your itinerary?</p>
 			</div>
-			<div class="toggle" class:private={!isPublic}>
-				<div class="toggle-pill"></div>
-				<button class:is-active={isPublic} onclick={() => toggle(true)}>Public</button>
-				<button class:is-active={!isPublic} onclick={() => toggle(false)}>Private</button>
+			<div class="trip-types">
+				<button class="type-card" class:active={visibility === 'public'} onclick={() => selectVisibility('public')}>
+					<span class="material-symbols-outlined icon">public</span>
+					<div class="info">
+						<strong>Public Trip</strong>
+						<p>Anyone can view and join. Best for open invitations.</p>
+					</div>
+				</button>
+				<button class="type-card" class:active={visibility === 'private'} onclick={() => selectVisibility('private')}>
+					<span class="material-symbols-outlined icon">lock</span>
+					<div class="info">
+						<strong>Private Trip</strong>
+						<p>Only you and approved members can view. Invite only.</p>
+					</div>
+				</button>
+				<button class="type-card" class:active={visibility === 'group'} onclick={() => selectVisibility('group')}>
+					<span class="material-symbols-outlined icon">group</span>
+					<div class="info">
+						<strong>Group Trip</strong>
+						<p>Private trip for a group of friends. Members can invite others.</p>
+					</div>
+				</button>
+				<button class="type-card" class:active={visibility === 'tour'} onclick={() => selectVisibility('tour')}>
+					<span class="material-symbols-outlined icon">tour</span>
+					<div class="info">
+						<strong>Public Tour</strong>
+						<p>Publicly visible itinerary, but members cannot edit. Managed by organizer.</p>
+					</div>
+				</button>
 			</div>
 		</div>
-
-		<button class="continue" onclick={next} disabled={saving || !startDate || !endDate}>
-			{saving ? 'Saving…' : 'Continue'}
-			<span class="material-symbols-outlined">arrow_forward</span>
-		</button>
 
 		{#if error}
 			<p class="error">{error}</p>
@@ -400,79 +436,78 @@
 			border: 1px solid rgba(255, 255, 255, 0.4);
 		}
 
-	.visibility {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		padding: 1rem;
-		background: rgba(77, 157, 109, 0.1);
-		border: 1px solid rgba(77, 157, 109, 0.2);
-		border-radius: 12px;
-		margin-bottom: 1.5rem;
+	.visibility-section {
+		margin-top: 1.5rem;
+		padding: 1.5rem 0;
+		border-top: 1px solid rgba(255, 255, 255, 0.08);
 	}
 
-	.visibility strong {
-		font-size: 0.85rem;
-	}
-
-	.visibility p {
-		font-size: 0.7rem;
-		color: var(--text-secondary);
-	}
-
-	.toggle {
-		position: relative;
-		display: grid;
-		grid-template-columns: repeat(2, 1fr);
-		background: rgba(0, 0, 0, 0.3);
-		border-radius: 999px;
-		padding: 0.2rem;
-		width: 8rem;
-		height: 2.2rem;
-	}
-
-	.toggle-pill {
-		position: absolute;
-		top: 0.2rem;
-		left: 0.2rem;
-		width: calc(50% - 0.2rem);
-		height: calc(100% - 0.4rem);
-		background: var(--primary);
-		border-radius: 999px;
-		transition: transform 0.25s ease;
-	}
-
-	.toggle.private .toggle-pill {
-		transform: translateX(100%);
-	}
-
-	.toggle button {
-		z-index: 1;
-		font-size: 0.6rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		color: var(--text-secondary);
-	}
-
-	.toggle button.is-active {
-		color: white;
-	}
-
-	.continue {
-		width: 100%;
-		padding: 1rem;
-		border-radius: 12px;
-		background: var(--primary);
-		color: white;
-		font-weight: 700;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.4rem;
-		box-shadow: 0 14px 30px rgba(77, 157, 109, 0.35);
+	.section-head {
 		margin-bottom: 1rem;
 	}
+
+	.section-head strong {
+		font-size: 1rem;
+		display: block;
+		margin-bottom: 0.2rem;
+	}
+
+	.section-head p {
+		color: var(--text-secondary);
+		font-size: 0.8rem;
+	}
+
+	.trip-types {
+		display: grid;
+		gap: 0.8rem;
+	}
+
+	.type-card {
+		display: flex;
+		align-items: flex-start;
+		gap: 1rem;
+		padding: 1rem;
+		border-radius: var(--radius-xl);
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		text-align: left;
+		transition: all 0.2s ease;
+	}
+
+	.type-card .icon {
+		color: var(--text-secondary);
+		background: rgba(255, 255, 255, 0.08);
+		padding: 0.5rem;
+		border-radius: var(--radius-lg);
+	}
+
+	.type-card .info {
+		flex: 1;
+	}
+
+	.type-card .info strong {
+		display: block;
+		font-size: 0.95rem;
+		color: var(--text-primary);
+		margin-bottom: 0.2rem;
+	}
+
+	.type-card .info p {
+		font-size: 0.75rem;
+		color: var(--text-secondary);
+		line-height: 1.4;
+	}
+
+	.type-card.active {
+		background: rgba(77, 157, 109, 0.1);
+		border-color: var(--primary);
+	}
+
+	.type-card.active .icon {
+		background: var(--primary);
+		color: #000;
+	}
+
 
 	.error {
 		color: var(--error);
