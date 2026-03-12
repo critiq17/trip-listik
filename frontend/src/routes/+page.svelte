@@ -10,6 +10,7 @@
 
 	const filters = ['All', 'Friends', 'Popular', 'Nearby'];
 	let active = $state('All');
+	let searchQuery = $state('');
 	let items = $state<TripCardData[]>([]);
 	let loading = $state(true);
 	let error = $state('');
@@ -17,6 +18,7 @@
 	let cursor = $state<string | null>(null);
 	let loadingMore = $state(false);
 	let hasMore = $state(true);
+	let searchTimer: ReturnType<typeof setTimeout> | null = null;
 	let sentinel = $state<HTMLDivElement | null>(null);
 
 	const fetchFeed = async (mode: 'reset' | 'append' = 'reset') => {
@@ -25,12 +27,22 @@
 		loading = mode === 'reset';
 		error = '';
 		const filter = active.toLowerCase();
-		const query = filter === 'all' ? '' : `filter=${filter}`;
-		const cursorQuery = mode === 'append' && cursor ? `cursor=${cursor}` : '';
-		const queryString = [query, cursorQuery].filter(Boolean).join('&');
+		const queryArgs = [];
+		if (searchQuery.trim().length > 0) {
+			queryArgs.push(`q=${encodeURIComponent(searchQuery)}`);
+		} else if (filter !== 'all') {
+			queryArgs.push(`filter=${filter}`);
+		}
+		
+		if (mode === 'append' && cursor) {
+			queryArgs.push(`cursor=${cursor}`);
+		}
+		const queryString = queryArgs.join('&');
+		const endpoint = searchQuery.trim().length > 0 ? '/v1/explore' : '/v1/feed';
+
 		try {
 			const data = await apiFetch<{ items: TripCardData[]; next_cursor?: string; cursor?: string }>(
-				`/v1/feed${queryString ? `?${queryString}` : ''}`
+				`${endpoint}${queryString ? `?${queryString}` : ''}`
 			);
 			const next = data.next_cursor ?? data.cursor ?? null;
 			if (mode === 'append') {
@@ -65,11 +77,27 @@
 		return observe();
 	});
 
+	const debounceSearch = () => {
+		if (searchTimer) clearTimeout(searchTimer);
+		searchTimer = setTimeout(() => {
+			cursor = null;
+			hasMore = true;
+			fetchFeed('reset');
+		}, 300);
+	};
+
 	$effect(() => {
 		if (ready && active) {
 			cursor = null;
 			hasMore = true;
 			fetchFeed('reset');
+		}
+	});
+
+	$effect(() => {
+		if (ready) {
+			searchQuery;
+			debounceSearch();
 		}
 	});
 </script>
@@ -80,9 +108,9 @@
 			<span class="material-symbols-outlined">menu</span>
 		</button>
 		<h2>TripListik</h2>
-		<button class="icon-btn" aria-label="Notifications">
+		<a class="icon-btn" href="/inbox" aria-label="Notifications">
 			<span class="material-symbols-outlined">notifications</span>
-		</button>
+		</a>
 	</header>
 
 	<main class="content">
@@ -91,16 +119,27 @@
 			<h1 class="serif-text">Find trips worth joining.</h1>
 			<p class="subtext">Curated journeys from the community.</p>
 		</div>
-
-		<FilterChips {filters} bind:active />
-
-		<div class="trending">
-			<div class="trend-left">
-				<span class="material-symbols-outlined">trending_up</span>
-				<p>Trending Now: <strong>#Iceland2026</strong></p>
-			</div>
-			<span class="trend-count">(1.2k)</span>
+		
+		<div class="search-wrap">
+			<span class="material-symbols-outlined search-icon">search</span>
+			<input 
+				type="text" 
+				placeholder="Search destinations, tags..." 
+				bind:value={searchQuery}
+			/>
 		</div>
+
+		{#if !searchQuery.trim()}
+			<FilterChips {filters} bind:active />
+
+			<div class="trending">
+				<div class="trend-left">
+					<span class="material-symbols-outlined">trending_up</span>
+					<p>Trending Now: <strong>#Iceland2026</strong></p>
+				</div>
+				<span class="trend-count">(1.2k)</span>
+			</div>
+		{/if}
 
 		<div class="cards" use:staggerList>
 			{#if loading}
@@ -187,6 +226,37 @@
 	.subtext {
 		color: var(--text-secondary);
 		font-size: 0.95rem;
+	}
+
+	.search-wrap {
+		position: relative;
+		margin-bottom: 2rem;
+		margin-top: 1.5rem;
+	}
+
+	.search-wrap input {
+		width: 100%;
+		padding: 1rem 1rem 1rem 3rem;
+		border-radius: var(--radius-xl);
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		color: var(--text-primary);
+		font-size: 1.05rem;
+		outline: none;
+		transition: border-color 0.2s;
+	}
+
+	.search-wrap input:focus {
+		border-color: var(--primary);
+	}
+
+	.search-icon {
+		position: absolute;
+		left: 1rem;
+		top: 50%;
+		transform: translateY(-50%);
+		color: var(--text-secondary);
+		font-size: 1.2rem;
 	}
 
 	.trending {

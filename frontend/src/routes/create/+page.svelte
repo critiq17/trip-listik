@@ -2,15 +2,31 @@
 	import { goto } from '$app/navigation';
 	import { setDraft } from '$lib/tripDraft';
 	import { scalePress } from '$lib/actions/animate';
-	import { apiFetch } from '$lib/api';
-	import { onDestroy } from 'svelte';
+	import { apiFetch, presignTripPhoto, uploadSignedPhoto, getPublicPhotoURL } from '$lib/api';
+	import { onDestroy, onMount } from 'svelte';
+	import { setupMainButton, hideMainButton, setMainButtonState, setupBackButton } from '$lib/telegram';
+	import CityAutocomplete from '$lib/components/CityAutocomplete.svelte';
 
-	let title = '';
-	let destination = '';
-	let coverPhotoPreview = '';
-	let creating = false;
-	let error = '';
+	let title = $state('');
+	let destination = $state('');
+	let countryCode = $state('');
+	let coverPhotoPreview = $state('');
+	let coverPhotoFile: File | null = null;
+	let creating = $state(false);
+	let error = $state('');
 	let fileInput: HTMLInputElement | null = null;
+
+	$effect(() => {
+		if (title.trim() && !creating) {
+			setupMainButton('Continue', next, true, true);
+		} else {
+			setupMainButton('Continue', next, true, false);
+		}
+	});
+
+	onMount(() => {
+		setupBackButton(() => history.back());
+	});
 
 	const pickPhoto = () => {
 		fileInput?.click();
@@ -21,6 +37,7 @@
 		const file = target.files?.[0];
 		if (!file) return;
 		if (coverPhotoPreview) URL.revokeObjectURL(coverPhotoPreview);
+		coverPhotoFile = file;
 		coverPhotoPreview = URL.createObjectURL(file);
 	};
 
@@ -29,29 +46,47 @@
 	});
 
 	const next = async () => {
-		if (!title.trim()) {
-			error = 'Trip name is required';
-			return;
-		}
+		if (!title.trim() || creating) return;
 		creating = true;
+		setMainButtonState(true);
 		error = '';
 		try {
+			// Step 1: create trip draft first (we need its ID for presign)
 			const trip = await apiFetch<{ id: string }>('/v1/trips', {
 				method: 'POST',
 				body: JSON.stringify({
 					title,
 					city: destination,
+					country_code: countryCode,
 					cover_photo_url: null,
 					status: 'draft',
 					visibility: 'public'
 				})
 			});
+
+			// Step 2: upload cover photo if file was selected
+			if (coverPhotoFile) {
+				try {
+					const presign = await presignTripPhoto(trip.id, coverPhotoFile.name, coverPhotoFile.type);
+					await uploadSignedPhoto(presign.signed_url, presign.token, coverPhotoFile);
+					const publicUrl = getPublicPhotoURL(presign.path);
+					await apiFetch(`/v1/trips/${trip.id}`, {
+						method: 'PATCH',
+						body: JSON.stringify({ cover_photo_url: publicUrl })
+					});
+				} catch {
+					// Non-fatal: continue without cover photo
+					console.warn('Cover photo upload failed, continuing without it');
+				}
+			}
+
 			setDraft(trip.id);
 			goto('/create/step-2');
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to create trip';
 		} finally {
 			creating = false;
+			setMainButtonState(false);
 		}
 	};
 </script>
@@ -71,12 +106,14 @@
 				<input id="trip-name" bind:value={title} placeholder="e.g. Summer in Tuscany" />
 			</div>
 
-			<div class="field">
+			<div class="field autocomplete-field">
 				<label for="trip-destination">Destination</label>
-				<div class="field-row">
-					<input id="trip-destination" bind:value={destination} placeholder="Where to?" />
-					<span class="material-symbols-outlined">map</span>
-				</div>
+				<CityAutocomplete 
+					bind:value={destination} 
+					bind:countryCode={countryCode}
+					id="trip-destination" 
+					placeholder="Where to?" 
+				/>
 			</div>
 
 			<div class="field">
@@ -103,13 +140,6 @@
 			{#if error}
 				<p class="error">{error}</p>
 			{/if}
-		</div>
-
-		<div class="actions">
-			<button use:scalePress onclick={next} disabled={creating}>
-				{creating ? 'Saving…' : 'Continue'}
-				<span class="material-symbols-outlined">arrow_forward</span>
-			</button>
 		</div>
 	</main>
 </section>
@@ -180,17 +210,6 @@
 		color: var(--text-primary);
 	}
 
-	.field-row {
-		display: flex;
-		align-items: center;
-		position: relative;
-	}
-
-	.field-row span {
-		position: absolute;
-		right: 0;
-		color: var(--text-secondary);
-	}
 
 	.upload {
 		width: 100%;
@@ -234,19 +253,6 @@
 		display: none;
 	}
 
-	.actions button {
-		width: 100%;
-		padding: 1rem;
-		border-radius: 12px;
-		background: var(--primary);
-		color: white;
-		font-weight: 700;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.4rem;
-		box-shadow: 0 14px 30px rgba(77, 157, 109, 0.35);
-	}
 
 	.error {
 		color: #e11d48;

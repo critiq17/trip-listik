@@ -15,6 +15,7 @@ type Config struct {
 	Env                   string
 	JWTSecret             string
 	TelegramWebAppSecret  string
+	BotToken              string
 	SupabaseURL           string
 	SupabaseAnonKey       string
 	SupabaseServiceKey    string
@@ -36,6 +37,7 @@ func LoadConfig() *Config {
 		Env:                   getEnv("APP_ENV", "dev"),
 		JWTSecret:             os.Getenv("JWT_SECRET"),
 		TelegramWebAppSecret:  os.Getenv("TELEGRAM_WEBAPP_SECRET"),
+		BotToken:              os.Getenv("BOT_TOKEN"),
 		SupabaseURL:           os.Getenv("SUPABASE_URL"),
 		SupabaseAnonKey:       os.Getenv("SUPABASE_ANON_KEY"),
 		SupabaseServiceKey:    os.Getenv("SUPABASE_SERVICE_ROLE_KEY"),

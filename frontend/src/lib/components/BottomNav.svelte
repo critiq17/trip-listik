@@ -8,6 +8,7 @@
 		{ href: '/trips', label: 'Trips', icon: 'map' },
 		{ href: '/create', label: 'Create', icon: 'add', fab: true },
 		{ href: '/explore', label: 'Explore', icon: 'explore' },
+		{ href: '/inbox', label: 'Inbox', icon: 'notifications' },
 		{ href: '/profile', label: 'Profile', icon: 'person' }
 	];
 
@@ -48,7 +49,7 @@
 
 	$effect(() => {
 		$page.url.pathname;
-		moveDot();
+		requestAnimationFrame(moveDot);
 	});
 </script>
 

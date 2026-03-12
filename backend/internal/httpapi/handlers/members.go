@@ -2,11 +2,13 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/critiq17/tripListik/internal/httpapi/middleware"
 	"github.com/critiq17/tripListik/internal/httpapi/validate"
 	"github.com/critiq17/tripListik/internal/store"
+	"github.com/critiq17/tripListik/internal/telegram"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -14,6 +16,7 @@ import (
 
 type MembersHandler struct {
 	Store *store.Store
+	Bot   *telegram.Bot
 }
 
 func (h *MembersHandler) ListJoinRequests(c *fiber.Ctx) error {
@@ -195,6 +198,21 @@ func (h *MembersHandler) ApproveJoin(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to approve join request")
 	}
+
+	// Notify approved user via Telegram (non-blocking)
+	go func() {
+		approvedUser, err := h.Store.GetUserByID(context.Background(), userID)
+		if err != nil || approvedUser == nil {
+			return
+		}
+		text := fmt.Sprintf(
+			"✅ <b>Join Request Approved!</b>\n\nYou have been added to <b>%s</b>.\n\nOpen TripListik to see the trip details.",
+			trip.Title,
+		)
+		nctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		h.Bot.SendMessage(nctx, approvedUser.TelegramID, text)
+	}()
 
 	return c.JSON(fiber.Map{"status": "approved"})
 }

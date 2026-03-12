@@ -7,15 +7,17 @@ import (
 	"github.com/critiq17/tripListik/internal/realtime"
 	"github.com/critiq17/tripListik/internal/store"
 	"github.com/critiq17/tripListik/internal/supabase"
+	"github.com/critiq17/tripListik/internal/telegram"
 	"github.com/gofiber/fiber/v2"
 )
 
 func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 	hub := realtime.NewHub()
+	bot := telegram.NewBot(cfg.BotToken)
 	authHandler := &handlers.AuthHandler{Store: store, Cfg: cfg}
 	feedHandler := &handlers.FeedHandler{Store: store}
 	tripsHandler := &handlers.TripsHandler{Store: store}
-	membersHandler := &handlers.MembersHandler{Store: store}
+	membersHandler := &handlers.MembersHandler{Store: store, Bot: bot}
 	votesHandler := &handlers.VotesHandler{Store: store, Hub: hub}
 	commentsHandler := &handlers.CommentsHandler{Store: store, Hub: hub}
 	storageClient := supabase.NewStorageClient(cfg.SupabaseURL, cfg.SupabaseServiceKey)
@@ -23,10 +25,11 @@ func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 	streamHandler := &handlers.StreamHandler{Hub: hub}
 	profileHandler := &handlers.ProfileHandler{Store: store}
 	inboxHandler := &handlers.InboxHandler{Store: store}
-	invitesHandler := &handlers.InvitesHandler{Store: store}
+	invitesHandler := &handlers.InvitesHandler{Store: store, Bot: bot}
 	usersHandler := &handlers.UsersHandler{Store: store}
 	wishlistHandler := &handlers.WishlistHandler{Store: store}
 	publicProfileHandler := &handlers.PublicProfileHandler{Store: store}
+	geocodeHandler := &handlers.GeocodeHandler{}
 
 	v1.Post("/auth/telegram", authHandler.TelegramAuth)
 	v1.Post("/auth/refresh", authHandler.Refresh)
@@ -62,6 +65,7 @@ func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 	protected.Get("/trips/:id/invites", invitesHandler.ListTripInvites)
 	protected.Post("/invites/:id/respond", invitesHandler.RespondInvite)
 	protected.Get("/users/search", usersHandler.Search)
+	protected.Get("/geocode/search", geocodeHandler.Search)
 
 	protected.Get("/me", profileHandler.Me)
 	protected.Patch("/me", profileHandler.Update)

@@ -8,9 +8,11 @@
 	import { pageEnter } from '$lib/transitions';
 
 	let { children } = $props();
+	let authReady = $state(false);
 
-	onMount(() => {
-		ensureAuth($page.url.pathname);
+	onMount(async () => {
+		await ensureAuth($page.url.pathname);
+		authReady = true;
 	});
 </script>
 
@@ -20,13 +22,15 @@
 </svelte:head>
 
 <div class="app">
-	{#key $page.url.pathname}
-		<div use:pageEnter>
-			{@render children()}
-		</div>
-	{/key}
-	{#if $page.url.pathname !== '/auth'}
-		{#if !$page.url.pathname.startsWith('/create')}
+	{#if !authReady}
+		<div class="auth-loading"></div>
+	{:else}
+		{#key $page.url.pathname}
+			<div use:pageEnter>
+				{@render children()}
+			</div>
+		{/key}
+		{#if $page.url.pathname !== '/auth' && !$page.url.pathname.startsWith('/create') && !$page.url.pathname.startsWith('/invite')}
 			<BottomNav />
 		{/if}
 	{/if}
@@ -36,5 +40,10 @@
 	.app {
 		min-height: 100dvh;
 		position: relative;
+	}
+
+	.auth-loading {
+		min-height: 100dvh;
+		background: var(--background-dark, #161c18);
 	}
 </style>

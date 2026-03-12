@@ -40,7 +40,7 @@ func ValidateTelegramInitData(initData string, botToken string) (*TelegramUser, 
 	if err != nil {
 		return nil, errors.New("invalid auth_date")
 	}
-	const maxAuthAge = 5 * time.Minute
+	const maxAuthAge = 30 * time.Minute
 	authTime := time.Unix(authDateUnix, 0)
 	if time.Since(authTime) > maxAuthAge || authTime.After(time.Now().Add(1*time.Minute)) {
 		return nil, errors.New("init data expired")

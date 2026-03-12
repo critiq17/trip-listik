@@ -2,17 +2,20 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/critiq17/tripListik/internal/httpapi/middleware"
 	"github.com/critiq17/tripListik/internal/httpapi/validate"
 	"github.com/critiq17/tripListik/internal/store"
+	"github.com/critiq17/tripListik/internal/telegram"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
 
 type InvitesHandler struct {
 	Store *store.Store
+	Bot   *telegram.Bot
 }
 
 type inviteRequest struct {
@@ -92,6 +95,29 @@ func (h *InvitesHandler) InviteUser(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to create invite")
 	}
+
+	// Notify invited user via Telegram (non-blocking)
+	go func() {
+		invitedUser, err := h.Store.GetUserByID(context.Background(), invitedUserID)
+		if err != nil || invitedUser == nil {
+			return
+		}
+		owner, err := h.Store.GetUserByID(context.Background(), ownerID)
+		if err != nil || owner == nil {
+			return
+		}
+		ownerName := owner.FirstName
+		if ownerName == "" {
+			ownerName = "@" + owner.Username
+		}
+		text := fmt.Sprintf(
+			"✈️ <b>Trip Invite!</b>\n\n<b>%s</b> invited you to join <b>%s</b>.\n\nOpen TripListik to accept or decline.",
+			ownerName, trip.Title,
+		)
+		nctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		h.Bot.SendMessage(nctx, invitedUser.TelegramID, text)
+	}()
 
 	return c.JSON(inviteResponse{InviteID: invite.ID.String(), Status: invite.Status})
 }
