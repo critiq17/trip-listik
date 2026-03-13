@@ -36,7 +36,10 @@
 
 	const toISO = (value: Date | null) => {
 		if (!value) return null;
-		return value.toISOString().split('T')[0];
+		const year = value.getFullYear();
+		const month = String(value.getMonth() + 1).padStart(2, '0');
+		const day = String(value.getDate()).padStart(2, '0');
+		return `${year}-${month}-${day}`;
 	};
 
 	const daysInMonth = (date: Date) => {
@@ -74,16 +77,32 @@
 	};
 
 	const selectDay = (day: Date) => {
-		if (!startDate || (startDate && endDate)) {
+		const time = day.getTime();
+		if (!startDate) {
 			startDate = day;
 			endDate = null;
 			return;
 		}
-		if (day.getTime() < startDate.getTime()) {
-			endDate = startDate;
+		if (!endDate) {
+			if (time < startDate.getTime()) {
+				endDate = startDate;
+				startDate = day;
+				return;
+			}
+			endDate = day;
+			return;
+		}
+
+		// Both dates are set: adjust the range instead of resetting it.
+		if (time < startDate.getTime()) {
 			startDate = day;
 			return;
 		}
+		if (time > endDate.getTime()) {
+			endDate = day;
+			return;
+		}
+		// If the selected day is inside the range, update the end date.
 		endDate = day;
 	};
 
@@ -189,6 +208,7 @@
 					{#each row as day}
 						{#if day}
 							<button
+								type="button"
 								class:range={isInRange(day)}
 								class:start={isSameDay(day, startDate)}
 								class:end={isSameDay(day, endDate)}

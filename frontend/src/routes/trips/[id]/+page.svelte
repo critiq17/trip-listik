@@ -8,6 +8,7 @@
 		presignTripPhoto,
 		uploadSignedPhoto
 	} from '$lib/api';
+	import { resolvePhotoUrl } from '$lib/photos';
 	import { connectTripStream } from '$lib/realtime';
 	import InviteModal from '$lib/components/InviteModal.svelte';
 	import { staggerList, scalePress } from '$lib/actions/animate';
@@ -68,6 +69,7 @@
 	let photosCursor = $state<string | null>(null);
 	let photosLoading = $state(false);
 	let photosHasMore = $state(true);
+	const coverUrl = $derived(() => resolvePhotoUrl(trip?.cover_photo_url));
 
 	const tabs = ['Details', 'Members', 'Photos', 'Discussion'];
 	let loadedTabs = new Set<string>();
@@ -360,11 +362,11 @@
 		</div>
 	{:else if trip}
 		<div class="hero">
-			{#if trip.cover_photo_url}
+			{#if coverUrl}
 				<div class="img-skeleton skeleton"></div>
 				<img
 					class="trip-img top-image"
-					src={trip.cover_photo_url}
+					src={coverUrl}
 					alt={trip.title}
 					onload={(e) => e.currentTarget.classList.add('loaded')}
 					onerror={(e) => e.currentTarget.classList.add('error')}
@@ -574,7 +576,7 @@
 									<div class="img-skeleton skeleton"></div>
 									<img
 										class="trip-img grid-img"
-										src={photo.url}
+										src={resolvePhotoUrl(photo.url)}
 										alt="Trip"
 										loading="lazy"
 										onload={(e) => e.currentTarget.classList.add('loaded')}
