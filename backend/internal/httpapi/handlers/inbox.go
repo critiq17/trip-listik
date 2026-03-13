@@ -49,3 +49,26 @@ func (h *InboxHandler) ListInbox(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"items": items, "invites": invites})
 }
+
+// UnreadCount returns the number of unread notifications for badge polling
+func (h *InboxHandler) UnreadCount(c *fiber.Ctx) error {
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		return fiber.NewError(fiber.StatusUnauthorized, "unauthorized")
+	}
+
+	ctx, cancel := context.WithTimeout(c.Context(), 1*time.Second)
+	defer cancel()
+
+	var count int64
+	err := h.Store.DB.WithContext(ctx).
+		Table("notifications").
+		Where("user_id = ? AND read_at IS NULL", userID).
+		Count(&count).Error
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "failed to count notifications")
+	}
+
+	return c.JSON(fiber.Map{"unread": count})
+}
+

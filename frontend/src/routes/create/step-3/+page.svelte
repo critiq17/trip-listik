@@ -1,82 +1,141 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { apiFetch } from '$lib/api';
+	import { apiFetch, presignTripPhoto, uploadSignedPhoto, getPublicPhotoURL } from '$lib/api';
 	import { getDraft, clearDraft } from '$lib/tripDraft';
-	import { scalePress } from '$lib/actions/animate';
+	import { onMount, onDestroy } from 'svelte';
+	import { setupMainButton, hideMainButton, setMainButtonState, setupBackButton } from '$lib/telegram';
 
-	let description = '';
-	let loading = false;
-	let error = '';
+	let description = $state('');
+	let coverPhotoPreview = $state('');
+	let coverPhotoFile: File | null = null;
+	let fileInput: HTMLInputElement | null = null;
+	let loading = $state(false);
+	let error = $state('');
+
+	$effect(() => {
+		setupMainButton(loading ? 'Creating...' : 'Create Trip', submit, true, !loading);
+	});
+
+	onMount(() => {
+		setupBackButton(() => history.back());
+	});
+
+	onDestroy(() => {
+		hideMainButton();
+		if (coverPhotoPreview) URL.revokeObjectURL(coverPhotoPreview);
+	});
+
+	const pickPhoto = () => fileInput?.click();
+
+	const onFile = (event: Event) => {
+		const target = event.currentTarget as HTMLInputElement;
+		const file = target.files?.[0];
+		if (!file) return;
+		if (coverPhotoPreview) URL.revokeObjectURL(coverPhotoPreview);
+		coverPhotoFile = file;
+		coverPhotoPreview = URL.createObjectURL(file);
+	};
 
 	const submit = async () => {
 		const draft = getDraft();
-		if (!draft) {
-			error = 'Draft not found';
+		if (!draft || !draft.title) {
+			error = 'Trip Draft is missing title! Please start over.';
 			return;
 		}
+		if (loading) return;
 		loading = true;
+		setMainButtonState(true);
 		error = '';
+
 		try {
-			await apiFetch(`/v1/trips/${draft.id}`, {
-				method: 'PATCH',
+			// 1. Create Trip
+			const trip = await apiFetch<{ id: string }>('/v1/trips', {
+				method: 'POST',
 				body: JSON.stringify({
-					description,
-					status: 'planned'
+					title: draft.title,
+					city: draft.destination,
+					country_code: draft.country_code,
+					description: description || undefined,
+					start_date: draft.start_date || null,
+					end_date: draft.end_date || null,
+					status: 'planned',
+					visibility: draft.visibility || 'public'
 				})
 			});
+
+			// 2. Upload Photo
+			if (coverPhotoFile) {
+				try {
+					const presign = await presignTripPhoto(trip.id, coverPhotoFile.name, coverPhotoFile.type);
+					await uploadSignedPhoto(presign.signed_url, presign.token, coverPhotoFile);
+					const publicUrl = getPublicPhotoURL(presign.path);
+					await apiFetch(`/v1/trips/${trip.id}`, {
+						method: 'PATCH',
+						body: JSON.stringify({ cover_photo_url: publicUrl })
+					});
+				} catch (uploadErr) {
+					console.warn('Cover photo upload failed, continuing without it', uploadErr);
+				}
+			}
+
+			// 3. Clear draft and go to trip
 			clearDraft();
-			goto('/trips');
+			goto(`/trips/${trip.id}`);
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to create trip';
 		} finally {
 			loading = false;
+			setMainButtonState(false);
 		}
 	};
-
-	const back = () => history.back();
 </script>
 
-<section class="step-three">
-	<header class="header">
-		<button class="round-btn" onclick={back} aria-label="Back">
-			<span class="material-symbols-outlined">arrow_back</span>
-		</button>
-		<h2>Create Trip</h2>
-		<div class="spacer"></div>
-	</header>
+<svelte:head>
+	<title>Create Trip - Step 3</title>
+</svelte:head>
 
-	<div class="progress">
-		<div class="progress-row">
-			<p>Step 3 of 3</p>
-			<span>100%</span>
-		</div>
-		<div class="progress-bar">
-			<div class="progress-fill"></div>
-		</div>
+<section class="step-three">
+	<div class="progress-bar">
+		<div class="progress-fill" style="width: 100%"></div>
 	</div>
 
 	<main>
-		<h1>Who's coming along?</h1>
+		<p class="eyebrow">Step 3 of 3</p>
+		<h1 class="serif-text">Final touches.</h1>
 
-		<div class="field">
-			<input placeholder="Search friends..." />
-			<span class="material-symbols-outlined">search</span>
-		</div>
+		<div class="form">
+			<div class="field">
+				<label for="cover-photo">Cover Photo</label>
+				<button type="button" class="upload" onclick={pickPhoto}>
+					{#if coverPhotoPreview}
+						<img src={coverPhotoPreview} alt="Cover preview" />
+					{:else}
+						<div class="upload-icon">
+							<span class="material-symbols-outlined">add_a_photo</span>
+						</div>
+						<span>Add an inspiring image</span>
+					{/if}
+				</button>
+				<input
+					id="cover-photo"
+					class="file-input"
+					type="file"
+					accept="image/*"
+					bind:this={fileInput}
+					onchange={onFile}
+				/>
+			</div>
 
-		<div class="field textarea">
-			<label for="trip-description">Trip Description (Optional)</label>
-			<textarea
-				id="trip-description"
-				rows="3"
-				bind:value={description}
-				placeholder="Tell everyone what the plan is..."
-			></textarea>
-		</div>
+			<div class="field textarea">
+				<label for="trip-description">Trip Description (Optional)</label>
+				<textarea
+					id="trip-description"
+					rows="4"
+					bind:value={description}
+					placeholder="Tell everyone what the plan is..."
+				></textarea>
+			</div>
 
-		<div class="actions">
-			<button use:scalePress onclick={submit} disabled={loading}>
-				{loading ? 'Creating…' : 'Create Trip'}
-			</button>
 			{#if error}
 				<p class="error">{error}</p>
 			{/if}
@@ -87,139 +146,135 @@
 <style>
 	.step-three {
 		min-height: 100dvh;
-		background: var(--background-dark);
-		color: var(--text-primary);
-	}
-
-	.header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 0.9rem 1rem;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-	}
-
-	.header h2 {
-		font-size: 1rem;
-		font-weight: 700;
-	}
-
-	.round-btn {
-		width: 2.6rem;
-		height: 2.6rem;
-		border-radius: 999px;
-		display: grid;
-		place-items: center;
-	}
-
-	.spacer {
-		width: 2.6rem;
-	}
-
-	.progress {
-		padding: 1.2rem 1.5rem 0;
-	}
-
-	.progress-row {
-		display: flex;
-		align-items: flex-end;
-		justify-content: space-between;
-		margin-bottom: 0.6rem;
-	}
-
-	.progress-row p {
-		color: var(--primary);
-		font-weight: 700;
-		font-size: 0.65rem;
-		letter-spacing: 0.2em;
-		text-transform: uppercase;
-	}
-
-	.progress-row span {
-		color: var(--primary);
-		font-weight: 600;
-		font-size: 0.8rem;
+		background: var(--bg);
+		color: var(--text);
+		padding-bottom: 3rem;
 	}
 
 	.progress-bar {
-		height: 8px;
-		background: rgba(255, 255, 255, 0.12);
-		border-radius: 999px;
-		overflow: hidden;
+		width: 100%;
+		height: 4px;
+		background: var(--bg-elevated);
 	}
 
 	.progress-fill {
 		height: 100%;
-		width: 100%;
-		background: var(--primary);
-		border-radius: inherit;
+		background: var(--green);
+		transition: width 0.3s ease;
 	}
 
 	main {
-		padding: 1.5rem;
+		max-width: 480px;
+		margin: 0 auto;
+		padding: 2rem 1.5rem;
 		display: flex;
 		flex-direction: column;
 		gap: 1.5rem;
 	}
 
-	h1 {
-		font-size: 1.4rem;
+	.eyebrow {
+		color: var(--green);
+		font-size: 0.65rem;
 		font-weight: 700;
+		letter-spacing: 0.2em;
+		text-transform: uppercase;
 	}
 
-	.field {
-		position: relative;
+	h1 {
+		font-size: 2.2rem;
+		line-height: 1.1;
+		margin-bottom: 0.5rem;
 	}
 
-	.field input {
-		width: 100%;
-		background: transparent;
-		border: none;
-		border-bottom: 2px solid rgba(255, 255, 255, 0.12);
-		padding: 0.6rem 0;
-		font-size: 1rem;
+	.form {
+		display: flex;
+		flex-direction: column;
+		gap: 2rem;
 	}
 
-	.field span {
-		position: absolute;
-		right: 0;
-		top: 50%;
-		transform: translateY(-50%);
-		color: var(--text-secondary);
-	}
-
-	.field.textarea label {
+	.field label {
 		display: block;
-		font-size: 0.8rem;
-		color: var(--text-secondary);
+		font-size: 0.85rem;
+		color: var(--text-sub);
 		margin-bottom: 0.4rem;
+	}
+
+	.upload {
+		width: 100%;
+		aspect-ratio: 16 / 9;
+		border-radius: var(--radius-card);
+		border: 2px dashed var(--border);
+		background: var(--bg-elevated);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0.8rem;
+		cursor: pointer;
+		overflow: hidden;
+		text-align: center;
+		transition: all 0.2s;
+	}
+
+	.upload:hover {
+		border-color: rgba(61, 158, 95, 0.4);
+		background: rgba(61, 158, 95, 0.05);
+	}
+
+	.upload img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.upload-icon {
+		width: 3.5rem;
+		height: 3.5rem;
+		border-radius: 999px;
+		background: rgba(61, 158, 95, 0.15);
+		display: grid;
+		place-items: center;
+		color: var(--green);
+	}
+
+	.upload-icon .material-symbols-outlined {
+		font-size: 1.5rem;
+	}
+
+	.upload span {
+		font-size: 0.85rem;
+		color: var(--text-sub);
+		font-weight: 500;
+	}
+
+	.file-input {
+		display: none;
 	}
 
 	.field.textarea textarea {
 		width: 100%;
 		background: transparent;
-		border: none;
-		border-bottom: 2px solid rgba(255, 255, 255, 0.12);
-		padding: 0.4rem 0;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-input);
+		padding: 0.8rem;
 		font-size: 0.95rem;
-		color: var(--text-primary);
+		color: var(--text);
 		resize: none;
+		font-family: inherit;
+		transition: border-color 0.2s;
 	}
 
-	.actions button {
-		width: 100%;
-		padding: 1rem;
-		border-radius: 12px;
-		background: var(--primary);
-		color: white;
-		font-weight: 700;
-		box-shadow: 0 14px 30px rgba(77, 157, 109, 0.35);
+	.field.textarea textarea:focus {
+		outline: none;
+		border-color: var(--green);
 	}
 
 	.error {
-		margin-top: 0.75rem;
-		color: var(--error);
-		font-size: 0.8rem;
+		color: #e05555;
+		font-size: 0.85rem;
 		text-align: center;
+		padding: 0.5rem;
+		background: rgba(224, 85, 85, 0.1);
+		border-radius: 8px;
 	}
 </style>

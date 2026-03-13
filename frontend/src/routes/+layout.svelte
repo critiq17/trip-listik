@@ -10,27 +10,56 @@
 	let { children } = $props();
 	let authReady = $state(false);
 
-	onMount(async () => {
-		await ensureAuth($page.url.pathname);
-		authReady = true;
+	// Routes that hide the bottom nav
+	const hideNavRoutes = ['/auth', '/create'];
+
+	const shouldShowNav = (pathname: string) =>
+		!hideNavRoutes.some((r) => pathname === r || pathname.startsWith(r));
+
+	onMount(() => {
+		const tg = (window as any).Telegram?.WebApp;
+
+		// ── CRITICAL: These MUST be synchronous, before any await ──
+		if (tg) {
+			tg.ready();                           // Tell Telegram the app is ready
+			tg.expand();                          // Full-screen — synchronous, before any await
+			tg.setHeaderColor?.('#0d1f17');
+			tg.setBackgroundColor?.('#0d1f17');
+			tg.setBottomBarColor?.('#0d1f17');
+		}
+
+		// ── Auth (async, after Telegram init) ──
+		ensureAuth($page.url.pathname).then(() => {
+			authReady = true;
+		});
+
+		// ── Fallback: re-expand if minimized then re-opened ──
+		const handleVisibilityChange = () => {
+			const tgApp = (window as any).Telegram?.WebApp;
+			if (document.visibilityState === 'visible' && tgApp && !tgApp.isExpanded) {
+				tgApp.expand();
+			}
+		};
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+		return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
 	});
 </script>
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
-	<meta name="theme-color" content="#161c18" />
+	<meta name="theme-color" content="#0d1f17" />
 </svelte:head>
 
 <div class="app">
 	{#if !authReady}
-		<div class="auth-loading"></div>
+		<div class="auth-loading" aria-hidden="true"></div>
 	{:else}
 		{#key $page.url.pathname}
 			<div use:pageEnter>
 				{@render children()}
 			</div>
 		{/key}
-		{#if $page.url.pathname !== '/auth' && !$page.url.pathname.startsWith('/create') && !$page.url.pathname.startsWith('/invite')}
+		{#if shouldShowNav($page.url.pathname)}
 			<BottomNav />
 		{/if}
 	{/if}
@@ -40,10 +69,11 @@
 	.app {
 		min-height: 100dvh;
 		position: relative;
+		background: var(--bg);
 	}
 
 	.auth-loading {
 		min-height: 100dvh;
-		background: var(--background-dark, #161c18);
+		background: var(--bg);
 	}
 </style>

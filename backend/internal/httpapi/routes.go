@@ -19,18 +19,20 @@ func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 	tripsHandler := &handlers.TripsHandler{Store: store}
 	membersHandler := &handlers.MembersHandler{Store: store, Bot: bot}
 	votesHandler := &handlers.VotesHandler{Store: store, Hub: hub}
+	voteItemsHandler := &handlers.VoteItemsHandler{Store: store, Hub: hub}
 	commentsHandler := &handlers.CommentsHandler{Store: store, Hub: hub}
 	storageClient := supabase.NewStorageClient(cfg.SupabaseURL, cfg.SupabaseServiceKey)
 	photosHandler := &handlers.PhotosHandler{Store: store, Storage: storageClient, Bucket: cfg.SupabaseStorageBucket, Hub: hub}
 	streamHandler := &handlers.StreamHandler{Hub: hub}
 	profileHandler := &handlers.ProfileHandler{Store: store}
 	inboxHandler := &handlers.InboxHandler{Store: store}
-	invitesHandler := &handlers.InvitesHandler{Store: store, Bot: bot}
+	invitesHandler := &handlers.InvitesHandler{Store: store, Bot: bot, Cfg: cfg}
 	usersHandler := &handlers.UsersHandler{Store: store}
 	wishlistHandler := &handlers.WishlistHandler{Store: store}
 	publicProfileHandler := &handlers.PublicProfileHandler{Store: store}
 	geocodeHandler := &handlers.GeocodeHandler{}
 
+	// ── Public ────────────────────────────────────────────────────────────────
 	v1.Post("/auth/telegram", authHandler.TelegramAuth)
 	v1.Post("/auth/refresh", authHandler.Refresh)
 	v1.Get("/feed", feedHandler.Feed)
@@ -39,11 +41,13 @@ func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 	v1.Get("/users/:id/profile", publicProfileHandler.GetPublicProfile)
 	v1.Get("/trips/:id/stream", middleware.RequireAuthQuery(cfg), streamHandler.TripStream)
 
+	// ── Protected ─────────────────────────────────────────────────────────────
 	protected := v1.Group("", middleware.RequireAuth(cfg))
 	protected.Post("/trips", tripsHandler.CreateTrip)
 	protected.Patch("/trips/:id", tripsHandler.UpdateTrip)
 	protected.Get("/trips", tripsHandler.ListMyTrips)
 
+	// Members
 	protected.Get("/trips/:id/members", membersHandler.ListMembers)
 	protected.Post("/trips/:id/join", membersHandler.JoinTrip)
 	protected.Get("/trips/:id/join/requests", membersHandler.ListJoinRequests)
@@ -51,30 +55,48 @@ func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 	protected.Post("/trips/:id/join/reject", membersHandler.RejectJoin)
 	protected.Delete("/trips/:id/members/:userId", membersHandler.RemoveMember)
 
+	// Trip-level votes (legacy, keep for backward compat)
 	protected.Post("/trips/:id/votes", votesHandler.CastVote)
 	protected.Get("/trips/:id/votes", votesHandler.GetVotes)
 
+	// Vote items (per spec: item-level voting on hotels, airlines, activities)
+	protected.Get("/trips/:id/vote-items", voteItemsHandler.List)
+	protected.Post("/trips/:id/vote-items", voteItemsHandler.Create)
+	protected.Post("/trips/:id/vote-items/:itemId/vote", voteItemsHandler.Vote)
+	protected.Delete("/trips/:id/vote-items/:itemId/vote", voteItemsHandler.Unvote)
+
+	// Comments
 	protected.Get("/trips/:id/comments", commentsHandler.ListComments)
 	protected.Post("/trips/:id/comments", commentsHandler.CreateComment)
 
+	// Photos
 	protected.Get("/trips/:id/photos", photosHandler.ListPhotos)
 	protected.Post("/trips/:id/photos/presign", photosHandler.PresignUpload)
 	protected.Post("/trips/:id/photos", photosHandler.CreatePhoto)
 	protected.Delete("/trips/:id/photos/:photoId", photosHandler.DeletePhoto)
+
+	// Invites
 	protected.Post("/trips/:id/invite", invitesHandler.InviteUser)
 	protected.Get("/trips/:id/invites", invitesHandler.ListTripInvites)
 	protected.Post("/invites/:id/respond", invitesHandler.RespondInvite)
+
+	// Search
 	protected.Get("/users/search", usersHandler.Search)
 	protected.Get("/geocode/search", geocodeHandler.Search)
 
+	// Profile
 	protected.Get("/me", profileHandler.Me)
 	protected.Patch("/me", profileHandler.Update)
 	protected.Get("/me/stats", profileHandler.Stats)
 	protected.Get("/me/world", profileHandler.World)
 	protected.Get("/me/map", profileHandler.Map)
+
+	// Wishlist
 	protected.Get("/me/wishlist", wishlistHandler.List)
 	protected.Post("/me/wishlist", wishlistHandler.Create)
 	protected.Delete("/me/wishlist/:id", wishlistHandler.Delete)
 
+	// Inbox / Notifications
 	protected.Get("/inbox", inboxHandler.ListInbox)
+	protected.Get("/inbox/unread", inboxHandler.UnreadCount)
 }

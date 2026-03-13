@@ -2,42 +2,23 @@ import { env } from '$env/dynamic/public';
 
 const baseUrl = env.PUBLIC_API_BASE_URL || 'http://localhost:8080';
 
-export const getToken = () => {
-	if (typeof localStorage === 'undefined') return '';
-	return localStorage.getItem('tl_token') ?? '';
-};
+// ── In-memory token store (NOT localStorage — Telegram Mini App security model) ──
+let _token = '';
+let _refreshToken = '';
 
-export const setToken = (token: string) => {
-	if (typeof localStorage === 'undefined') return;
-	localStorage.setItem('tl_token', token);
-};
-
-export const getRefreshToken = () => {
-	if (typeof localStorage === 'undefined') return '';
-	return localStorage.getItem('tl_refresh') ?? '';
-};
-
-export const setRefreshToken = (token: string) => {
-	if (typeof localStorage === 'undefined') return;
-	localStorage.setItem('tl_refresh', token);
-};
-
-export const clearTokens = () => {
-	if (typeof localStorage === 'undefined') return;
-	localStorage.removeItem('tl_token');
-	localStorage.removeItem('tl_refresh');
-};
+export const getToken = () => _token;
+export const setToken = (t: string) => { _token = t; };
+export const getRefreshToken = () => _refreshToken;
+export const setRefreshToken = (t: string) => { _refreshToken = t; };
+export const clearTokens = () => { _token = ''; _refreshToken = ''; };
 
 const refreshSession = async () => {
-	const refreshToken = getRefreshToken();
-	if (!refreshToken) {
-		throw new Error('Missing refresh token');
-	}
+	if (!_refreshToken) throw new Error('Missing refresh token');
 
 	const res = await fetch(`${baseUrl}/v1/auth/refresh`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ refresh_token: refreshToken })
+		body: JSON.stringify({ refresh_token: _refreshToken })
 	});
 
 	if (!res.ok) {
@@ -56,13 +37,12 @@ export async function apiFetch<T>(
 	options: RequestInit = {},
 	retry = true
 ): Promise<T> {
-	const token = getToken();
 	const headers = new Headers(options.headers ?? {});
 	if (!headers.has('Content-Type')) {
 		headers.set('Content-Type', 'application/json');
 	}
-	if (token) {
-		headers.set('Authorization', `Bearer ${token}`);
+	if (_token) {
+		headers.set('Authorization', `Bearer ${_token}`);
 	}
 
 	const res = await fetch(`${baseUrl}${path}`, {
@@ -70,7 +50,7 @@ export async function apiFetch<T>(
 		headers
 	});
 
-	if (res.status === 401 && retry && getRefreshToken()) {
+	if (res.status === 401 && retry && _refreshToken) {
 		await refreshSession();
 		return apiFetch<T>(path, options, false);
 	}
@@ -98,8 +78,10 @@ export type PresignResponse = {
 };
 
 export const getPublicPhotoURL = (path: string) => {
-	if (!env.PUBLIC_SUPABASE_URL || !env.PUBLIC_SUPABASE_BUCKET) return '';
-	return `${env.PUBLIC_SUPABASE_URL}/storage/v1/object/public/${env.PUBLIC_SUPABASE_BUCKET}/${path}`;
+	const supabaseUrl = env.PUBLIC_SUPABASE_URL;
+	const bucket = env.PUBLIC_SUPABASE_BUCKET;
+	if (!supabaseUrl || !bucket) return '';
+	return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
 };
 
 export async function presignTripPhoto(tripId: string, fileName: string, contentType: string) {

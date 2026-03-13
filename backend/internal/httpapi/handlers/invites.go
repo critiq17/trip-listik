@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 	"time"
 
+	"github.com/critiq17/tripListik/internal/config"
 	"github.com/critiq17/tripListik/internal/httpapi/middleware"
 	"github.com/critiq17/tripListik/internal/httpapi/validate"
 	"github.com/critiq17/tripListik/internal/store"
@@ -16,6 +16,7 @@ import (
 type InvitesHandler struct {
 	Store *store.Store
 	Bot   *telegram.Bot
+	Cfg   *config.Config
 }
 
 type inviteRequest struct {
@@ -110,13 +111,21 @@ func (h *InvitesHandler) InviteUser(c *fiber.Ctx) error {
 		if ownerName == "" {
 			ownerName = "@" + owner.Username
 		}
-		text := fmt.Sprintf(
-			"✈️ <b>Trip Invite!</b>\n\n<b>%s</b> invited you to join <b>%s</b>.\n\nOpen TripListik to accept or decline.",
-			ownerName, trip.Title,
-		)
+		miniAppURL := ""
+		if h.Cfg != nil && h.Cfg.MiniAppURL != "" {
+			miniAppURL = h.Cfg.MiniAppURL
+		}
+		startDate := ""
+		endDate := ""
+		if trip.StartDate != nil {
+			startDate = trip.StartDate.Format("Jan 2, 2006")
+		}
+		if trip.EndDate != nil {
+			endDate = trip.EndDate.Format("Jan 2, 2006")
+		}
 		nctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		h.Bot.SendMessage(nctx, invitedUser.TelegramID, text)
+		h.Bot.SendInviteNotification(nctx, invitedUser.TelegramID, ownerName, trip.Title, trip.City, startDate, endDate, miniAppURL)
 	}()
 
 	return c.JSON(inviteResponse{InviteID: invite.ID.String(), Status: invite.Status})

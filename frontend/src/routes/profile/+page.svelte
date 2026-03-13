@@ -5,6 +5,7 @@
 	import { countUp } from '$lib/transitions';
 	import { staggerList } from '$lib/actions/animate';
 	import { getUserInitials, getUserName } from '$lib/format';
+	import { hapticNotification } from '$lib/telegram';
 	import type { TripCardData, User, UserStats } from '$lib/types';
 
 	let user = $state<User | null>(null);
@@ -92,7 +93,18 @@
 
 	const copyShare = async () => {
 		if (!shareURL) return;
-		await navigator.clipboard.writeText(shareURL);
+		try {
+			await navigator.clipboard.writeText(shareURL);
+			hapticNotification('success');
+			const tg = (window as any).Telegram?.WebApp;
+			if (tg?.showPopup) {
+				tg.showPopup({ title: 'Copied', message: 'Referral link copied to clipboard!' });
+			} else {
+				alert('Link copied to clipboard!');
+			}
+		} catch (err) {
+			console.error('Failed to copy', err);
+		}
 	};
 
 	const saveProfile = async () => {
@@ -176,9 +188,17 @@
 				<button class="edit-btn" onclick={() => (editing = !editing)}>
 					{editing ? 'Cancel' : 'Edit profile'}
 				</button>
-				<button class="share-btn" onclick={copyShare} disabled={!user?.is_public}>
-					Share profile
-				</button>
+			</div>
+
+			<div class="referral-box glass">
+				<label for="referral-link">Your Referral Link</label>
+				<p class="subtle">Invite friends and earn limits</p>
+				<div class="ref-input-group">
+					<input id="referral-link" type="text" readonly value={shareURL} />
+					<button class="copy-btn" onclick={copyShare} disabled={!shareURL}>
+						<span class="material-symbols-outlined">content_copy</span>
+					</button>
+				</div>
 			</div>
 
 			{#if editing}
@@ -289,8 +309,8 @@
 <style>
 	.profile-page {
 		min-height: 100dvh;
-		background: var(--background-dark);
-		color: var(--text-primary);
+		background: var(--bg);
+		color: var(--text);
 		padding-bottom: 5.5rem;
 	}
 
@@ -379,20 +399,13 @@
 		margin-bottom: 2rem;
 	}
 
-	.edit-btn,
-	.share-btn {
+	.edit-btn {
 		width: 100%;
 		padding: 0.65rem;
 		border-radius: 8px;
 		border: 1px solid rgba(255, 255, 255, 0.12);
 		color: var(--text-primary);
 		font-weight: 600;
-	}
-
-	.share-btn {
-		color: var(--primary);
-		border-color: rgba(255, 255, 255, 0.08);
-		background: rgba(77, 157, 109, 0.08);
 	}
 
 	.edit-panel {
@@ -469,8 +482,60 @@
 	}
 
 	.error {
-		color: #f97316;
+		color: var(--danger);
 		font-size: 0.8rem;
+	}
+
+	.referral-box {
+		padding: 1.25rem;
+		border-radius: var(--radius-card);
+		background: rgba(61, 158, 95, 0.05);
+		border: 1px solid rgba(61, 158, 95, 0.2);
+		margin-bottom: 2rem;
+	}
+
+	.referral-box label {
+		display: block;
+		font-size: 0.95rem;
+		font-weight: 700;
+		color: var(--text);
+		margin-bottom: 0.2rem;
+	}
+
+	.referral-box .subtle {
+		font-size: 0.8rem;
+		color: var(--text-sub);
+		margin-bottom: 0.8rem;
+	}
+
+	.ref-input-group {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+	}
+
+	.ref-input-group input {
+		flex: 1;
+		background: var(--bg-input);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-input);
+		padding: 0.75rem 1rem;
+		color: var(--text);
+		font-size: 0.85rem;
+		font-family: monospace;
+	}
+
+	.copy-btn {
+		width: 3.2rem;
+		height: 3.2rem;
+		border-radius: var(--radius-input);
+		background: var(--green);
+		color: var(--bg);
+		display: grid;
+		place-items: center;
+		border: none;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
 	}
 
 	.stats {
@@ -479,8 +544,8 @@
 		align-items: center;
 		gap: 0.4rem;
 		padding: 1rem 0;
-		border-top: 1px solid rgba(255, 255, 255, 0.08);
-		border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+		border-top: 1px solid var(--border);
+		border-bottom: 1px solid var(--border);
 		margin-bottom: 2rem;
 	}
 

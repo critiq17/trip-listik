@@ -4,17 +4,19 @@
 	import { staggerList } from '$lib/actions/animate';
 	import { formatRelativeDate, parseNotificationPayload } from '$lib/format';
 	import type { InviteItem, NotificationItem } from '$lib/types';
+	import { unreadCount } from '$lib/stores/notifications';
 
-	let items: NotificationItem[] = [];
-	let invites: InviteItem[] = [];
-	let loading = true;
-	let error = '';
+	let items = $state<NotificationItem[]>([]);
+	let invites = $state<InviteItem[]>([]);
+	let loading = $state(true);
+	let error = $state('');
 
 	const typeLabels: Record<string, string> = {
 		join_request: 'Join request',
 		join_approved: 'Request approved',
 		comment_created: 'New comment',
-		trip_invite: 'Trip invite'
+		trip_invite: 'Trip invite',
+		vote_item_created: 'New vote item'
 	};
 
 	const describe = (item: NotificationItem) => {
@@ -30,6 +32,8 @@
 				return tripTitle ? `Fresh discussion on ${tripTitle}` : 'New comment on a trip';
 			case 'trip_invite':
 				return tripTitle ? `Invitation waiting for ${tripTitle}` : 'You received a trip invite';
+			case 'vote_item_created':
+				return tripTitle ? `New item to vote on in ${tripTitle}` : 'New item added';
 			default:
 				return 'Travel update';
 		}
@@ -39,7 +43,10 @@
 		try {
 			const data = await apiFetch<{ items: NotificationItem[]; invites?: InviteItem[] }>('/v1/inbox');
 			items = data.items ?? [];
-			invites = data.invites ?? [];
+			// Only show pending invites
+			invites = (data.invites ?? []).filter(i => i.status === 'pending');
+			// Clear unread badge when viewing inbox
+			unreadCount.set(0); 
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load inbox';
 		} finally {
@@ -47,144 +54,259 @@
 		}
 	});
 
-	const respondInvite = async (inviteId: string, action: 'accept' | 'decline', comment?: string) => {
+	const respondInvite = async (inviteId: string, action: 'accept' | 'decline') => {
+		// Optimistic UI hide
+		invites = invites.filter((inv) => inv.id !== inviteId);
 		try {
 			await apiFetch(`/v1/invites/${inviteId}/respond`, {
 				method: 'POST',
-				body: JSON.stringify({ action, comment })
+				body: JSON.stringify({ action })
 			});
-			invites = invites.filter((inv) => inv.id !== inviteId);
 		} catch (err) {
-			error = err instanceof Error ? err.message : `Failed to ${action} invite`;
+			console.error(`Failed to ${action} invite:`, err);
+			// Ideally we'd rollback, but for simplicity we rely on next reload
 		}
 	};
 </script>
 
-<section class="container">
+<svelte:head>
+	<title>Inbox - TripListik</title>
+</svelte:head>
+
+<section class="inbox-page">
 	<header class="header">
-		<p class="eyebrow">Inbox</p>
-		<h1 class="headline">Requests and updates.</h1>
-		<p class="subtle">Real notifications from the backend, ordered by latest activity.</p>
+		<h1 class="serif-text">Notifications</h1>
+		<p class="subtle">Invites, approvals, and trip updates.</p>
 	</header>
 
 	<div class="list" use:staggerList>
 		{#if loading}
-			<div class="card glass">Loading updates...</div>
+			<div class="skeleton-card"></div>
+			<div class="skeleton-card"></div>
+			<div class="skeleton-card"></div>
 		{:else if error}
-			<div class="card glass">{error}</div>
+			<div class="card error-card">{error}</div>
 		{:else}
 			{#if invites.length > 0}
-				{#each invites as inv}
-					<div class="card glass invite-card" data-item>
+				<h3 class="section-title">Pending Invites</h3>
+				{#each invites as inv (inv.id)}
+					<div class="card invite-card" data-item>
 						<div class="row">
-							<strong>Invite</strong>
-							<span class="pill">{inv.status}</span>
+							<div class="invite-info">
+								<span class="material-symbols-outlined icon">mail</span>
+								<strong>Trip Invitation</strong>
+							</div>
+							<span class="pill pending">Pending</span>
 						</div>
 						<p class="message">
-							{inv.inviter_username ? `@${inv.inviter_username}` : 'A friend'} invited you to
-							{inv.trip_title ? ` ${inv.trip_title}` : ' a trip'}
+							<strong>{inv.inviter_username ? `@${inv.inviter_username}` : 'Someone'}</strong> 
+							invited you to 
+							<strong>{inv.trip_title || 'a trip'}</strong>.
 						</p>
 						<div class="actions">
-							<button class="accept" onclick={() => respondInvite(inv.id, 'accept')}>Accept</button>
-							<button class="decline" onclick={() => respondInvite(inv.id, 'decline')}>Decline</button>
+							<button class="btn accept" onclick={() => respondInvite(inv.id, 'accept')}>Accept</button>
+							<button class="btn decline" onclick={() => respondInvite(inv.id, 'decline')}>Decline</button>
 						</div>
 					</div>
 				{/each}
 			{/if}
-			{#if items.length === 0 && invites.length === 0}
-				<div class="card glass">No notifications yet</div>
-			{:else}
-				{#each items as item}
-					<div class="card glass" data-item>
+
+			{#if items.length > 0}
+				<h3 class="section-title" style="margin-top: 1rem;">Recent Updates</h3>
+				{#each items as item (item.id)}
+					<div class="card notification-card" class:unread={!item.read_at} data-item>
 						<div class="row">
-							<strong>{typeLabels[item.type] ?? item.type}</strong>
-							<span class:unread={!item.read_at}>{item.read_at ? 'Read' : 'New'}</span>
+							<strong>{typeLabels[item.type] ?? 'Update'}</strong>
+							<span class="date">{formatRelativeDate(item.created_at)}</span>
 						</div>
 						<p class="message">{describe(item)}</p>
-						<p class="muted">{formatRelativeDate(item.created_at)}</p>
 					</div>
 				{/each}
+			{/if}
+
+			{#if items.length === 0 && invites.length === 0}
+				<div class="empty-state">
+					<div class="circle">
+						<span class="material-symbols-outlined">notifications_off</span>
+					</div>
+					<h3>All caught up</h3>
+					<p>You have no new notifications.</p>
+				</div>
 			{/if}
 		{/if}
 	</div>
 </section>
 
 <style>
+	.inbox-page {
+		padding: 1.5rem;
+		padding-bottom: 6rem; /* space for bottom nav */
+		min-height: 100dvh;
+		background: var(--bg);
+		color: var(--text);
+	}
+
 	.header {
-		display: grid;
-		gap: 0.45rem;
-		margin-bottom: 1rem;
+		margin-bottom: 2rem;
+	}
+
+	.header h1 {
+		font-size: 2.2rem;
+		margin-bottom: 0.4rem;
+	}
+
+	.subtle {
+		color: var(--text-sub);
+		font-size: 0.9rem;
+	}
+
+	.section-title {
+		font-size: 0.85rem;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: var(--text-muted);
+		margin-bottom: 0.8rem;
+		font-weight: 700;
 	}
 
 	.list {
-		display: grid;
-		gap: 0.75rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.8rem;
 	}
 
 	.card {
-		padding: 1rem 1.1rem;
-		border-radius: var(--radius-xl);
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-card);
+		padding: 1rem 1.25rem;
 	}
 
 	.row {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		gap: 1rem;
-		margin-bottom: 0.45rem;
+		margin-bottom: 0.6rem;
+	}
+
+	.invite-info {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.icon {
+		color: var(--green);
+		font-size: 1.2rem;
 	}
 
 	.message {
+		font-size: 0.95rem;
+		line-height: 1.4;
+		color: var(--text);
+	}
+
+	.message strong {
 		color: white;
-		line-height: 1.45;
-		margin-bottom: 0.35rem;
-	}
-
-	span {
-		padding: 0.35rem 0.6rem;
-		border-radius: var(--radius-pill);
-		background: rgba(255, 255, 255, 0.05);
-		color: var(--text-secondary);
-		font-size: 0.7rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-	}
-
-	.invite-card {
-		display: grid;
-		gap: 0.6rem;
 	}
 
 	.actions {
 		display: flex;
 		gap: 0.6rem;
+		margin-top: 1rem;
 	}
 
-	.actions button {
+	.btn {
 		flex: 1;
-		padding: 0.5rem 0.75rem;
-		border-radius: var(--radius-pill);
+		padding: 0.6rem;
+		border-radius: var(--radius-input);
 		font-weight: 700;
+		font-size: 0.9rem;
+		border: none;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
 	}
 
 	.accept {
-		background: var(--primary);
-		color: #0b120f;
+		background: var(--green);
+		color: var(--bg);
+	}
+
+	.accept:active {
+		background: var(--green-light);
 	}
 
 	.decline {
-		background: rgba(255, 255, 255, 0.08);
-		color: var(--text-secondary);
+		background: var(--bg-elevated);
+		color: var(--text-sub);
+		border: 1px solid var(--border);
+	}
+
+	.decline:active {
+		background: rgba(255, 255, 255, 0.05);
 	}
 
 	.pill {
-		background: rgba(77, 157, 109, 0.15);
-		color: var(--primary);
+		padding: 0.25rem 0.6rem;
+		border-radius: var(--radius-pill);
+		font-size: 0.65rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
 	}
 
-	.unread {
-		background: rgba(32, 146, 186, 0.16);
-		color: var(--accent-strong);
+	.pill.pending {
+		background: rgba(249, 115, 22, 0.15); /* Warning orange */
+		color: var(--warning);
+	}
+
+	.notification-card.unread {
+		border-left: 3px solid var(--green);
+		background: rgba(61, 158, 95, 0.05);
+	}
+
+	.date {
+		font-size: 0.75rem;
+		color: var(--text-muted);
+	}
+
+	.empty-state {
+		text-align: center;
+		padding: 4rem 1rem;
+		color: var(--text-sub);
+	}
+
+	.circle {
+		width: 4rem;
+		height: 4rem;
+		border-radius: 50%;
+		background: var(--bg-elevated);
+		display: grid;
+		place-items: center;
+		margin: 0 auto 1.5rem;
+		color: var(--text-muted);
+	}
+
+	.circle .material-symbols-outlined {
+		font-size: 2rem;
+	}
+
+	.empty-state h3 {
+		font-size: 1.1rem;
+		color: var(--text);
+		margin-bottom: 0.4rem;
+	}
+
+	.skeleton-card {
+		height: 80px;
+		background: var(--bg-elevated);
+		border-radius: var(--radius-card);
+		animation: pulse 1.5s infinite;
+	}
+
+	@keyframes pulse {
+		0% { opacity: 0.6; }
+		50% { opacity: 0.3; }
+		100% { opacity: 0.6; }
 	}
 </style>

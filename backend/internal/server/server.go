@@ -35,6 +35,9 @@ func New(cfg *config.Config, store *store.Store) *fiber.App {
 		AllowMethods: "GET,POST,PATCH,DELETE,OPTIONS",
 	}))
 
+	app.Get("/health", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"status": "ok"})
+	})
 	app.Get("/healthz", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
 	})

@@ -143,8 +143,8 @@
 	.public-profile {
 		min-height: 100dvh;
 		padding: 2rem 1.5rem 5.5rem;
-		background: var(--background-dark);
-		color: var(--text-primary);
+		background: var(--bg);
+		color: var(--text);
 		max-width: 560px;
 		margin: 0 auto;
 	}
@@ -169,7 +169,7 @@
 		border-radius: 999px;
 		background-size: cover;
 		background-position: center;
-		border: 2px solid var(--background-dark);
+		border: 2px solid var(--bg);
 	}
 
 	.avatar.fallback {
@@ -228,7 +228,7 @@
 	}
 
 	.map-head strong {
-		color: var(--primary);
+		color: var(--green);
 		font-size: 1.3rem;
 		letter-spacing: 0;
 	}

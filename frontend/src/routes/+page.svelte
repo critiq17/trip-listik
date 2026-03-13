@@ -103,15 +103,6 @@
 </script>
 
 <section class="feed-page">
-	<header class="topbar">
-		<button class="icon-btn" aria-label="Menu">
-			<span class="material-symbols-outlined">menu</span>
-		</button>
-		<h2>TripListik</h2>
-		<a class="icon-btn" href="/inbox" aria-label="Notifications">
-			<span class="material-symbols-outlined">notifications</span>
-		</a>
-	</header>
 
 	<main class="content">
 		<div class="headline">
@@ -165,37 +156,9 @@
 <style>
 	.feed-page {
 		min-height: 100dvh;
-		background: var(--background-dark);
-		color: var(--text-primary);
+		background: var(--bg);
+		color: var(--text);
 		padding-bottom: 5.5rem;
-	}
-
-	.topbar {
-		position: sticky;
-		top: 0;
-		z-index: 10;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 1rem 1rem 0.75rem;
-		background: var(--background-dark);
-		border-bottom: 1px solid rgba(77, 157, 109, 0.12);
-	}
-
-	.topbar h2 {
-		font-size: 1.05rem;
-		font-weight: 700;
-		letter-spacing: -0.01em;
-	}
-
-	.icon-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 2.75rem;
-		height: 2.75rem;
-		border-radius: 0.75rem;
-		color: var(--text-primary);
 	}
 
 	.content {
@@ -232,6 +195,12 @@
 		position: relative;
 		margin-bottom: 2rem;
 		margin-top: 1.5rem;
+		width: 80%;
+		transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+	}
+
+	.search-wrap:focus-within {
+		width: 100%;
 	}
 
 	.search-wrap input {

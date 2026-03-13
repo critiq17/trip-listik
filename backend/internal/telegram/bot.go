@@ -31,11 +31,31 @@ func (b *Bot) Enabled() bool {
 	return b.token != ""
 }
 
+// ── Message types ──────────────────────────────────────────────────────────────
+
 type sendMessageRequest struct {
-	ChatID    int64  `json:"chat_id"`
-	Text      string `json:"text"`
-	ParseMode string `json:"parse_mode,omitempty"`
+	ChatID      int64        `json:"chat_id"`
+	Text        string       `json:"text"`
+	ParseMode   string       `json:"parse_mode,omitempty"`
+	ReplyMarkup *replyMarkup `json:"reply_markup,omitempty"`
 }
+
+type replyMarkup struct {
+	InlineKeyboard [][]inlineButton `json:"inline_keyboard"`
+}
+
+type inlineButton struct {
+	Text         string      `json:"text"`
+	CallbackData string      `json:"callback_data,omitempty"`
+	WebApp       *webAppInfo `json:"web_app,omitempty"`
+	URL          string      `json:"url,omitempty"`
+}
+
+type webAppInfo struct {
+	URL string `json:"url"`
+}
+
+// ── SendMessage: plain text ────────────────────────────────────────────────────
 
 // SendMessage sends a Telegram message to a chat (user's Telegram ID).
 // Errors are logged but not propagated to avoid breaking the main flow.
@@ -43,13 +63,93 @@ func (b *Bot) SendMessage(ctx context.Context, telegramID int64, text string) {
 	if !b.Enabled() {
 		return
 	}
-
-	payload := sendMessageRequest{
+	b.send(ctx, &sendMessageRequest{
 		ChatID:    telegramID,
 		Text:      text,
 		ParseMode: "HTML",
+	})
+}
+
+// ── SendWelcome: /start handler message ───────────────────────────────────────
+
+// SendWelcome sends the bilingual welcome message with an Open Mini App button.
+func (b *Bot) SendWelcome(ctx context.Context, telegramID int64, miniAppURL string) {
+	if !b.Enabled() {
+		return
+	}
+	text := "Вітаємо у TripListik.\nWelcome to TripListik.\n\nПлануй подорожі. Діліться враженнями.\nPlan trips. Share the journey."
+	msg := &sendMessageRequest{
+		ChatID:    telegramID,
+		Text:      text,
+		ParseMode: "HTML",
+		ReplyMarkup: &replyMarkup{
+			InlineKeyboard: [][]inlineButton{
+				{
+					{
+						Text:   "Open TripListik",
+						WebApp: &webAppInfo{URL: miniAppURL},
+					},
+				},
+			},
+		},
+	}
+	b.send(ctx, msg)
+}
+
+// ── SendInviteNotification: invite with deep link button ──────────────────────
+
+// SendInviteNotification sends an invite notification with a [View Invite] button.
+func (b *Bot) SendInviteNotification(
+	ctx context.Context,
+	telegramID int64,
+	inviterName string,
+	tripName string,
+	city string,
+	startDate string,
+	endDate string,
+	miniAppBaseURL string,
+) {
+	if !b.Enabled() {
+		return
 	}
 
+	locationLine := ""
+	if city != "" {
+		locationLine = "\n" + city
+		if startDate != "" && endDate != "" {
+			locationLine += " · " + startDate + " – " + endDate
+		}
+	}
+
+	text := fmt.Sprintf(
+		"<b>%s</b> invited you to join <b>%s</b>%s",
+		inviterName, tripName, locationLine,
+	)
+
+	// Deep link: opens Mini App and navigates to Notifications tab
+	viewURL := miniAppBaseURL + "?startapp=notifications"
+
+	msg := &sendMessageRequest{
+		ChatID:    telegramID,
+		Text:      text,
+		ParseMode: "HTML",
+		ReplyMarkup: &replyMarkup{
+			InlineKeyboard: [][]inlineButton{
+				{
+					{
+						Text:   "View Invite",
+						WebApp: &webAppInfo{URL: viewURL},
+					},
+				},
+			},
+		},
+	}
+	b.send(ctx, msg)
+}
+
+// ── internal send ─────────────────────────────────────────────────────────────
+
+func (b *Bot) send(ctx context.Context, payload *sendMessageRequest) {
 	body, err := json.Marshal(payload)
 	if err != nil {
 		slog.Warn("telegram: failed to marshal message", "err", err)
@@ -66,12 +166,12 @@ func (b *Bot) SendMessage(ctx context.Context, telegramID int64, text string) {
 
 	resp, err := b.httpClient.Do(req)
 	if err != nil {
-		slog.Warn("telegram: sendMessage failed", "telegram_id", telegramID, "err", err)
+		slog.Warn("telegram: sendMessage failed", "telegram_id", payload.ChatID, "err", err)
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Warn("telegram: sendMessage non-200", "telegram_id", telegramID, "status", resp.StatusCode)
+		slog.Warn("telegram: sendMessage non-200", "telegram_id", payload.ChatID, "status", resp.StatusCode)
 	}
 }

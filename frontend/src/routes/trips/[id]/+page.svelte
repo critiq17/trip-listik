@@ -11,6 +11,7 @@
 	import { resolvePhotoUrl } from '$lib/photos';
 	import { connectTripStream } from '$lib/realtime';
 	import InviteModal from '$lib/components/InviteModal.svelte';
+	import VoteItem from '$lib/components/VoteItem.svelte';
 	import { staggerList, scalePress } from '$lib/actions/animate';
 	import { animate } from 'motion';
 	import { hapticImpact, hapticNotification, setupBackButton, hideBackButton } from '$lib/telegram';
@@ -28,10 +29,20 @@
 	type TripDetailResponse = {
 		trip: TripCardData;
 		member_count: number;
-		vote_count: number;
-		vote_average: number;
 		comment_count: number;
 		photo_count: number;
+	};
+
+	type VoteItemData = {
+		id: string;
+		trip_id: string;
+		category: string;
+		title: string;
+		description: string;
+		image_url: string;
+		added_by: string;
+		vote_count: number;
+		has_voted: boolean;
 	};
 
 	let trip = $state<TripCardData | null>(null);
@@ -41,8 +52,7 @@
 	let members = $state<Member[]>([]);
 	let comments = $state<Comment[]>([]);
 	let photos = $state<Photo[]>([]);
-	let voteAverage = $state(0);
-	let voteCount = $state(0);
+	let voteItems = $state<VoteItemData[]>([]);
 	let memberCount = $state(0);
 	let commentCount = $state(0);
 	let photoCount = $state(0);
@@ -69,7 +79,7 @@
 	let photosCursor = $state<string | null>(null);
 	let photosLoading = $state(false);
 	let photosHasMore = $state(true);
-	const coverUrl = $derived(() => resolvePhotoUrl(trip?.cover_photo_url));
+	let coverUrl = $derived(resolvePhotoUrl(trip?.cover_photo_url));
 
 	const tabs = ['Details', 'Members', 'Photos', 'Discussion'];
 	let loadedTabs = new Set<string>();
@@ -81,8 +91,6 @@
 			const data = await apiFetch<TripDetailResponse>(`/v1/trips/${id}`);
 			trip = data.trip;
 			memberCount = data.member_count ?? 0;
-			voteAverage = data.vote_average ?? 0;
-			voteCount = data.vote_count ?? 0;
 			commentCount = data.comment_count ?? 0;
 			photoCount = data.photo_count ?? 0;
 		} catch (err) {
@@ -150,11 +158,19 @@
 		}
 	}
 
-	async function loadVotes(id: string) {
-		const data = await apiFetch<{ average: number; count: number }>(`/v1/trips/${id}/votes`);
-		voteAverage = data.average ?? 0;
-		voteCount = data.count ?? 0;
+	async function loadVoteItems(id: string) {
+		const data = await apiFetch<{ items: VoteItemData[] }>(`/v1/trips/${id}/vote-items`);
+		voteItems = data.items ?? [];
 	}
+
+	const handleVoteChange = (itemId: string, newCount: number, hasVoted: boolean) => {
+		voteItems = voteItems.map((item) => {
+			if (item.id === itemId) {
+				return { ...item, vote_count: newCount, has_voted: hasVoted };
+			}
+			return item;
+		});
+	};
 
 	async function loadMe() {
 		const data = await getMe();
@@ -208,16 +224,6 @@
 			body: JSON.stringify({ user_id: userId })
 		});
 		await loadJoinRequests(trip.id);
-	}
-
-	async function castVote(value: number) {
-		if (!trip) return;
-		hapticImpact('light');
-		await apiFetch(`/v1/trips/${trip.id}/votes`, {
-			method: 'POST',
-			body: JSON.stringify({ vote: value })
-		});
-		await loadVotes(trip.id);
 	}
 
 	async function submitComment() {
@@ -281,10 +287,22 @@
 				}
 			});
 		});
-		stream.addEventListener('vote_updated', (event) => {
-			const data = JSON.parse((event as MessageEvent).data) as { average: number; count: number };
-			voteAverage = data.average ?? 0;
-			voteCount = data.count ?? 0;
+		stream.addEventListener('vote_item_vote', (event) => {
+			// Realtime update for vote counts from others
+			const data = JSON.parse((event as MessageEvent).data) as { item_id: string; vote_count: number };
+			voteItems = voteItems.map((item) => {
+				if (item.id === data.item_id) {
+					// We only update count, not `has_voted` which is viewer-specific
+					return { ...item, vote_count: data.vote_count };
+				}
+				return item;
+			});
+		});
+		stream.addEventListener('vote_item_created', (event) => {
+			const data = JSON.parse((event as MessageEvent).data) as VoteItemData;
+			// Add default has_voted if missing and insert at top
+			const newItem = { ...data, has_voted: false };
+			voteItems = [newItem, ...voteItems.filter(v => v.id !== newItem.id)];
 		});
 		stream.addEventListener('photo_created', (event) => {
 			const data = JSON.parse((event as MessageEvent).data) as Photo;
@@ -342,7 +360,7 @@
 	$effect(() => {
 		if (trip && activeTab === 'Details' && !loadedTabs.has('Details')) {
 			loadedTabs.add('Details');
-			loadVotes(trip.id);
+			loadVoteItems(trip.id);
 		}
 	});
 
@@ -405,8 +423,8 @@
 				<div class="panel detail-panel">
 					<div class="stats-grid">
 						<div class="stat glass">
-							<strong>{voteAverage.toFixed(1)}</strong>
-							<span>Average vote</span>
+							<strong>{trip.visibility === 'public' ? 'Public' : 'Invites'}</strong>
+							<span>Visibility</span>
 						</div>
 						<div class="stat glass">
 							<strong>{commentCount}</strong>
@@ -443,24 +461,17 @@
 						</div>
 					</div>
 
-					<div class="vote-panel">
-						<div>
-							<h2>Vote this trip</h2>
-							<p>Community rating updates in real time.</p>
-						</div>
-						<div class="vote-buttons">
-							{#each [1, 2, 3, 4, 5] as score}
-								<button
-									onclick={(e) => {
-										hapticImpact('light');
-										animate(e.currentTarget, { scale: [1, 1.2, 0.95, 1] }, { duration: 0.3 });
-										castVote(score);
-									}}
-								>
-									{score}
-								</button>
-							{/each}
-						</div>
+					<div class="detail-block options-block">
+						<h2>Options to vote on</h2>
+						{#if voteItems.length === 0}
+							<p class="muted">No options added yet. Group organizers will add hotels and activities here.</p>
+						{:else}
+							<div class="vote-item-list">
+								{#each voteItems as item (item.id)}
+									<VoteItem {item} onVoteChange={handleVoteChange} />
+								{/each}
+							</div>
+						{/if}
 					</div>
 
 					<button class="cta-button" onclick={joinTrip} disabled={joinLoading || !!joinStatus} use:scalePress>
@@ -843,7 +854,6 @@
 	}
 
 	.detail-block h2,
-	.vote-panel h2,
 	.section-head h2,
 	.requests h3 {
 		font-size: 1rem;
@@ -864,7 +874,6 @@
 	}
 
 	.detail-block p,
-	.vote-panel p,
 	.map-card span {
 		color: var(--text-secondary);
 		line-height: 1.5;
@@ -885,25 +894,14 @@
 		margin-bottom: 0.25rem;
 	}
 
-	.vote-panel {
-		padding: 1rem;
-		border-radius: var(--radius-xl);
-		background: rgba(255, 255, 255, 0.04);
+	.options-block {
+		margin-top: 1rem;
 	}
 
-	.vote-buttons {
-		display: flex;
-		gap: 0.6rem;
-		margin-top: 0.85rem;
-	}
-
-	.vote-buttons button {
-		width: 44px;
-		height: 44px;
-		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.06);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		font-weight: 800;
+	.vote-item-list {
+		display: grid;
+		gap: 1rem;
+		margin-top: 0.8rem;
 	}
 
 	.section-head {
