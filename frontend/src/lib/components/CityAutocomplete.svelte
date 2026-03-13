@@ -27,6 +27,7 @@
 	let isOpen = $state(false);
 	let timer: number | null = null;
 	let wrapper: HTMLElement | null = null;
+	let suppressSearch = false;
 
 	// Watch external value changes (e.g. reset form)
 	$effect(() => {
@@ -57,21 +58,19 @@
 		}
 	};
 
-	const onInput = (e: Event) => {
-		const val = (e.target as HTMLInputElement).value;
-		query = val;
+	const debounceSearch = (val: string) => {
 		if (val.length < 2) {
 			results = [];
 			isOpen = false;
 			if (timer) window.clearTimeout(timer);
 			return;
 		}
-		
 		if (timer) window.clearTimeout(timer);
-		timer = window.setTimeout(() => search(val), 400);
+		timer = window.setTimeout(() => search(val), 350);
 	};
 
 	const select = (item: GeocodeItem) => {
+		suppressSearch = true;
 		value = item.city || item.description.split(',')[0];
 		query = value;
 		countryCode = item.country_code ? item.country_code.toUpperCase() : '';
@@ -92,6 +91,18 @@
 		}
 	});
 
+	$effect(() => {
+		query;
+		if (value !== query) {
+			value = query;
+		}
+		if (suppressSearch) {
+			suppressSearch = false;
+			return;
+		}
+		debounceSearch(query.trim());
+	});
+
 	onDestroy(() => {
 		if (timer) window.clearTimeout(timer);
 	});
@@ -101,11 +112,12 @@
 	<div class="input-wrap">
 		<input
 			{id}
-			type="text"
+			type="search"
 			{placeholder}
 			{required}
-			value={query}
-			oninput={onInput}
+			bind:value={query}
+			inputmode="search"
+			autocapitalize="none"
 			onfocus={() => { if (results.length > 0) isOpen = true; }}
 			autocomplete="off"
 		/>

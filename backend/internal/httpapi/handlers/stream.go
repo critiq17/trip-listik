@@ -15,9 +15,17 @@ type StreamHandler struct {
 }
 
 func (h *StreamHandler) TripStream(c *fiber.Ctx) error {
+	if h.Hub == nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "realtime hub not available")
+	}
 	tripID := c.Params("id")
 	if tripID == "" {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid trip id")
+	}
+
+	ctx := c.Context()
+	if ctx == nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "stream context unavailable")
 	}
 
 	c.Set("Content-Type", "text/event-stream")
@@ -28,13 +36,13 @@ func (h *StreamHandler) TripStream(c *fiber.Ctx) error {
 	ch := h.Hub.Subscribe(key)
 	defer h.Hub.Unsubscribe(key, ch)
 
-	c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
+	ctx.SetBodyStreamWriter(func(w *bufio.Writer) {
 		ping := time.NewTicker(25 * time.Second)
 		defer ping.Stop()
 
 		for {
 			select {
-			case <-c.Context().Done():
+			case <-ctx.Done():
 				return
 			case ev, ok := <-ch:
 				if !ok {

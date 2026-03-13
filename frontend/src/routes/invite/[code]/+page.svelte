@@ -5,6 +5,7 @@
 	import { apiFetch } from '$lib/api';
 	import { expandTelegram } from '$lib/telegram';
 	import { scalePress } from '$lib/actions/animate';
+	import { resolvePhotoUrl } from '$lib/photos';
 	import type { InviteItem } from '$lib/types';
 
 	let invite = $state<InviteItem | null>(null);
@@ -98,7 +99,7 @@
 
 			<div class="trip-preview">
 				{#if invite.trip_cover_photo_url}
-					<img src={invite.trip_cover_photo_url} alt="Cover" class="cover-image" />
+					<img src={resolvePhotoUrl(invite.trip_cover_photo_url)} alt="Cover" class="cover-image" />
 				{:else}
 					<div class="cover-placeholder">
 						<span class="material-symbols-outlined">landscape</span>

@@ -144,7 +144,7 @@
 		<div class="cards" use:staggerList>
 			{#if loading}
 				{#each Array(2) as _}
-					<SkeletonCard ratio="4 / 5" />
+					<SkeletonCard ratio="3 / 4" />
 				{/each}
 			{:else if error}
 				<div class="state error">{error}</div>

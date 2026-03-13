@@ -3,6 +3,7 @@
 	import { apiFetch } from '$lib/api';
 	import { staggerList } from '$lib/actions/animate';
 	import CityAutocomplete from '$lib/components/CityAutocomplete.svelte';
+	import { resolvePhotoUrl } from '$lib/photos';
 
 	let query = $state('');
 	let country = $state('');
@@ -101,7 +102,7 @@
 								<div class="img-skeleton skeleton"></div>
 								<img
 									class="trip-img route-image-element"
-									src={item.cover_photo_url ?? item.image ?? ''}
+									src={resolvePhotoUrl(item.cover_photo_url ?? item.image ?? '')}
 									alt={item.title ?? item.name ?? ''}
 									onload={(e) => e.currentTarget.classList.add('loaded')}
 									onerror={(e) => e.currentTarget.classList.add('error')}
