@@ -117,6 +117,10 @@ type UserWishlistItem struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+func (UserWishlistItem) TableName() string {
+	return "user_wishlist"
+}
+
 type Notification struct {
 	ID        uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 	UserID    uuid.UUID  `gorm:"type:uuid;index" json:"user_id"`
