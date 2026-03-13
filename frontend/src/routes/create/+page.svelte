@@ -1,23 +1,22 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { setDraft } from '$lib/tripDraft';
-	import { scalePress } from '$lib/actions/animate';
-	import { apiFetch, presignTripPhoto, uploadSignedPhoto, getPublicPhotoURL } from '$lib/api';
+	import { setDraft, getDraft } from '$lib/tripDraft';
 	import { onDestroy, onMount } from 'svelte';
 	import { setupMainButton, hideMainButton, setMainButtonState, setupBackButton } from '$lib/telegram';
 	import CityAutocomplete from '$lib/components/CityAutocomplete.svelte';
 
-	let title = $state('');
-	let destination = $state('');
-	let countryCode = $state('');
-	let coverPhotoPreview = $state('');
-	let coverPhotoFile: File | null = null;
-	let creating = $state(false);
-	let error = $state('');
-	let fileInput: HTMLInputElement | null = null;
+	let draft = getDraft() || {};
+	let title = $state(draft.title || '');
+	let destination = $state(draft.destination || '');
+	let countryCode = $state(draft.country_code || '');
+	let lat = $state(draft.lat || 0);
+	let lng = $state(draft.lon || 0);
+
+	// Note: Cover photo handling happens at the end (Step 3) now
+	// to avoid uploading photos for abandoned trips.
 
 	$effect(() => {
-		if (title.trim() && !creating) {
+		if (title.trim()) {
 			setupMainButton('Continue', next, true, true);
 		} else {
 			setupMainButton('Continue', next, true, false);
@@ -28,72 +27,26 @@
 		setupBackButton(() => history.back());
 	});
 
-	const pickPhoto = () => {
-		fileInput?.click();
-	};
-
-	const onFile = (event: Event) => {
-		const target = event.currentTarget as HTMLInputElement;
-		const file = target.files?.[0];
-		if (!file) return;
-		if (coverPhotoPreview) URL.revokeObjectURL(coverPhotoPreview);
-		coverPhotoFile = file;
-		coverPhotoPreview = URL.createObjectURL(file);
-	};
-
-	onDestroy(() => {
-		if (coverPhotoPreview) URL.revokeObjectURL(coverPhotoPreview);
-	});
-
-	const next = async () => {
-		if (!title.trim() || creating) return;
-		creating = true;
-		setMainButtonState(true);
-		error = '';
-		try {
-			// Step 1: create trip draft first (we need its ID for presign)
-			const trip = await apiFetch<{ id: string }>('/v1/trips', {
-				method: 'POST',
-				body: JSON.stringify({
-					title,
-					city: destination,
-					country_code: countryCode,
-					cover_photo_url: null,
-					status: 'draft',
-					visibility: 'public'
-				})
-			});
-
-			// Step 2: upload cover photo if file was selected
-			if (coverPhotoFile) {
-				try {
-					const presign = await presignTripPhoto(trip.id, coverPhotoFile.name, coverPhotoFile.type);
-					await uploadSignedPhoto(presign.signed_url, presign.token, coverPhotoFile);
-					const publicUrl = getPublicPhotoURL(presign.path);
-					await apiFetch(`/v1/trips/${trip.id}`, {
-						method: 'PATCH',
-						body: JSON.stringify({ cover_photo_url: publicUrl })
-					});
-				} catch {
-					// Non-fatal: continue without cover photo
-					console.warn('Cover photo upload failed, continuing without it');
-				}
-			}
-
-			setDraft(trip.id);
-			goto('/create/step-2');
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to create trip';
-		} finally {
-			creating = false;
-			setMainButtonState(false);
-		}
+	const next = () => {
+		if (!title.trim()) return;
+		setDraft({
+			title,
+			destination,
+			country_code: countryCode,
+			lat,
+			lon: lng
+		});
+		goto('/create/step-2');
 	};
 </script>
 
+<svelte:head>
+	<title>Create Trip - Step 1</title>
+</svelte:head>
+
 <section class="create-step">
 	<div class="progress-bar">
-		<div class="progress-fill"></div>
+		<div class="progress-fill" style="width: 33.33%"></div>
 	</div>
 
 	<main>
@@ -103,7 +56,7 @@
 		<div class="form">
 			<div class="field">
 				<label for="trip-name">Trip Name</label>
-				<input id="trip-name" bind:value={title} placeholder="e.g. Summer in Tuscany" />
+				<input id="trip-name" bind:value={title} placeholder="e.g. Summer in Tuscany" autocomplete="off" />
 			</div>
 
 			<div class="field autocomplete-field">
@@ -111,35 +64,12 @@
 				<CityAutocomplete 
 					bind:value={destination} 
 					bind:countryCode={countryCode}
+					bind:lat={lat}
+					bind:lng={lng}
 					id="trip-destination" 
 					placeholder="Where to?" 
 				/>
 			</div>
-
-			<div class="field">
-				<label for="cover-photo">Cover Photo</label>
-				<button type="button" class="upload" onclick={pickPhoto}>
-					{#if coverPhotoPreview}
-						<img src={coverPhotoPreview} alt="Cover preview" />
-					{:else}
-						<div class="upload-icon">
-							<span class="material-symbols-outlined">add_a_photo</span>
-						</div>
-						<span>Add a cover image</span>
-					{/if}
-				</button>
-				<input
-					id="cover-photo"
-					class="file-input"
-					type="file"
-					accept="image/*"
-					bind:this={fileInput}
-					onchange={onFile}
-				/>
-			</div>
-			{#if error}
-				<p class="error">{error}</p>
-			{/if}
 		</div>
 	</main>
 </section>
@@ -147,21 +77,20 @@
 <style>
 	.create-step {
 		min-height: 100dvh;
-		background: var(--background-dark);
-		color: var(--text-primary);
-		padding-bottom: 2rem;
+		background: var(--bg);
+		color: var(--text);
 	}
 
 	.progress-bar {
 		width: 100%;
 		height: 4px;
-		background: rgba(77, 157, 109, 0.2);
+		background: var(--bg-elevated);
 	}
 
 	.progress-fill {
 		height: 100%;
-		width: 33.33%;
-		background: var(--primary);
+		background: var(--green);
+		transition: width 0.3s ease;
 	}
 
 	main {
@@ -174,7 +103,7 @@
 	}
 
 	.eyebrow {
-		color: var(--primary);
+		color: var(--green);
 		font-size: 0.65rem;
 		font-weight: 700;
 		letter-spacing: 0.2em;
@@ -182,8 +111,9 @@
 	}
 
 	h1 {
-		font-size: 2.4rem;
-		line-height: 1.05;
+		font-size: 2.2rem;
+		line-height: 1.1;
+		margin-bottom: 0.5rem;
 	}
 
 	.form {
@@ -195,7 +125,7 @@
 	.field label {
 		display: block;
 		font-size: 0.85rem;
-		color: var(--text-secondary);
+		color: var(--text-sub);
 		margin-bottom: 0.4rem;
 	}
 
@@ -203,59 +133,16 @@
 		width: 100%;
 		background: transparent;
 		border: none;
-		border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+		border-bottom: 2px solid var(--border);
 		padding: 0.6rem 0;
 		font-size: 1.4rem;
 		font-weight: 500;
-		color: var(--text-primary);
+		color: var(--text);
+		border-radius: 0; /* iOS fix */
 	}
 
-
-	.upload {
-		width: 100%;
-		aspect-ratio: 16 / 9;
-		border-radius: 12px;
-		border: 2px dashed rgba(255, 255, 255, 0.12);
-		background: rgba(255, 255, 255, 0.02);
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 0.4rem;
-		cursor: pointer;
-		overflow: hidden;
-		text-align: center;
-	}
-
-	.upload img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
-
-	.upload-icon {
-		width: 3rem;
-		height: 3rem;
-		border-radius: 999px;
-		background: rgba(77, 157, 109, 0.12);
-		display: grid;
-		place-items: center;
-		color: var(--primary);
-	}
-
-	.upload span {
-		font-size: 0.7rem;
-		color: var(--text-secondary);
-		font-weight: 600;
-	}
-
-	.file-input {
-		display: none;
-	}
-
-
-	.error {
-		color: #e11d48;
-		font-size: 0.8rem;
+	.field input:focus {
+		outline: none;
+		border-bottom-color: var(--green);
 	}
 </style>

@@ -1,15 +1,32 @@
 :root {
-  --primary: #4d9d6d;
+  /* === SPEC DESIGN SYSTEM (Part 8) === */
+  --bg:           #0d1f17;
+  --bg-card:      #121f17;
+  --bg-input:     #172a1f;
+  --bg-elevated:  #1a3226;
+  --green:        #3d9e5f;
+  --green-light:  #5cba7d;
+  --text:         #ffffff;
+  --text-sub:     #8fa89a;
+  --text-muted:   #4d6b5a;
+  --border:       #1f3d2d;
+  --danger:       #e05555;
+  --radius-card:  16px;
+  --radius-input: 12px;
+  --radius-pill:  100px;
+
+  /* === Legacy / Extended aliases (keep for existing components) === */
+  --primary: #3d9e5f;
+  --background-dark: #0d1f17;
   --background-light: #f6f7f7;
-  --background-dark: #161c18;
 
-  --error: #e11d48;
+  --error: #e05555;
   --warning: #f97316;
-  --success: var(--primary);
+  --success: var(--green);
 
-  --text-primary: #f1f5f2;
-  --text-secondary: #9aa4a1;
-  --text-muted: #6f7a75;
+  --text-primary: #ffffff;
+  --text-secondary: #8fa89a;
+  --text-muted: #4d6b5a;
 
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -17,28 +34,26 @@
   --radius-xl: 12px;
   --radius-2xl: 16px;
   --radius-3xl: 24px;
-  --radius-pill: 9999px;
 
-  --shadow-soft: 0 14px 30px rgba(0, 0, 0, 0.25);
-  --shadow-card: 0 20px 44px rgba(0, 0, 0, 0.35);
+  --shadow-soft: 0 14px 30px rgba(0, 0, 0, 0.35);
+  --shadow-card: 0 20px 44px rgba(0, 0, 0, 0.5);
 
   --transition-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --transition-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94);
 
-  --card-bg: rgba(15, 20, 17, 0.9);
-  --card-border: rgba(255, 255, 255, 0.08);
+  --card-bg: #121f17;
+  --card-border: #1f3d2d;
 
-  --nav-height: 60px;
+  --nav-height: 56px;
 
   --font-display: "Inter", sans-serif;
   --font-serif: "DM Serif Display", serif;
 
-  /* Legacy aliases */
-  --accent: var(--primary);
-  --accent-strong: #8fd9b0;
-  --accent-grad: linear-gradient(135deg, #4d9d6d, #7fbf99);
-  --bg-primary: var(--background-dark);
-  --bg-deep: #121915;
-  --surface-soft: rgba(255, 255, 255, 0.05);
-  --shadow-glow: 0 16px 30px rgba(77, 157, 109, 0.35);
+  --accent: var(--green);
+  --accent-strong: #5cba7d;
+  --accent-grad: linear-gradient(135deg, #3d9e5f, #5cba7d);
+  --bg-primary: #0d1f17;
+  --bg-deep: #0a1a12;
+  --surface-soft: rgba(255, 255, 255, 0.03);
+  --shadow-glow: 0 16px 30px rgba(61, 158, 95, 0.3);
 }
