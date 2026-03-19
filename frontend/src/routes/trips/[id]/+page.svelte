@@ -80,6 +80,7 @@
 	let photosLoading = $state(false);
 	let photosHasMore = $state(true);
 	let coverUrl = $derived(resolvePhotoUrl(trip?.cover_photo_url));
+	let viewerIsMember = $state(false);
 
 	const tabs = ['Details', 'Members', 'Photos', 'Discussion'];
 	let loadedTabs = new Set<string>();
@@ -262,6 +263,18 @@
 	}
 
 	const isOwner = () => trip?.owner_id && meId && trip.owner_id === meId;
+	const canInvite = () =>
+		!!trip &&
+		!!meId &&
+		(trip.owner_id === meId || (trip.visibility === 'group' && viewerIsMember));
+
+	$effect(() => {
+		if (!meId || members.length === 0) {
+			viewerIsMember = false;
+			return;
+		}
+		viewerIsMember = members.some((member) => member.user_id === meId);
+	});
 
 	onMount(() => {
 		setupBackButton(() => history.back());
@@ -484,7 +497,7 @@
 						<h2>Members</h2>
 						<span>{memberCount} total</span>
 					</div>
-					{#if isOwner()}
+					{#if canInvite()}
 						<button class="invite-btn" onclick={() => (inviteOpen = true)}>Invite friends</button>
 					{/if}
 					{#if members.length === 0}
@@ -587,7 +600,7 @@
 									<div class="img-skeleton skeleton"></div>
 									<img
 										class="trip-img grid-img"
-										src={resolvePhotoUrl(photo.url)}
+										src={resolvePhotoUrl(photo.url || photo.storage_path)}
 										alt="Trip"
 										loading="lazy"
 										onload={(e) => e.currentTarget.classList.add('loaded')}
@@ -650,7 +663,7 @@
 	<div class="viewer">
 		<button class="viewer-backdrop" onclick={() => (viewerPhoto = null)} aria-label="Close photo viewer"></button>
 		<button class="viewer-close" onclick={() => (viewerPhoto = null)}>×</button>
-		<img src={viewerPhoto.url} alt="Fullscreen trip" />
+		<img src={resolvePhotoUrl(viewerPhoto.url || viewerPhoto.storage_path)} alt="Fullscreen trip" />
 	</div>
 {/if}
 
