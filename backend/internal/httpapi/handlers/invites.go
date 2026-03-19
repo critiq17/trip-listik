@@ -35,7 +35,7 @@ type respondInviteRequest struct {
 }
 
 func (h *InvitesHandler) InviteUser(c *fiber.Ctx) error {
-	ownerID, ok := middleware.GetUserID(c)
+	requesterID, ok := middleware.GetUserID(c)
 	if !ok {
 		return fiber.NewError(fiber.StatusUnauthorized, "unauthorized")
 	}
@@ -63,8 +63,18 @@ func (h *InvitesHandler) InviteUser(c *fiber.Ctx) error {
 	if trip == nil {
 		return fiber.NewError(fiber.StatusNotFound, "trip not found")
 	}
-	if trip.OwnerID != ownerID {
-		return fiber.NewError(fiber.StatusForbidden, "forbidden")
+	isOwner := trip.OwnerID == requesterID
+	if !isOwner {
+		if trip.Visibility != "group" {
+			return fiber.NewError(fiber.StatusForbidden, "forbidden")
+		}
+		isMember, err := h.Store.IsTripMember(ctx, tripID, requesterID)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, "failed to check membership")
+		}
+		if !isMember {
+			return fiber.NewError(fiber.StatusForbidden, "forbidden")
+		}
 	}
 
 	var invitedUserID uuid.UUID
@@ -92,7 +102,7 @@ func (h *InvitesHandler) InviteUser(c *fiber.Ctx) error {
 		return c.JSON(inviteResponse{InviteID: existing.ID.String(), Status: existing.Status})
 	}
 
-	invite, err := h.Store.CreateInvite(ctx, tripID, invitedUserID, ownerID)
+	invite, err := h.Store.CreateInvite(ctx, tripID, invitedUserID, requesterID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to create invite")
 	}
@@ -103,7 +113,7 @@ func (h *InvitesHandler) InviteUser(c *fiber.Ctx) error {
 		if err != nil || invitedUser == nil {
 			return
 		}
-		owner, err := h.Store.GetUserByID(context.Background(), ownerID)
+		owner, err := h.Store.GetUserByID(context.Background(), requesterID)
 		if err != nil || owner == nil {
 			return
 		}
@@ -132,7 +142,7 @@ func (h *InvitesHandler) InviteUser(c *fiber.Ctx) error {
 }
 
 func (h *InvitesHandler) ListTripInvites(c *fiber.Ctx) error {
-	ownerID, ok := middleware.GetUserID(c)
+	requesterID, ok := middleware.GetUserID(c)
 	if !ok {
 		return fiber.NewError(fiber.StatusUnauthorized, "unauthorized")
 	}
@@ -152,8 +162,18 @@ func (h *InvitesHandler) ListTripInvites(c *fiber.Ctx) error {
 	if trip == nil {
 		return fiber.NewError(fiber.StatusNotFound, "trip not found")
 	}
-	if trip.OwnerID != ownerID {
-		return fiber.NewError(fiber.StatusForbidden, "forbidden")
+	isOwner := trip.OwnerID == requesterID
+	if !isOwner {
+		if trip.Visibility != "group" {
+			return fiber.NewError(fiber.StatusForbidden, "forbidden")
+		}
+		isMember, err := h.Store.IsTripMember(ctx, tripID, requesterID)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, "failed to check membership")
+		}
+		if !isMember {
+			return fiber.NewError(fiber.StatusForbidden, "forbidden")
+		}
 	}
 
 	items, err := h.Store.ListTripInvites(ctx, tripID)
