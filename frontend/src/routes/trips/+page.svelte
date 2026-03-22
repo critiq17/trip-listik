@@ -51,14 +51,6 @@
 <div class="page">
 	<!-- Header -->
 	<header class="header">
-		<div class="header-row">
-			<button class="round-btn" aria-label="Back" onclick={() => history.back()}>
-				<span class="material-symbols-outlined">arrow_back</span>
-			</button>
-			<button class="round-btn" aria-label="More options">
-				<span class="material-symbols-outlined">more_horiz</span>
-			</button>
-		</div>
 		<div class="header-copy">
 			<p class="eyebrow">My Trips</p>
 			<h1>Your travel board.</h1>
@@ -136,6 +128,11 @@
 	</main>
 </div>
 
+<!-- FAB: Create new trip -->
+<button class="fab" onclick={() => goto('/create')} aria-label="Create new trip">
+	<span class="material-symbols-outlined">add</span>
+</button>
+
 <style>
 .page {
 	min-height: 100dvh;
@@ -151,32 +148,8 @@
 	margin: 0 auto;
 }
 
-.header-row {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	margin-bottom: 16px;
-}
-
-.round-btn {
-	width: 40px;
-	height: 40px;
-	border-radius: 9999px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	color: white;
-	background: none;
-	border: none;
-	cursor: pointer;
-}
-
-.round-btn .material-symbols-outlined {
-	font-size: 22px;
-}
-
 .header-copy {
-	margin-top: 16px;
+	margin-top: 0;
 }
 
 .eyebrow {
@@ -386,5 +359,35 @@ h1 {
 
 .draft-action .material-symbols-outlined {
 	font-size: 18px;
+}
+
+/* ── FAB ─────────────────────────────────────────────────── */
+.fab {
+	position: fixed;
+	bottom: calc(72px + env(safe-area-inset-bottom, 0px) + 16px);
+	right: 20px;
+	width: 56px;
+	height: 56px;
+	border-radius: 9999px;
+	background: #4d9d6d;
+	color: white;
+	border: none;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: 0 4px 20px rgba(77, 157, 109, 0.45);
+	z-index: 40;
+	transition: transform 0.15s ease, box-shadow 0.15s ease;
+	-webkit-tap-highlight-color: transparent;
+}
+
+.fab:active {
+	transform: scale(0.93);
+	box-shadow: 0 2px 10px rgba(77, 157, 109, 0.3);
+}
+
+.fab .material-symbols-outlined {
+	font-size: 28px;
 }
 </style>

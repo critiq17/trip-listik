@@ -60,6 +60,7 @@ type TripInvite struct {
 	InvitedByUserID uuid.UUID `gorm:"type:uuid;index" json:"invited_by_user_id"`
 	Status          string    `json:"status"`
 	Comment         *string   `json:"comment"`
+	TgMessageID     int64     `gorm:"default:0" json:"-"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 }

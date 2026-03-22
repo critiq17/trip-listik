@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+import { page } from '$app/stores';
 	import {
 		apiFetch,
+		deleteTrip,
 		getMe,
 		getPublicPhotoURL,
 		presignTripPhoto,
@@ -265,6 +267,20 @@
 	}
 
 	const isOwner = () => trip?.owner_id && meId && trip.owner_id === meId;
+
+	let deletingTrip = $state(false);
+
+	async function handleDeleteTrip() {
+		if (!trip) return;
+		if (!confirm(`Delete "${trip.title}"? This cannot be undone.`)) return;
+		deletingTrip = true;
+		try {
+			await deleteTrip(trip.id);
+			goto('/trips');
+		} catch {
+			deletingTrip = false;
+		}
+	}
 	const canInvite = () =>
 		!!trip &&
 		!!meId &&
@@ -489,9 +505,22 @@
 						{/if}
 					</div>
 
-					<button class="cta-button" onclick={joinTrip} disabled={joinLoading || !!joinStatus} use:scalePress>
-						{joinLoading ? 'Joining...' : (joinStatusLabel[joinStatus] ?? joinStatus) || 'Join Trip'}
-					</button>
+					{#if isOwner()}
+						<div class="owner-actions">
+							<a class="owner-btn owner-btn--edit" href="/trips/{trip.id}/edit">
+								<span class="material-symbols-outlined">edit</span>
+								Edit trip
+							</a>
+							<button class="owner-btn owner-btn--delete" onclick={handleDeleteTrip} disabled={deletingTrip}>
+								<span class="material-symbols-outlined">delete</span>
+								{deletingTrip ? 'Deleting…' : 'Delete trip'}
+							</button>
+						</div>
+					{:else}
+						<button class="cta-button" onclick={joinTrip} disabled={joinLoading || !!joinStatus} use:scalePress>
+							{joinLoading ? 'Joining...' : (joinStatusLabel[joinStatus] ?? joinStatus) || 'Join Trip'}
+						</button>
+					{/if}
 				</div>
 			{:else if activeTab === 'Members'}
 				<div class="panel member-panel">
@@ -1145,4 +1174,46 @@
 			column-count: 1;
 		}
 	}
+
+.owner-actions {
+	display: flex;
+	gap: 12px;
+	margin-top: 8px;
+}
+
+.owner-btn {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	padding: 13px 16px;
+	border-radius: 12px;
+	font-size: 14px;
+	font-weight: 600;
+	cursor: pointer;
+	border: none;
+	text-decoration: none;
+	transition: opacity 0.15s ease;
+	-webkit-tap-highlight-color: transparent;
+}
+
+.owner-btn:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.owner-btn--edit {
+	background: rgba(77, 157, 109, 0.15);
+	color: #4d9d6d;
+}
+
+.owner-btn--delete {
+	background: rgba(239, 68, 68, 0.1);
+	color: #ef4444;
+}
+
+.owner-btn .material-symbols-outlined {
+	font-size: 18px;
+}
 </style>

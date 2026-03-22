@@ -11,7 +11,7 @@
 	let authReady = $state(false);
 
 	// Routes that hide the bottom nav
-	const hideNavRoutes = ['/auth', '/create'];
+	const hideNavRoutes = ['/auth', '/create', '/trips/create'];
 
 	const shouldShowNav = (pathname: string) =>
 		!hideNavRoutes.some((r) => pathname === r || pathname.startsWith(r));

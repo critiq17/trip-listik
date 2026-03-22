@@ -7,11 +7,10 @@
 	import { hapticImpact } from '$lib/telegram';
 
 	const tabs = [
-		{ id: 'feed',    href: '/',        icon: 'rss_feed',   label: 'Feed'    },
-		{ id: 'trips',   href: '/trips',   icon: 'map',        label: 'Trips'   },
-		{ id: 'create',  href: '/create',  icon: 'add_circle', label: 'Create', fab: true },
-		{ id: 'explore', href: '/explore', icon: 'explore',    label: 'Explore' },
-		{ id: 'profile', href: '/profile', icon: 'person',     label: 'Profile' },
+		{ id: 'feed',    href: '/',        icon: 'home',          label: 'Home'    },
+		{ id: 'trips',   href: '/trips',   icon: 'map',           label: 'Trips'   },
+		{ id: 'inbox',   href: '/inbox',   icon: 'notifications', label: 'Inbox', badge: true },
+		{ id: 'profile', href: '/profile', icon: 'person',        label: 'Profile' },
 	];
 
 	const isActive = (href: string) => {
@@ -19,7 +18,7 @@
 		return $page.url.pathname.startsWith(href);
 	};
 
-	const navigate = (e: MouseEvent, href: string) => {
+	const navigate = (href: string) => {
 		hapticImpact('light');
 		goto(href);
 	};
@@ -52,15 +51,19 @@
 			id="nav-{tab.id}"
 			class="nav-item"
 			class:active={isActive(tab.href)}
-			class:fab={tab.fab}
-			onclick={(e) => navigate(e, tab.href)}
+			onclick={() => navigate(tab.href)}
 			aria-label={tab.label}
 			aria-current={isActive(tab.href) ? 'page' : undefined}
 		>
-			<span
-				class="material-symbols-outlined"
-				class:fill-icon={isActive(tab.href) && !tab.fab}
-			>{tab.icon}</span>
+			<span class="icon-wrap">
+				<span
+					class="material-symbols-outlined"
+					class:fill-icon={isActive(tab.href)}
+				>{tab.icon}</span>
+				{#if tab.badge && $unreadCount > 0}
+					<span class="badge">{$unreadCount > 99 ? '99+' : $unreadCount}</span>
+				{/if}
+			</span>
 			<span class="nav-label">{tab.label}</span>
 		</button>
 	{/each}
@@ -72,13 +75,13 @@
 	bottom: 0; left: 0; right: 0;
 	z-index: 50;
 	display: flex;
-	justify-content: space-between;
+	justify-content: space-around;
 	align-items: center;
-	padding: 12px 24px env(safe-area-inset-bottom, 16px);
-	background: rgba(22, 28, 24, 0.92);
+	padding: 10px 8px env(safe-area-inset-bottom, 12px);
+	background: rgba(22, 28, 24, 0.96);
 	backdrop-filter: blur(20px);
 	-webkit-backdrop-filter: blur(20px);
-	border-top: 1px solid rgba(77, 157, 109, 0.1);
+	border-top: 1px solid rgba(77, 157, 109, 0.12);
 }
 
 .nav-item {
@@ -86,39 +89,58 @@
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	gap: 2px;
-	min-width: 44px;
-	min-height: 44px;
+	gap: 4px;
+	flex: 1;
+	min-height: 52px;
 	color: #64748b;
 	background: none;
 	border: none;
 	cursor: pointer;
-	border-radius: 8px;
-	transition: color 0.2s ease;
+	border-radius: 10px;
+	transition: color 0.18s ease;
 	-webkit-tap-highlight-color: transparent;
+	padding: 6px 4px;
 }
 
 .nav-item.active {
 	color: #4d9d6d;
 }
 
+.icon-wrap {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
 .nav-item .material-symbols-outlined {
-	font-size: 24px;
+	font-size: 26px;
+	transition: font-variation-settings 0.18s ease;
 }
 
-.nav-item.fab .material-symbols-outlined {
-	font-size: 32px;
+.nav-item.active .material-symbols-outlined {
+	font-variation-settings: 'FILL' 1;
 }
 
-.nav-item.fab.active {
-	color: #4d9d6d;
+.badge {
+	position: absolute;
+	top: -5px;
+	right: -8px;
+	background: #ef4444;
+	color: white;
+	font-size: 9px;
+	font-weight: 700;
+	line-height: 1;
+	padding: 2px 4px;
+	border-radius: 9999px;
+	min-width: 16px;
+	text-align: center;
 }
 
 .nav-label {
 	font-size: 10px;
-	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: 0.08em;
+	font-weight: 600;
+	letter-spacing: 0.04em;
 	line-height: 1;
 }
 </style>
