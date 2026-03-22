@@ -6,6 +6,7 @@ import (
 
 	"github.com/critiq17/tripListik/internal/httpapi/middleware"
 	"github.com/critiq17/tripListik/internal/store"
+	"github.com/critiq17/tripListik/internal/store/models"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -72,3 +73,23 @@ func (h *InboxHandler) UnreadCount(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"unread": count})
 }
 
+// MarkAllRead marks all unread notifications as read for the current user.
+func (h *InboxHandler) MarkAllRead(c *fiber.Ctx) error {
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		return fiber.NewError(fiber.StatusUnauthorized, "unauthorized")
+	}
+
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
+	defer cancel()
+
+	now := time.Now()
+	err := h.Store.DB.WithContext(ctx).
+		Model(&models.Notification{}).
+		Where("user_id = ? AND read_at IS NULL", userID).
+		Update("read_at", now).Error
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "failed to mark read")
+	}
+	return c.JSON(fiber.Map{"ok": true})
+}

@@ -138,13 +138,19 @@ func (h *TripsHandler) GetTrip(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to load stats")
 	}
 
+	viewerIsMember := false
+	if userID, ok := middleware.GetUserID(c); ok {
+		viewerIsMember, _ = h.Store.IsTripMember(ctx, trip.ID, userID)
+	}
+
 	return c.JSON(fiber.Map{
-		"trip":          trip,
-		"member_count":  agg.MemberCount,
-		"vote_count":    agg.VoteCount,
-		"vote_average":  agg.VoteAverage,
-		"comment_count": agg.CommentCount,
-		"photo_count":   agg.PhotoCount,
+		"trip":             trip,
+		"member_count":     agg.MemberCount,
+		"vote_count":       agg.VoteCount,
+		"vote_average":     agg.VoteAverage,
+		"comment_count":    agg.CommentCount,
+		"photo_count":      agg.PhotoCount,
+		"viewer_is_member": viewerIsMember,
 	})
 }
 

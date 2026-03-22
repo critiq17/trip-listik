@@ -19,7 +19,7 @@
 	async function loadTrips() {
 		loading = true;
 		error = '';
-		const status = active.toLowerCase();
+		const status = active === 'Drafts' ? 'draft' : active.toLowerCase();
 		try {
 			const data = await apiFetch<{ items: TripCardData[] }>(
 				`/v1/trips?scope=mine&status=${status}`

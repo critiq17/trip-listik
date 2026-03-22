@@ -52,7 +52,12 @@
 			cursor = next;
 			hasMore = Boolean(next);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to load feed';
+			const message = err instanceof Error ? err.message : 'Failed to load feed';
+			if (message.toLowerCase() === 'unauthorized' && filter === 'friends') {
+				error = 'Log in to see friends\' trips.';
+			} else {
+				error = message;
+			}
 		} finally {
 			loading = false;
 			loadingMore = false;
