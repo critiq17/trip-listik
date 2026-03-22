@@ -175,6 +175,13 @@ func (s *Store) SearchPublicTrips(ctx context.Context, query, countryCode string
 	return trips, nil
 }
 
+func (s *Store) DeleteTrip(ctx context.Context, tripID uuid.UUID) error {
+	return s.DB.WithContext(ctx).
+		Model(&models.Trip{}).
+		Where("id = ?", tripID).
+		Update("deleted_at", time.Now()).Error
+}
+
 func escapeLike(input string) string {
 	replacer := strings.NewReplacer(
 		"\\", "\\\\",
