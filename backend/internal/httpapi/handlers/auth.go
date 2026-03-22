@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/critiq17/tripListik/internal/auth"
@@ -10,6 +11,7 @@ import (
 	"github.com/critiq17/tripListik/internal/store"
 	"github.com/critiq17/tripListik/internal/store/models"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
 
 type AuthHandler struct {
@@ -18,7 +20,8 @@ type AuthHandler struct {
 }
 
 type telegramAuthRequest struct {
-	InitData string `json:"initData" validate:"required"`
+	InitData   string `json:"initData"   validate:"required"`
+	StartParam string `json:"start_param"`
 }
 
 type telegramAuthResponse struct {
@@ -78,6 +81,18 @@ func (h *AuthHandler) TelegramAuth(c *fiber.Ctx) error {
 	stored, err := h.Store.UpsertTelegramUser(ctx, user)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to upsert user")
+	}
+
+	// Record referral if user came via a profile link (e.g. startapp=profile_<uuid>)
+	if strings.HasPrefix(req.StartParam, "profile_") {
+		referrerIDStr := strings.TrimPrefix(req.StartParam, "profile_")
+		if referrerID, parseErr := uuid.Parse(referrerIDStr); parseErr == nil && referrerID != stored.ID {
+			go func() {
+				rCtx, rCancel := context.WithTimeout(context.Background(), 3*time.Second)
+				defer rCancel()
+				_ = h.Store.RecordReferral(rCtx, referrerID.String(), stored.ID.String())
+			}()
+		}
 	}
 
 	token, err := auth.NewToken(stored.ID, stored.TelegramID, h.Cfg.JWTSecret, accessTokenTTL)

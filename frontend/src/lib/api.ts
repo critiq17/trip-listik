@@ -80,8 +80,9 @@ export type PresignResponse = {
 export const getPublicPhotoURL = (path: string) => {
 	const supabaseUrl = env.PUBLIC_SUPABASE_URL;
 	const bucket = env.PUBLIC_SUPABASE_BUCKET;
-	if (!supabaseUrl || !bucket) return '';
-	return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
+	if (!supabaseUrl || !bucket || !path) return '';
+	const cleanPath = path.startsWith(`${bucket}/`) ? path.slice(bucket.length + 1) : path;
+	return `${supabaseUrl}/storage/v1/object/public/${bucket}/${cleanPath}`;
 };
 
 export async function presignTripPhoto(tripId: string, fileName: string, contentType: string) {

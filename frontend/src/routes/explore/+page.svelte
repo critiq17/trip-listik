@@ -411,11 +411,11 @@ h1 {
 	transition: opacity 0.3s ease;
 }
 
-.route-img.loaded {
+:global(.route-img.loaded) {
 	opacity: 1;
 }
 
-.route-img.error {
+:global(.route-img.error) {
 	display: none;
 }
 

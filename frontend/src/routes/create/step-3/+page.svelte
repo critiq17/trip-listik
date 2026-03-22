@@ -3,6 +3,8 @@
 	import { apiFetch, presignTripPhoto, uploadSignedPhoto, getPublicPhotoURL } from '$lib/api';
 	import { getDraft, clearDraft } from '$lib/tripDraft';
 	import { onMount, onDestroy } from 'svelte';
+	import type { User } from '$lib/types';
+	import { getUserName, getUserInitials } from '$lib/format';
 	import { setupMainButton, hideMainButton, setMainButtonState, setupBackButton } from '$lib/telegram';
 
 	let description = $state('');
@@ -12,16 +14,36 @@
 	let loading = $state(false);
 	let error = $state('');
 
-	// Mock friend chips (visual only — full friends API to be integrated later)
-	const mockFriends = [
-		{ id: '1', name: 'Mia K.',    avatar: 'https://i.pravatar.cc/40?img=1' },
-		{ id: '2', name: 'Sam R.',    avatar: 'https://i.pravatar.cc/40?img=2' },
-	];
-	let selectedFriends = $state<typeof mockFriends>([...mockFriends]);
+	let selectedFriends = $state<User[]>([]);
 	let friendSearch = $state('');
+	let searchResults = $state<User[]>([]);
+	let searchTimeout: ReturnType<typeof setTimeout>;
 
 	const removeFriend = (id: string) => {
 		selectedFriends = selectedFriends.filter((f) => f.id !== id);
+	};
+
+	const onSearchInput = () => {
+		clearTimeout(searchTimeout);
+		if (!friendSearch.trim()) {
+			searchResults = [];
+			return;
+		}
+		searchTimeout = setTimeout(async () => {
+			try {
+				const res = await apiFetch<{ users: User[] }>(`/v1/users/search?q=${encodeURIComponent(friendSearch.trim())}`);
+				// Filter out already selected
+				searchResults = (res.users || []).filter(u => !selectedFriends.some(sf => sf.id === u.id));
+			} catch (e) {
+				console.error('Search failed', e);
+			}
+		}, 300);
+	};
+
+	const addFriend = (user: User) => {
+		selectedFriends = [...selectedFriends, user];
+		friendSearch = '';
+		searchResults = [];
 	};
 
 	$effect(() => {
@@ -90,6 +112,18 @@
 				}
 			}
 
+			// 2.5 Send Invites
+			for (const friend of selectedFriends) {
+				try {
+					await apiFetch(`/v1/trips/${trip.id}/invite`, {
+						method: 'POST',
+						body: JSON.stringify({ user_id: friend.id })
+					});
+				} catch (e) {
+					console.warn('Failed to invite friend:', e);
+				}
+			}
+
 			// 3. Clear draft and navigate
 			clearDraft();
 			goto(`/trips/${trip.id}`);
@@ -135,11 +169,15 @@
 			<div class="chips-wrap">
 				{#each selectedFriends as friend (friend.id)}
 					<div class="chip">
-						<img class="chip-avatar" src={friend.avatar} alt={friend.name} loading="lazy" />
-						<span class="chip-name">{friend.name}</span>
+						{#if friend.photo_url}
+							<img class="chip-avatar" src={friend.photo_url} alt={getUserName(friend)} loading="lazy" />
+						{:else}
+							<div class="chip-avatar fallback">{getUserInitials(friend.first_name, friend.last_name, friend.username)}</div>
+						{/if}
+						<span class="chip-name">{getUserName(friend)}</span>
 						<button
 							class="chip-remove"
-							aria-label="Remove {friend.name}"
+							aria-label="Remove {getUserName(friend)}"
 							onclick={() => removeFriend(friend.id)}
 						>
 							<span class="material-symbols-outlined">close</span>
@@ -156,9 +194,25 @@
 				class="search-input"
 				placeholder="Search friends..."
 				bind:value={friendSearch}
+				oninput={onSearchInput}
 				autocomplete="off"
 			/>
 			<span class="material-symbols-outlined search-icon">search</span>
+			
+			{#if searchResults.length > 0}
+				<div class="search-dropdown">
+					{#each searchResults as user (user.id)}
+						<button class="search-item" onclick={() => addFriend(user)}>
+							{#if user.photo_url}
+								<img src={user.photo_url} alt={getUserName(user)} loading="lazy" />
+							{:else}
+								<div class="fallback-avatar">{getUserInitials(user.first_name, user.last_name, user.username)}</div>
+							{/if}
+							<span>{getUserName(user)}</span>
+						</button>
+					{/each}
+				</div>
+			{/if}
 		</div>
 
 		<!-- Cover Photo -->

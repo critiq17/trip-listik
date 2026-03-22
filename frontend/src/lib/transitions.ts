@@ -38,14 +38,24 @@ export function countUp(el: HTMLElement, target: number, duration = 600) {
 }
 
 /**
- * flipNumber: CSS-powered number flip animation.
- * Add to an element when value changes.
+ * flipNumber action: proper Svelte action that animates number changes.
+ * Use as: use:flipNumber={value}
  */
-export function flipNumber(el: HTMLElement, value: number) {
-	el.setAttribute('data-prev', el.textContent ?? '');
+export function flipNumber(
+	el: HTMLElement,
+	value: number
+): { update: (v: number) => void; destroy: () => void } {
 	el.textContent = value.toString();
-	el.style.animation = 'none';
-	// Force reflow
-	void el.offsetHeight;
-	el.style.animation = 'flipIn 0.3s var(--transition-spring) both';
+	return {
+		update(newValue: number) {
+			if (el.textContent === newValue.toString()) return;
+			el.setAttribute('data-prev', el.textContent ?? '');
+			el.textContent = newValue.toString();
+			el.style.animation = 'none';
+			void el.offsetHeight;
+			el.style.animation =
+				'flipIn 0.3s var(--transition-spring, cubic-bezier(0.34,1.56,0.64,1)) both';
+		},
+		destroy() {}
+	};
 }

@@ -31,6 +31,10 @@ func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 	wishlistHandler := &handlers.WishlistHandler{Store: store}
 	publicProfileHandler := &handlers.PublicProfileHandler{Store: store}
 	geocodeHandler := &handlers.GeocodeHandler{}
+	botHandler := &handlers.BotHandler{Store: store, Bot: bot, Cfg: cfg}
+
+	// ── Telegram Bot Webhook (public, no auth, Telegram IPs only) ─────────────
+	v1.Post("/webhook/telegram", botHandler.HandleUpdate)
 
 	// ── Public ────────────────────────────────────────────────────────────────
 	v1.Post("/auth/telegram", authHandler.TelegramAuth)
@@ -78,6 +82,7 @@ func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 	// Invites
 	protected.Post("/trips/:id/invite", invitesHandler.InviteUser)
 	protected.Get("/trips/:id/invites", invitesHandler.ListTripInvites)
+	protected.Get("/invites/:id", invitesHandler.GetInvite)
 	protected.Post("/invites/:id/respond", invitesHandler.RespondInvite)
 
 	// Search
@@ -99,4 +104,8 @@ func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 	// Inbox / Notifications
 	protected.Get("/inbox", inboxHandler.ListInbox)
 	protected.Get("/inbox/unread", inboxHandler.UnreadCount)
+	protected.Post("/inbox/read-all", inboxHandler.MarkAllRead)
+
+	// Referrals
+	protected.Get("/me/referrals", profileHandler.Referrals)
 }
