@@ -1,21 +1,20 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { fly } from 'svelte/transition';
+	import { goto } from '$app/navigation';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import TripCard from '$lib/components/TripCard.svelte';
 	import { apiFetch } from '$lib/api';
-	import { staggerList, scalePress } from '$lib/actions/animate';
-	import { animate } from 'motion';
 	import type { TripCardData } from '$lib/types';
 
-	const tabs = ['Upcoming', 'Past', 'Drafts'];
-	let active = $state('Upcoming');
+	const tabs = ['Upcoming', 'Past', 'Drafts'] as const;
+	type Tab = typeof tabs[number];
+
+	let active = $state<Tab>('Upcoming');
 	let items = $state<TripCardData[]>([]);
 	let loading = $state(true);
 	let error = $state('');
 	let ready = $state(false);
-	let tabBar = $state<HTMLElement | null>(null);
-	let indicator = $state<HTMLDivElement | null>(null);
-	let tabRefs = $state<HTMLButtonElement[]>([]);
 
 	async function loadTrips() {
 		loading = true;
@@ -33,260 +32,359 @@
 		}
 	}
 
-	const moveIndicator = () => {
-		if (!tabBar || !indicator) return;
-		const index = tabs.findIndex((tab) => tab === active);
-		const target = tabRefs[index];
-		if (!target) return;
-		const barRect = tabBar.getBoundingClientRect();
-		const tabRect = target.getBoundingClientRect();
-		const left = tabRect.left - barRect.left;
-		animate(
-			indicator,
-			{
-				x: [`${indicator.offsetLeft}px`, `${left}px`],
-				width: [`${indicator.offsetWidth}px`, `${tabRect.width}px`]
-			} as any,
-			{ duration: 0.25, easing: [0.25, 0.46, 0.45, 0.94] } as any
-		);
-		indicator.style.transform = `translateX(${left}px)`;
-		indicator.style.width = `${tabRect.width}px`;
-	};
-
 	onMount(() => {
 		ready = true;
-		setTimeout(moveIndicator, 0);
 	});
 
 	$effect(() => {
 		if (ready && active) {
 			loadTrips();
-			setTimeout(moveIndicator, 0);
 		}
 	});
 </script>
 
-<section class="trips-page">
+<svelte:head>
+	<title>TripListik — My Trips</title>
+	<meta name="description" content="Manage your upcoming, past, and draft travel trips." />
+</svelte:head>
+
+<div class="page">
+	<!-- Header -->
 	<header class="header">
 		<div class="header-row">
-			<button class="round-btn" aria-label="Back">
+			<button class="round-btn" aria-label="Back" onclick={() => history.back()}>
 				<span class="material-symbols-outlined">arrow_back</span>
 			</button>
-			<button class="round-btn" aria-label="More">
+			<button class="round-btn" aria-label="More options">
 				<span class="material-symbols-outlined">more_horiz</span>
 			</button>
 		</div>
 		<div class="header-copy">
-			<span class="eyebrow">My Trips</span>
+			<p class="eyebrow">My Trips</p>
 			<h1>Your travel board.</h1>
-			<p>Manage your upcoming and past adventures.</p>
+			<p class="subtitle">Manage your upcoming and past adventures.</p>
 		</div>
 	</header>
 
-	<nav class="tabs" bind:this={tabBar}>
-		{#each tabs as tab, i}
-			<button bind:this={tabRefs[i]} class:active={tab === active} onclick={() => (active = tab)}>
+	<!-- Tab Bar -->
+	<nav class="tab-bar">
+		{#each tabs as tab}
+			<button
+				class="tab"
+				class:active={tab === active}
+				onclick={() => (active = tab)}
+			>
 				{tab}
 			</button>
 		{/each}
-		<div class="indicator" bind:this={indicator}></div>
 	</nav>
 
+	<!-- Content -->
 	<main class="content">
-		<div class="summary">
-			<span>{items.length} visible · {active}</span>
-		</div>
+		{#if !loading && !error}
+			<div class="stats-badge">
+				{items.length} visible · {active}
+			</div>
+		{/if}
 
-		<div class="cards" use:staggerList>
+		<div class="cards">
 			{#if loading}
-				{#each Array(1) as _}
-					<SkeletonCard ratio="16 / 10" />
-				{/each}
+				<SkeletonCard ratio="16 / 10" />
 			{:else if error}
 				<div class="state">{error}</div>
-			{:else if items.length === 0}
-				<div class="empty">
+			{:else if items.length === 0 && active === 'Upcoming'}
+				<!-- Empty upcoming: show empty state -->
+				<div class="empty-state">
 					<div class="empty-icon">
-						<span class="material-symbols-outlined">edit_note</span>
+						<span class="material-symbols-outlined">luggage</span>
 					</div>
-					<div>
-						<p>No active drafts</p>
-						<span>Start planning your next escape today.</span>
-					</div>
-					<button class="empty-action">
+					<p class="empty-title">No upcoming trips</p>
+					<span class="empty-sub">Plan your next adventure and it'll appear here.</span>
+					<button class="empty-action" onclick={() => goto('/create')}>
 						<span class="material-symbols-outlined">add</span>
 						Create new trip
 					</button>
 				</div>
+			{:else if items.length === 0}
+				<div class="empty-minimal">No {active.toLowerCase()} trips found.</div>
 			{:else}
-				{#each items as trip (trip.id)}
-					<div data-item use:scalePress>
+				{#each items as trip, i (trip.id)}
+					<div in:fly={{ y: 24, duration: 250, delay: i * 60 }}>
 						<TripCard {trip} variant="compact" />
 					</div>
 				{/each}
 			{/if}
 		</div>
 
+		<!-- Quick Drafts Section -->
+		{#if active === 'Upcoming' && !loading}
+			<div class="drafts-section">
+				<p class="section-label">Quick Drafts</p>
+				<div class="draft-empty">
+					<div class="draft-icon-wrap">
+						<span class="material-symbols-outlined">edit_note</span>
+					</div>
+					<p class="draft-title">No active drafts</p>
+					<span class="draft-sub">Start planning your next escape today.</span>
+					<button class="draft-action" onclick={() => goto('/create')}>
+						<span class="material-symbols-outlined">add</span>
+						Create new trip
+					</button>
+				</div>
+			</div>
+		{/if}
 	</main>
-</section>
+</div>
 
 <style>
-	.trips-page {
-		min-height: 100dvh;
-		background: var(--background-dark);
-		color: var(--text-primary);
-		padding-bottom: 5.5rem;
-	}
+.page {
+	min-height: 100dvh;
+	background: #161c18;
+	color: #f1f5f9;
+	padding-bottom: 96px;
+}
 
-	.header {
-		padding: 1.5rem 1rem 0.5rem;
-		max-width: 480px;
-		margin: 0 auto;
-	}
+/* ── Header ─────────────────────────────────────────────── */
+.header {
+	padding: 24px 16px 0;
+	max-width: 480px;
+	margin: 0 auto;
+}
 
-	.header-row {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 1rem;
-	}
+.header-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 16px;
+}
 
-	.round-btn {
-		width: 2.6rem;
-		height: 2.6rem;
-		border-radius: 999px;
-		display: grid;
-		place-items: center;
-		color: var(--text-primary);
-	}
+.round-btn {
+	width: 40px;
+	height: 40px;
+	border-radius: 9999px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: white;
+	background: none;
+	border: none;
+	cursor: pointer;
+}
 
-	.header-copy span {
-		color: var(--primary);
-		font-size: 0.6rem;
-		letter-spacing: 0.2em;
-		font-weight: 700;
-		text-transform: uppercase;
-	}
+.round-btn .material-symbols-outlined {
+	font-size: 22px;
+}
 
-	.header-copy h1 {
-		font-size: 1.9rem;
-		font-weight: 700;
-		margin: 0.4rem 0 0.35rem;
-	}
+.header-copy {
+	margin-top: 16px;
+}
 
-	.header-copy p {
-		color: var(--text-secondary);
-		font-size: 0.88rem;
-	}
+.eyebrow {
+	font-size: 10px;
+	color: #4d9d6d;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.12em;
+	margin-bottom: 6px;
+}
 
-	.tabs {
-		position: relative;
-		display: flex;
-		gap: 1.5rem;
-		padding: 0 1rem;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-		max-width: 480px;
-		margin: 0 auto;
-	}
+h1 {
+	font-size: 30px;
+	font-weight: 700;
+	color: white;
+	line-height: 1.15;
+	margin-bottom: 6px;
+}
 
-	.tabs button {
-		padding: 0.85rem 0 0.9rem;
-		background: none;
-		border: none;
-		color: var(--text-secondary);
-		font-size: 0.85rem;
-		font-weight: 600;
-	}
+.subtitle {
+	font-size: 14px;
+	color: #94a3b8;
+}
 
-	.tabs button.active {
-		color: var(--primary);
-	}
+/* ── Tab Bar ─────────────────────────────────────────────── */
+.tab-bar {
+	display: flex;
+	gap: 32px;
+	padding: 0 16px;
+	max-width: 480px;
+	margin: 16px auto 0;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
 
-	.indicator {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		height: 2px;
-		background: var(--primary);
-		border-radius: 999px;
-		width: 40px;
-	}
+.tab {
+	padding: 12px 0;
+	background: none;
+	border: none;
+	border-bottom: 2px solid transparent;
+	color: #64748b;
+	font-size: 14px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: color 0.2s ease, border-color 0.2s ease;
+	-webkit-tap-highlight-color: transparent;
+}
 
-	.content {
-		padding: 1rem;
-		max-width: 480px;
-		margin: 0 auto;
-	}
+.tab.active {
+	color: #4d9d6d;
+	border-bottom-color: #4d9d6d;
+}
 
-	.summary span {
-		display: inline-block;
-		padding: 0.35rem 0.75rem;
-		border-radius: var(--radius-pill);
-		background: rgba(77, 157, 109, 0.15);
-		color: var(--primary);
-		font-size: 0.72rem;
-		font-weight: 600;
-	}
+/* ── Content ─────────────────────────────────────────────── */
+.content {
+	padding: 16px 16px 0;
+	max-width: 480px;
+	margin: 0 auto;
+}
 
-	.cards {
-		display: flex;
-		flex-direction: column;
-		gap: 1.5rem;
-		margin-top: 1rem;
-	}
+.stats-badge {
+	display: inline-block;
+	padding: 4px 12px;
+	border-radius: 9999px;
+	background: rgba(77, 157, 109, 0.1);
+	color: #4d9d6d;
+	font-size: 12px;
+	font-weight: 500;
+	margin-bottom: 16px;
+}
 
-	.state {
-		padding: 1.5rem;
-		text-align: center;
-		background: rgba(255, 255, 255, 0.04);
-		border-radius: 12px;
-		color: var(--text-secondary);
-	}
+.cards {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
 
-	.empty {
-		border: 2px dashed rgba(255, 255, 255, 0.12);
-		border-radius: 12px;
-		padding: 2rem 1.5rem;
-		text-align: center;
-		color: var(--text-secondary);
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-	}
+/* ── Empty States ────────────────────────────────────────── */
+.empty-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	gap: 12px;
+	padding: 32px 16px;
+}
 
-	.empty-icon {
-		width: 3rem;
-		height: 3rem;
-		border-radius: 999px;
-		background: rgba(255, 255, 255, 0.08);
-		display: grid;
-		place-items: center;
-		margin: 0 auto;
-		color: rgba(255, 255, 255, 0.6);
-	}
+.empty-icon {
+	width: 56px;
+	height: 56px;
+	border-radius: 9999px;
+	background: rgba(77, 157, 109, 0.1);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #64748b;
+}
 
-	.empty p {
-		font-weight: 600;
-		color: var(--text-primary);
-	}
+.empty-icon .material-symbols-outlined {
+	font-size: 28px;
+}
 
-	.empty span {
-		font-size: 0.75rem;
-		color: var(--text-secondary);
-	}
+.empty-title {
+	font-size: 16px;
+	font-weight: 600;
+	color: white;
+}
 
-	.empty-action {
-		color: var(--primary);
-		font-weight: 700;
-		font-size: 0.8rem;
-		display: inline-flex;
-		align-items: center;
-		gap: 0.3rem;
-		justify-content: center;
-	}
+.empty-sub {
+	font-size: 13px;
+	color: #94a3b8;
+}
 
-	.empty-action .material-symbols-outlined {
-		font-size: 1rem;
-	}
+.empty-action {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	color: #4d9d6d;
+	font-size: 14px;
+	font-weight: 700;
+	background: none;
+	border: none;
+	cursor: pointer;
+}
 
+.empty-action .material-symbols-outlined {
+	font-size: 18px;
+}
+
+.empty-minimal {
+	text-align: center;
+	padding: 32px;
+	color: #64748b;
+	font-size: 14px;
+}
+
+.state {
+	padding: 20px;
+	text-align: center;
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.04);
+	color: #94a3b8;
+	font-size: 14px;
+}
+
+/* ── Drafts section ──────────────────────────────────────── */
+.drafts-section {
+	margin-top: 24px;
+}
+
+.section-label {
+	font-size: 12px;
+	color: #64748b;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.12em;
+	margin-bottom: 16px;
+}
+
+.draft-empty {
+	border: 2px dashed rgba(255, 255, 255, 0.1);
+	border-radius: 12px;
+	padding: 32px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	gap: 12px;
+}
+
+.draft-icon-wrap {
+	width: 48px;
+	height: 48px;
+	border-radius: 9999px;
+	background: rgba(77, 157, 109, 0.1);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #64748b;
+}
+
+.draft-icon-wrap .material-symbols-outlined {
+	font-size: 24px;
+}
+
+.draft-title {
+	font-size: 14px;
+	font-weight: 600;
+	color: white;
+}
+
+.draft-sub {
+	font-size: 13px;
+	color: #94a3b8;
+}
+
+.draft-action {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	color: #4d9d6d;
+	font-size: 14px;
+	font-weight: 700;
+	background: none;
+	border: none;
+	cursor: pointer;
+}
+
+.draft-action .material-symbols-outlined {
+	font-size: 18px;
+}
 </style>

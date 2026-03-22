@@ -12,6 +12,18 @@
 	let loading = $state(false);
 	let error = $state('');
 
+	// Mock friend chips (visual only — full friends API to be integrated later)
+	const mockFriends = [
+		{ id: '1', name: 'Mia K.',    avatar: 'https://i.pravatar.cc/40?img=1' },
+		{ id: '2', name: 'Sam R.',    avatar: 'https://i.pravatar.cc/40?img=2' },
+	];
+	let selectedFriends = $state<typeof mockFriends>([...mockFriends]);
+	let friendSearch = $state('');
+
+	const removeFriend = (id: string) => {
+		selectedFriends = selectedFriends.filter((f) => f.id !== id);
+	};
+
 	$effect(() => {
 		setupMainButton(loading ? 'Creating...' : 'Create Trip', submit, true, !loading);
 	});
@@ -78,7 +90,7 @@
 				}
 			}
 
-			// 3. Clear draft and go to trip
+			// 3. Clear draft and navigate
 			clearDraft();
 			goto(`/trips/${trip.id}`);
 		} catch (err) {
@@ -91,190 +103,447 @@
 </script>
 
 <svelte:head>
-	<title>Create Trip - Step 3</title>
+	<title>TripListik — Create Trip: Travelers</title>
+	<meta name="description" content="Choose your travel companions and add a description." />
 </svelte:head>
 
-<section class="step-three">
-	<div class="progress-bar">
-		<div class="progress-fill" style="width: 100%"></div>
+<div class="page">
+	<!-- Sticky Header -->
+	<header class="top-bar">
+		<button class="back-btn" aria-label="Go back" onclick={() => history.back()}>
+			<span class="material-symbols-outlined">arrow_back</span>
+		</button>
+		<span class="header-title">Create Trip</span>
+		<div class="header-spacer"></div>
+	</header>
+
+	<!-- Progress -->
+	<div class="progress-track">
+		<div class="progress-fill"></div>
 	</div>
 
-	<main>
-		<p class="eyebrow">Step 3 of 3</p>
-		<h1 class="serif-text">Final touches.</h1>
-
-		<div class="form">
-			<div class="field">
-				<label for="cover-photo">Cover Photo</label>
-				<button type="button" class="upload" onclick={pickPhoto}>
-					{#if coverPhotoPreview}
-						<img src={coverPhotoPreview} alt="Cover preview" />
-					{:else}
-						<div class="upload-icon">
-							<span class="material-symbols-outlined">add_a_photo</span>
-						</div>
-						<span>Add an inspiring image</span>
-					{/if}
-				</button>
-				<input
-					id="cover-photo"
-					class="file-input"
-					type="file"
-					accept="image/*"
-					bind:this={fileInput}
-					onchange={onFile}
-				/>
-			</div>
-
-			<div class="field textarea">
-				<label for="trip-description">Trip Description (Optional)</label>
-				<textarea
-					id="trip-description"
-					rows="4"
-					bind:value={description}
-					placeholder="Tell everyone what the plan is..."
-				></textarea>
-			</div>
-
-			{#if error}
-				<p class="error">{error}</p>
-			{/if}
+	<main class="content">
+		<div class="progress-meta">
+			<span class="step-label">Step 3 of 3</span>
+			<span class="pct-label">100% Complete</span>
 		</div>
+
+		<h1>Who's coming along?</h1>
+
+		<!-- Friend Chips -->
+		{#if selectedFriends.length > 0}
+			<div class="chips-wrap">
+				{#each selectedFriends as friend (friend.id)}
+					<div class="chip">
+						<img class="chip-avatar" src={friend.avatar} alt={friend.name} loading="lazy" />
+						<span class="chip-name">{friend.name}</span>
+						<button
+							class="chip-remove"
+							aria-label="Remove {friend.name}"
+							onclick={() => removeFriend(friend.id)}
+						>
+							<span class="material-symbols-outlined">close</span>
+						</button>
+					</div>
+				{/each}
+			</div>
+		{/if}
+
+		<!-- Friend Search -->
+		<div class="friend-search">
+			<input
+				type="text"
+				class="search-input"
+				placeholder="Search friends..."
+				bind:value={friendSearch}
+				autocomplete="off"
+			/>
+			<span class="material-symbols-outlined search-icon">search</span>
+		</div>
+
+		<!-- Cover Photo -->
+		<div class="cover-section">
+			<label class="section-label" for="cover-file">Cover Photo</label>
+			<button type="button" class="upload-zone" onclick={pickPhoto}>
+				{#if coverPhotoPreview}
+					<img class="preview-img" src={coverPhotoPreview} alt="Cover preview" />
+				{:else}
+					<div class="upload-icon-circle">
+						<span class="material-symbols-outlined">add_a_photo</span>
+					</div>
+					<p class="upload-hint">Add a cover image</p>
+				{/if}
+			</button>
+			<input
+				id="cover-file"
+				class="file-input"
+				type="file"
+				accept="image/*"
+				bind:this={fileInput}
+				onchange={onFile}
+			/>
+		</div>
+
+		<!-- Description -->
+		<div class="desc-section">
+			<label class="section-label" for="trip-desc">Trip Description <span class="optional">(Optional)</span></label>
+			<textarea
+				id="trip-desc"
+				class="desc-area"
+				rows="3"
+				bind:value={description}
+				placeholder="Tell everyone what the plan is..."
+			></textarea>
+		</div>
+
+		{#if error}
+			<p class="error-msg">{error}</p>
+		{/if}
+
+		<!-- Create Trip Button -->
+		<button
+			class="create-btn"
+			onclick={submit}
+			disabled={loading}
+		>
+			{#if loading}
+				<span class="material-symbols-outlined spin-icon">refresh</span>
+				Creating...
+			{:else}
+				Create Trip
+			{/if}
+		</button>
 	</main>
-</section>
+</div>
 
 <style>
-	.step-three {
-		min-height: 100dvh;
-		background: var(--bg);
-		color: var(--text);
-		padding-bottom: 3rem;
-	}
+.page {
+	min-height: 100dvh;
+	background: #161c18;
+	color: #f1f5f9;
+}
 
-	.progress-bar {
-		width: 100%;
-		height: 4px;
-		background: var(--bg-elevated);
-	}
+/* ── Sticky Header ─────────────────────────────────────── */
+.top-bar {
+	position: sticky;
+	top: 0;
+	z-index: 50;
+	display: flex;
+	align-items: center;
+	height: 56px;
+	padding: 0 16px;
+	background: #161c18;
+	border-bottom: 1px solid rgba(77, 157, 109, 0.1);
+}
 
-	.progress-fill {
-		height: 100%;
-		background: var(--green);
-		transition: width 0.3s ease;
-	}
+.back-btn {
+	width: 44px;
+	height: 44px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: white;
+	background: none;
+	border: none;
+	cursor: pointer;
+	flex-shrink: 0;
+}
 
-	main {
-		max-width: 480px;
-		margin: 0 auto;
-		padding: 2rem 1.5rem;
-		display: flex;
-		flex-direction: column;
-		gap: 1.5rem;
-	}
+.back-btn .material-symbols-outlined {
+	font-size: 22px;
+}
 
-	.eyebrow {
-		color: var(--green);
-		font-size: 0.65rem;
-		font-weight: 700;
-		letter-spacing: 0.2em;
-		text-transform: uppercase;
-	}
+.header-title {
+	flex: 1;
+	text-align: center;
+	font-size: 18px;
+	font-weight: 700;
+	color: white;
+}
 
-	h1 {
-		font-size: 2.2rem;
-		line-height: 1.1;
-		margin-bottom: 0.5rem;
-	}
+.header-spacer {
+	width: 44px;
+}
 
-	.form {
-		display: flex;
-		flex-direction: column;
-		gap: 2rem;
-	}
+/* ── Progress ────────────────────────────────────────────── */
+.progress-track {
+	width: 100%;
+	height: 8px;
+	background: rgba(77, 157, 109, 0.15);
+	border-radius: 9999px;
+}
 
-	.field label {
-		display: block;
-		font-size: 0.85rem;
-		color: var(--text-sub);
-		margin-bottom: 0.4rem;
-	}
+.progress-fill {
+	width: 100%;
+	height: 100%;
+	background: #4d9d6d;
+	border-radius: 9999px;
+	transition: width 500ms cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-	.upload {
-		width: 100%;
-		aspect-ratio: 16 / 9;
-		border-radius: var(--radius-card);
-		border: 2px dashed var(--border);
-		background: var(--bg-elevated);
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 0.8rem;
-		cursor: pointer;
-		overflow: hidden;
-		text-align: center;
-		transition: all 0.2s;
-	}
+/* ── Content ─────────────────────────────────────────────── */
+.content {
+	padding: 16px 16px 96px;
+	max-width: 480px;
+	margin: 0 auto;
+}
 
-	.upload:hover {
-		border-color: rgba(61, 158, 95, 0.4);
-		background: rgba(61, 158, 95, 0.05);
-	}
+.progress-meta {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding-top: 8px;
+	margin-bottom: 16px;
+}
 
-	.upload img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
+.step-label {
+	font-size: 13px;
+	color: #4d9d6d;
+	font-weight: 600;
+}
 
-	.upload-icon {
-		width: 3.5rem;
-		height: 3.5rem;
-		border-radius: 999px;
-		background: rgba(61, 158, 95, 0.15);
-		display: grid;
-		place-items: center;
-		color: var(--green);
-	}
+.pct-label {
+	font-size: 13px;
+	color: #94a3b8;
+}
 
-	.upload-icon .material-symbols-outlined {
-		font-size: 1.5rem;
-	}
+h1 {
+	font-size: 24px;
+	font-weight: 700;
+	color: white;
+	margin-bottom: 24px;
+	line-height: 1.2;
+}
 
-	.upload span {
-		font-size: 0.85rem;
-		color: var(--text-sub);
-		font-weight: 500;
-	}
+/* ── Friend Chips ────────────────────────────────────────── */
+.chips-wrap {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-bottom: 16px;
+}
 
-	.file-input {
-		display: none;
-	}
+.chip {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	background: rgba(77, 157, 109, 0.15);
+	border: 1px solid rgba(77, 157, 109, 0.25);
+	border-radius: 9999px;
+	padding: 4px 8px 4px 4px;
+}
 
-	.field.textarea textarea {
-		width: 100%;
-		background: transparent;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-input);
-		padding: 0.8rem;
-		font-size: 0.95rem;
-		color: var(--text);
-		resize: none;
-		font-family: inherit;
-		transition: border-color 0.2s;
-	}
+.chip-avatar {
+	width: 28px;
+	height: 28px;
+	border-radius: 9999px;
+	object-fit: cover;
+	flex-shrink: 0;
+}
 
-	.field.textarea textarea:focus {
-		outline: none;
-		border-color: var(--green);
-	}
+.chip-name {
+	font-size: 14px;
+	font-weight: 500;
+	color: white;
+}
 
-	.error {
-		color: #e05555;
-		font-size: 0.85rem;
-		text-align: center;
-		padding: 0.5rem;
-		background: rgba(224, 85, 85, 0.1);
-		border-radius: 8px;
-	}
+.chip-remove {
+	width: 20px;
+	height: 20px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: none;
+	border: none;
+	color: #94a3b8;
+	cursor: pointer;
+	padding: 0;
+}
+
+.chip-remove .material-symbols-outlined {
+	font-size: 16px;
+}
+
+/* ── Friend Search ───────────────────────────────────────── */
+.friend-search {
+	position: relative;
+	margin-bottom: 32px;
+}
+
+.search-input {
+	width: 100%;
+	background: transparent;
+	border: none;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+	border-radius: 0;
+	font-size: 18px;
+	color: white;
+	padding: 8px 36px 8px 0;
+	outline: none;
+	transition: border-bottom-color 0.2s ease;
+}
+
+.search-input:focus {
+	border-bottom-color: #4d9d6d;
+}
+
+.search-icon {
+	position: absolute;
+	right: 0;
+	top: 50%;
+	transform: translateY(-50%);
+	font-size: 24px;
+	color: #94a3b8;
+	pointer-events: none;
+}
+
+/* ── Cover Photo ─────────────────────────────────────────── */
+.cover-section {
+	margin-bottom: 32px;
+}
+
+.section-label {
+	display: block;
+	font-size: 14px;
+	color: #94a3b8;
+	font-weight: 600;
+	margin-bottom: 12px;
+}
+
+.optional {
+	font-weight: 400;
+	color: #64748b;
+}
+
+.upload-zone {
+	width: 100%;
+	aspect-ratio: 16 / 9;
+	border-radius: 12px;
+	border: 2px dashed rgba(255, 255, 255, 0.1);
+	background: rgba(255, 255, 255, 0.03);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	cursor: pointer;
+	overflow: hidden;
+	transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.upload-zone:hover {
+	border-color: rgba(77, 157, 109, 0.4);
+}
+
+.upload-icon-circle {
+	width: 48px;
+	height: 48px;
+	border-radius: 9999px;
+	background: rgba(77, 157, 109, 0.1);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.upload-icon-circle .material-symbols-outlined {
+	font-size: 24px;
+	color: #4d9d6d;
+}
+
+.upload-hint {
+	font-size: 12px;
+	color: #64748b;
+	font-weight: 500;
+}
+
+.preview-img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.file-input {
+	display: none;
+}
+
+/* ── Description ─────────────────────────────────────────── */
+.desc-section {
+	margin-bottom: 32px;
+}
+
+.desc-area {
+	width: 100%;
+	background: transparent;
+	border: none;
+	border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+	border-radius: 0;
+	font-size: 16px;
+	color: white;
+	padding: 8px 0;
+	resize: none;
+	font-family: inherit;
+	outline: none;
+	transition: border-bottom-color 0.2s ease;
+}
+
+.desc-area::placeholder {
+	color: rgba(255, 255, 255, 0.25);
+}
+
+.desc-area:focus {
+	border-bottom-color: #4d9d6d;
+}
+
+/* ── Error ───────────────────────────────────────────────── */
+.error-msg {
+	color: #f87171;
+	font-size: 14px;
+	text-align: center;
+	padding: 12px;
+	background: rgba(248, 113, 113, 0.08);
+	border-radius: 8px;
+	margin-bottom: 16px;
+}
+
+/* ── Create Button ───────────────────────────────────────── */
+.create-btn {
+	width: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 16px;
+	border-radius: 12px;
+	background: #4d9d6d;
+	color: white;
+	font-size: 18px;
+	font-weight: 700;
+	border: none;
+	cursor: pointer;
+	box-shadow: 0 0 24px rgba(77, 157, 109, 0.35);
+	transition: opacity 0.15s ease, transform 0.1s ease;
+}
+
+.create-btn:hover:not(:disabled) {
+	opacity: 0.92;
+}
+
+.create-btn:active:not(:disabled) {
+	transform: scale(0.98);
+}
+
+.create-btn:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+@keyframes spin {
+	from { transform: rotate(0deg); }
+	to { transform: rotate(360deg); }
+}
+
+.spin-icon {
+	animation: spin 1s linear infinite;
+	font-size: 20px;
+}
 </style>

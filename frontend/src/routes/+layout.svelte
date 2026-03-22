@@ -69,11 +69,11 @@
 	.app {
 		min-height: 100dvh;
 		position: relative;
-		background: var(--bg);
+		background: #161c18;
 	}
 
 	.auth-loading {
 		min-height: 100dvh;
-		background: var(--bg);
+		background: #161c18;
 	}
 </style>

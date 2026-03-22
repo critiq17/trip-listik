@@ -3,7 +3,6 @@
 	import { apiFetch } from '$lib/api';
 	import TripCard from '$lib/components/TripCard.svelte';
 	import { countUp } from '$lib/transitions';
-	import { staggerList } from '$lib/actions/animate';
 	import { getUserInitials, getUserName } from '$lib/format';
 	import { hapticNotification } from '$lib/telegram';
 	import type { TripCardData, User, UserStats } from '$lib/types';
@@ -12,12 +11,7 @@
 	let stats = $state<UserStats | null>(null);
 	let history = $state<TripCardData[]>([]);
 	let statEls = $state<Array<HTMLElement | null>>([]);
-	let worldEl = $state<HTMLElement | null>(null);
-	let worldBar = $state<HTMLDivElement | null>(null);
-	let ringEl = $state<SVGCircleElement | null>(null);
-	let wishlist = $state<Array<{ id: string; country_code: string; city?: string; note?: string }>>(
-		[]
-	);
+	let wishlist = $state<Array<{ id: string; country_code: string; city?: string; note?: string }>>([]);
 	let wishCountry = $state('');
 	let wishCity = $state('');
 	let wishNote = $state('');
@@ -37,7 +31,7 @@
 				apiFetch<{ user: User }>('/v1/me'),
 				apiFetch<UserStats>('/v1/me/stats')
 			]);
-			
+
 			if (meRes.status === 'fulfilled') {
 				user = meRes.value.user;
 				bio = user?.bio ?? '';
@@ -46,15 +40,13 @@
 					const tg = (window as any).Telegram?.WebApp;
 					const botUsername = import.meta.env.PUBLIC_BOT_USERNAME || 'triplistikbot';
 					if (tg?.initData) {
-						// Inside Telegram WebApp — use deep link
 						shareURL = `https://t.me/${botUsername}?startapp=profile_${user.id}`;
 					} else {
-						// Regular browser — use web URL
 						shareURL = `${window.location.origin}/profile/${user.id}`;
 					}
 				}
 			}
-			
+
 			if (statsRes.status === 'fulfilled') {
 				stats = statsRes.value;
 			}
@@ -154,12 +146,23 @@
 		if (!trip.end_date) return false;
 		return new Date(trip.end_date) < new Date();
 	}));
+
+	// World explored percentage (from stats or default)
+	const worldPct = $derived(
+		stats?.countries_visited ? Math.min((stats.countries_visited / 195) * 100, 100).toFixed(1) : '3.5'
+	);
 </script>
 
-<section class="profile-page">
+<svelte:head>
+	<title>TripListik — Profile</title>
+	<meta name="description" content="Your travel identity and journey history." />
+</svelte:head>
+
+<div class="page">
+	<!-- Header -->
 	<header class="header">
-		<span class="eyebrow">Profile</span>
-		<button class="settings" aria-label="Settings">
+		<p class="eyebrow">Profile</p>
+		<button class="settings-btn" aria-label="Settings">
 			<span class="material-symbols-outlined">settings</span>
 		</button>
 	</header>
@@ -170,55 +173,57 @@
 		{#if error}
 			<div class="state">{error}</div>
 		{:else}
+			<!-- Avatar + User Info -->
 			<div class="profile-row">
 				<div class="avatar-wrap">
 					{#if user?.photo_url}
-						<div class="avatar" style={`background-image: url('${user.photo_url}')`}></div>
+						<img class="avatar-img" src={user.photo_url} alt="Profile photo" loading="lazy" />
 					{:else}
-						<div class="avatar fallback">{getUserInitials(user?.first_name, user?.last_name, user?.username)}</div>
+						<div class="avatar-fallback">{getUserInitials(user?.first_name, user?.last_name, user?.username)}</div>
 					{/if}
 				</div>
-				<div>
-					<h2>{getUserName(user ?? {})}</h2>
-					<p class="handle">@{user?.username ?? 'traveler'}</p>
+				<div class="user-info">
+					<p class="user-name">{getUserName(user ?? {})}</p>
+					<p class="user-handle">@{user?.username ?? 'traveler'}</p>
 				</div>
 			</div>
 
+			<!-- Edit Profile Button -->
 			<div class="edit-row">
 				<button class="edit-btn" onclick={() => (editing = !editing)}>
 					{editing ? 'Cancel' : 'Edit profile'}
 				</button>
 			</div>
 
-			<div class="referral-box glass">
-				<label for="referral-link">Your Referral Link</label>
-				<p class="subtle">Invite friends and earn limits</p>
-				<div class="ref-input-group">
-					<input id="referral-link" type="text" readonly value={shareURL} />
-					<button class="copy-btn" onclick={copyShare} disabled={!shareURL}>
-						<span class="material-symbols-outlined">content_copy</span>
-					</button>
-				</div>
-			</div>
-
+			<!-- Edit Panel -->
 			{#if editing}
 				<div class="edit-panel glass">
-					<label>
+					<label class="edit-label">
 						Bio
 						<textarea rows="3" bind:value={bio} placeholder="Tell the world about your travel style"></textarea>
 					</label>
-					<label class="toggle">
+					<label class="toggle-row">
 						<span>Public profile</span>
 						<input type="checkbox" bind:checked={isPublic} />
 					</label>
 					{#if saveError}
-						<div class="error">{saveError}</div>
+						<div class="save-error">{saveError}</div>
 					{/if}
 					<button class="save-btn" onclick={saveProfile}>Save changes</button>
 				</div>
 			{/if}
 
-			<div class="stats">
+			<!-- World Explored -->
+			<div class="world-row">
+				<p class="world-label">World Explored</p>
+				<p class="world-pct">{worldPct}%</p>
+			</div>
+			<div class="world-bar-track">
+				<div class="world-bar-fill" style="width: {worldPct}%"></div>
+			</div>
+
+			<!-- Stats Row -->
+			<div class="stats-row">
 				<div class="stat">
 					<p bind:this={statEls[0]}>0</p>
 					<span>Trips</span>
@@ -240,21 +245,33 @@
 				</div>
 			</div>
 
+			<!-- Travel History -->
 			<section class="history">
 				<div class="history-head">
-					<h3>Travel history</h3>
-					<div class="tabs">
-						<button class:active={historyTab === 'active'} onclick={() => historyTab = 'active'}>Active / Upcoming</button>
-						<button class:active={historyTab === 'past'} onclick={() => historyTab = 'past'}>Past</button>
-					</div>
+					<p class="history-title">Travel History</p>
+					<button class="view-map-btn">View Map</button>
 				</div>
-				<div class="history-list">
-					{#if historyError}
-						<div class="state">{historyError}</div>
-					{:else}
+
+				{#if historyError}
+					<div class="state">{historyError}</div>
+				{:else}
+					<div class="history-tabs">
+						<button
+							class="htab"
+							class:active={historyTab === 'active'}
+							onclick={() => (historyTab = 'active')}
+						>Active / Upcoming</button>
+						<button
+							class="htab"
+							class:active={historyTab === 'past'}
+							onclick={() => (historyTab = 'past')}
+						>Past</button>
+					</div>
+
+					<div class="history-list">
 						{#if historyTab === 'active'}
 							{#if activeHistory.length === 0}
-								<div class="state">No active or upcoming trips.</div>
+								<div class="state small">No active or upcoming trips.</div>
 							{:else}
 								{#each activeHistory as trip}
 									<TripCard {trip} variant="horizontal" />
@@ -262,424 +279,454 @@
 							{/if}
 						{:else}
 							{#if pastHistory.length === 0}
-								<div class="state">No past trips yet.</div>
+								<div class="state small">No past trips yet.</div>
 							{:else}
 								{#each pastHistory as trip}
 									<TripCard {trip} variant="horizontal" />
 								{/each}
 							{/if}
 						{/if}
-					{/if}
-				</div>
+					</div>
+				{/if}
 			</section>
 
-			<section class="wishlist">
-				<div class="history-head">
-					<h3>Wishlist</h3>
-				</div>
-				<div class="wish-form glass">
-					<input placeholder="Country code (e.g. JP)" bind:value={wishCountry} maxlength="2" />
-					<input placeholder="City (optional)" bind:value={wishCity} />
-					<input placeholder="Note (optional)" bind:value={wishNote} />
-					<button class="save-btn" onclick={addWishlist}>Add</button>
-				</div>
-				<div class="history-list">
-					{#if wishlistError}
-						<div class="state">{wishlistError}</div>
-					{:else if wishlist.length === 0}
-						<div class="state">No wishlist items yet.</div>
-					{:else}
-						{#each wishlist as item}
-							<div class="wish glass">
-								<div>
-									<strong>{item.country_code}</strong>
-									{#if item.city}<span>{item.city}</span>{/if}
-									{#if item.note}<p>{item.note}</p>{/if}
-								</div>
-								<button class="remove" onclick={() => removeWishlist(item.id)}>Remove</button>
-							</div>
-						{/each}
-					{/if}
-				</div>
-			</section>
+			<!-- Referral Box -->
+			{#if shareURL}
+				<section class="referral-section">
+					<div class="referral-box">
+						<p class="ref-label">Your Referral Link</p>
+						<p class="ref-sub">Invite friends and earn limits</p>
+						<div class="ref-row">
+							<input type="text" readonly value={shareURL} class="ref-input" />
+							<button class="copy-btn" onclick={copyShare} aria-label="Copy referral link">
+								<span class="material-symbols-outlined">content_copy</span>
+							</button>
+						</div>
+					</div>
+				</section>
+			{/if}
 		{/if}
 	</main>
-</section>
+</div>
 
 <style>
-	.profile-page {
-		min-height: 100dvh;
-		background: var(--bg);
-		color: var(--text);
-		padding-bottom: 5.5rem;
-	}
+.page {
+	min-height: 100dvh;
+	background: #161c18;
+	color: #f1f5f9;
+	padding-bottom: 96px;
+}
 
-	.header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 2rem 1.5rem 0.5rem;
-		max-width: 480px;
-		margin: 0 auto;
-	}
+/* ── Header ─────────────────────────────────────────────── */
+.header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 32px 24px 0;
+	max-width: 480px;
+	margin: 0 auto;
+}
 
-	.eyebrow {
-		color: var(--primary);
-		font-size: 0.6rem;
-		letter-spacing: 0.2em;
-		font-weight: 700;
-		text-transform: uppercase;
-	}
+.eyebrow {
+	font-size: 10px;
+	color: #4d9d6d;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.12em;
+}
 
-	.settings {
-		width: 2.5rem;
-		height: 2.5rem;
-		border-radius: 999px;
-		display: grid;
-		place-items: center;
-		color: var(--text-secondary);
-	}
+.settings-btn {
+	width: 32px;
+	height: 32px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #94a3b8;
+	background: none;
+	border: none;
+	cursor: pointer;
+}
 
-	.content {
-		padding: 0 1.5rem 2rem;
-		overflow-y: auto;
-		max-width: 480px;
-		margin: 0 auto;
-	}
+.settings-btn .material-symbols-outlined {
+	font-size: 22px;
+}
 
-	h1 {
-		font-size: 1.9rem;
-		font-weight: 700;
-		margin-bottom: 2rem;
-	}
+/* ── Content ─────────────────────────────────────────────── */
+.content {
+	padding: 0 24px 2rem;
+	max-width: 480px;
+	margin: 0 auto;
+}
 
-	.profile-row {
-		display: flex;
-		align-items: center;
-		gap: 1.2rem;
-		margin-bottom: 1.5rem;
-	}
+h1 {
+	font-size: 30px;
+	font-weight: 700;
+	color: white;
+	margin: 8px 0 32px;
+	line-height: 1.15;
+}
 
-	.avatar-wrap {
-		border: 1px solid rgba(77, 157, 109, 0.4);
-		border-radius: 999px;
-		padding: 1px;
-	}
+/* ── Profile Row ─────────────────────────────────────────── */
+.profile-row {
+	display: flex;
+	align-items: center;
+	gap: 20px;
+	margin-bottom: 24px;
+}
 
-	.avatar {
-		width: 6rem;
-		height: 6rem;
-		border-radius: 999px;
-		background-size: cover;
-		background-position: center;
-		border: 2px solid var(--background-dark);
-	}
+.avatar-wrap {
+	width: 96px;
+	height: 96px;
+	border-radius: 9999px;
+	outline: 1px solid rgba(77, 157, 109, 0.4);
+	outline-offset: 3px;
+	flex-shrink: 0;
+	overflow: hidden;
+}
 
-	.avatar.fallback {
-		display: grid;
-		place-items: center;
-		background: rgba(255, 255, 255, 0.08);
-		color: var(--text-primary);
-		font-weight: 700;
-	}
+.avatar-img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	border-radius: 9999px;
+}
 
-	h2 {
-		font-size: 1.2rem;
-		font-weight: 700;
-	}
+.avatar-fallback {
+	width: 100%;
+	height: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(255, 255, 255, 0.08);
+	color: white;
+	font-size: 24px;
+	font-weight: 700;
+	border-radius: 9999px;
+}
 
-	.handle {
-		color: var(--text-secondary);
-		font-size: 0.85rem;
-	}
+.user-info {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
 
-	.edit-row {
-		display: grid;
-		gap: 0.6rem;
-		margin-bottom: 2rem;
-	}
+.user-name {
+	font-size: 20px;
+	font-weight: 700;
+	color: white;
+}
 
-	.edit-btn {
-		width: 100%;
-		padding: 0.65rem;
-		border-radius: 8px;
-		border: 1px solid rgba(255, 255, 255, 0.12);
-		color: var(--text-primary);
-		font-weight: 600;
-	}
+.user-handle {
+	font-size: 14px;
+	color: #94a3b8;
+}
 
-	.edit-panel {
-		padding: 1rem;
-		border-radius: var(--radius-2xl);
-		display: grid;
-		gap: 0.8rem;
-		margin-bottom: 2rem;
-	}
+/* ── Edit ───────────────────────────────────────────────── */
+.edit-row {
+	margin-bottom: 40px;
+}
 
-	.edit-panel label {
-		display: grid;
-		gap: 0.4rem;
-		color: var(--text-secondary);
-		font-size: 0.75rem;
-		text-transform: uppercase;
-		letter-spacing: 0.12em;
-	}
+.edit-btn {
+	width: 100%;
+	padding: 10px;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 8px;
+	background: transparent;
+	color: white;
+	font-size: 14px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background 0.2s ease;
+}
 
-	.edit-panel textarea {
-		background: rgba(255, 255, 255, 0.06);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		color: white;
-		padding: 0.6rem 0.75rem;
-		border-radius: var(--radius-xl);
-		resize: vertical;
-		font-size: 0.85rem;
-	}
+.edit-btn:hover {
+	background: rgba(255, 255, 255, 0.04);
+}
 
-	.toggle {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: 1rem;
-	}
+.edit-panel {
+	padding: 16px;
+	border-radius: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	margin-bottom: 24px;
+}
 
-	.toggle input {
-		width: 42px;
-		height: 22px;
-		appearance: none;
-		border-radius: 999px;
-		background: rgba(255, 255, 255, 0.12);
-		position: relative;
-		outline: none;
-		cursor: pointer;
-	}
+.edit-label {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	font-size: 12px;
+	color: #94a3b8;
+	text-transform: uppercase;
+	letter-spacing: 0.1em;
+}
 
-	.toggle input::after {
-		content: '';
-		position: absolute;
-		top: 2px;
-		left: 2px;
-		width: 18px;
-		height: 18px;
-		border-radius: 999px;
-		background: white;
-		transition: transform 0.2s ease;
-	}
+.edit-label textarea {
+	background: rgba(255, 255, 255, 0.06);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 8px;
+	color: white;
+	padding: 10px 12px;
+	font-size: 14px;
+	resize: none;
+	font-family: inherit;
+}
 
-	.toggle input:checked {
-		background: var(--primary);
-	}
+.toggle-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	font-size: 14px;
+	color: #94a3b8;
+}
 
-	.toggle input:checked::after {
-		transform: translateX(20px);
-	}
+.toggle-row input {
+	width: 42px;
+	height: 22px;
+	appearance: none;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.12);
+	position: relative;
+	cursor: pointer;
+}
 
-	.save-btn {
-		padding: 0.65rem;
-		border-radius: var(--radius-pill);
-		background: var(--accent-grad);
-		color: #07120c;
-		font-weight: 700;
-	}
+.toggle-row input::after {
+	content: '';
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	width: 18px;
+	height: 18px;
+	border-radius: 999px;
+	background: white;
+	transition: transform 0.2s ease;
+}
 
-	.error {
-		color: var(--danger);
-		font-size: 0.8rem;
-	}
+.toggle-row input:checked {
+	background: #4d9d6d;
+}
 
-	.referral-box {
-		padding: 1.25rem;
-		border-radius: var(--radius-card);
-		background: rgba(61, 158, 95, 0.05);
-		border: 1px solid rgba(61, 158, 95, 0.2);
-		margin-bottom: 2rem;
-	}
+.toggle-row input:checked::after {
+	transform: translateX(20px);
+}
 
-	.referral-box label {
-		display: block;
-		font-size: 0.95rem;
-		font-weight: 700;
-		color: var(--text);
-		margin-bottom: 0.2rem;
-	}
+.save-error {
+	color: #f87171;
+	font-size: 13px;
+}
 
-	.referral-box .subtle {
-		font-size: 0.8rem;
-		color: var(--text-sub);
-		margin-bottom: 0.8rem;
-	}
+.save-btn {
+	padding: 10px;
+	border-radius: 9999px;
+	background: #4d9d6d;
+	color: white;
+	font-size: 14px;
+	font-weight: 700;
+	border: none;
+	cursor: pointer;
+}
 
-	.ref-input-group {
-		display: flex;
-		gap: 0.5rem;
-		align-items: center;
-	}
+/* ── World Explored ──────────────────────────────────────── */
+.world-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 8px;
+}
 
-	.ref-input-group input {
-		flex: 1;
-		background: var(--bg-input);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-input);
-		padding: 0.75rem 1rem;
-		color: var(--text);
-		font-size: 0.85rem;
-		font-family: monospace;
-	}
+.world-label {
+	font-size: 12px;
+	color: #94a3b8;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.1em;
+}
 
-	.copy-btn {
-		width: 3.2rem;
-		height: 3.2rem;
-		border-radius: var(--radius-input);
-		background: var(--green);
-		color: var(--bg);
-		display: grid;
-		place-items: center;
-		border: none;
-		cursor: pointer;
-		-webkit-tap-highlight-color: transparent;
-	}
+.world-pct {
+	font-size: 24px;
+	font-weight: 700;
+	color: #4d9d6d;
+}
 
-	.stats {
-		display: grid;
-		grid-template-columns: repeat(4, 1fr);
-		align-items: center;
-		gap: 0.4rem;
-		padding: 1rem 0;
-		border-top: 1px solid var(--border);
-		border-bottom: 1px solid var(--border);
-		margin-bottom: 2rem;
-	}
+.world-bar-track {
+	height: 1px;
+	background: rgba(255, 255, 255, 0.08);
+	margin-bottom: 40px;
+}
 
-	.stat {
-		text-align: center;
-	}
+.world-bar-fill {
+	height: 100%;
+	background: #4d9d6d;
+	transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-	.stat p {
-		font-size: 1.05rem;
-		font-weight: 700;
-	}
+/* ── Stats Row ───────────────────────────────────────────── */
+.stats-row {
+	display: grid;
+	grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+	align-items: center;
+	padding: 16px 0;
+	border-top: 1px solid rgba(255, 255, 255, 0.06);
+	border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+	margin-bottom: 32px;
+}
 
-	.stat span {
-		font-size: 0.55rem;
-		text-transform: uppercase;
-		letter-spacing: 0.2em;
-		color: var(--text-secondary);
-	}
+.stat {
+	text-align: center;
+}
 
-	.divider {
-		width: 1px;
-		height: 2rem;
-		background: rgba(255, 255, 255, 0.08);
-	}
+.stat p {
+	font-size: 18px;
+	font-weight: 700;
+	color: white;
+	margin-bottom: 4px;
+}
 
-	.history-head {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		margin-bottom: 1.5rem;
-	}
+.stat span {
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.1em;
+	color: #64748b;
+}
 
-	.history-head h3 {
-		font-size: 0.8rem;
-		letter-spacing: 0.12em;
-		text-transform: uppercase;
-		font-weight: 700;
-	}
+.divider {
+	width: 1px;
+	height: 32px;
+	background: rgba(255, 255, 255, 0.06);
+	align-self: center;
+}
 
-	.history-head .tabs {
-		display: flex;
-		background: rgba(255, 255, 255, 0.05);
-		border-radius: var(--radius-pill);
-		padding: 0.2rem;
-	}
+/* ── Travel History ──────────────────────────────────────── */
+.history {
+	margin-bottom: 32px;
+}
 
-	.history-head .tabs button {
-		background: transparent;
-		border: none;
-		color: var(--text-secondary);
-		padding: 0.4rem 0.8rem;
-		border-radius: var(--radius-pill);
-		font-size: 0.7rem;
-		font-weight: 600;
-		cursor: pointer;
-		transition: all 0.2s;
-	}
+.history-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 16px;
+}
 
-	.history-head .tabs button.active {
-		background: var(--text-primary);
-		color: #000;
-	}
+.history-title {
+	font-size: 13px;
+	font-weight: 700;
+	color: white;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+}
 
-	.history-list {
-		display: flex;
-		flex-direction: column;
-		gap: 1.5rem;
-		padding-bottom: 2rem;
-	}
+.view-map-btn {
+	font-size: 13px;
+	font-weight: 500;
+	color: #4d9d6d;
+	background: none;
+	border: none;
+	cursor: pointer;
+}
 
-	.state {
-		padding: 1rem;
-		background: rgba(255, 255, 255, 0.04);
-		border-radius: 12px;
-		text-align: center;
-		color: var(--text-secondary);
-	}
+.history-tabs {
+	display: flex;
+	gap: 16px;
+	margin-bottom: 16px;
+}
 
-	.wishlist {
-		margin-top: 2rem;
-	}
+.htab {
+	font-size: 13px;
+	font-weight: 500;
+	color: #64748b;
+	background: none;
+	border: none;
+	border-bottom: 2px solid transparent;
+	padding: 4px 0;
+	cursor: pointer;
+	transition: color 0.2s ease, border-color 0.2s ease;
+}
 
-	.wish-form {
-		display: grid;
-		gap: 0.6rem;
-		padding: 1rem;
-		border-radius: var(--radius-2xl);
-		margin-bottom: 1.2rem;
-	}
+.htab.active {
+	color: white;
+	border-bottom-color: #4d9d6d;
+}
 
-	.wish-form input {
-		background: rgba(255, 255, 255, 0.06);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		color: white;
-		padding: 0.6rem 0.75rem;
-		border-radius: var(--radius-xl);
-	}
+.history-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+}
 
-	.save-btn {
-		padding: 0.6rem;
-		border-radius: var(--radius-pill);
-		background: var(--accent-grad);
-		color: #07120c;
-		font-weight: 700;
-		font-size: 0.75rem;
-	}
+/* ── Referral ────────────────────────────────────────────── */
+.referral-section {
+	margin-top: 8px;
+}
 
-	.wish {
-		padding: 0.9rem 1rem;
-		border-radius: var(--radius-xl);
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-	}
+.referral-box {
+	padding: 20px;
+	border-radius: 12px;
+	background: rgba(77, 157, 109, 0.05);
+	border: 1px solid rgba(77, 157, 109, 0.2);
+}
 
-	.wish span {
-		display: inline-block;
-		margin-left: 0.5rem;
-		color: var(--text-secondary);
-		font-size: 0.8rem;
-	}
+.ref-label {
+	font-size: 15px;
+	font-weight: 700;
+	color: white;
+	margin-bottom: 4px;
+}
 
-	.wish p {
-		margin-top: 0.3rem;
-		color: var(--text-secondary);
-		font-size: 0.8rem;
-	}
+.ref-sub {
+	font-size: 13px;
+	color: #94a3b8;
+	margin-bottom: 12px;
+}
 
-	.remove {
-		background: rgba(255, 255, 255, 0.08);
-		border-radius: var(--radius-pill);
-		padding: 0.4rem 0.7rem;
-		color: var(--text-secondary);
-		font-size: 0.7rem;
-	}
+.ref-row {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.ref-input {
+	flex: 1;
+	background: rgba(255, 255, 255, 0.06);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 8px;
+	padding: 10px 12px;
+	color: white;
+	font-size: 13px;
+	font-family: monospace;
+}
+
+.copy-btn {
+	width: 42px;
+	height: 42px;
+	border-radius: 8px;
+	background: #4d9d6d;
+	color: white;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: none;
+	cursor: pointer;
+	flex-shrink: 0;
+}
+
+.copy-btn .material-symbols-outlined {
+	font-size: 20px;
+}
+
+/* ── Misc ────────────────────────────────────────────────── */
+.state {
+	padding: 20px;
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.04);
+	text-align: center;
+	color: #94a3b8;
+	font-size: 14px;
+}
+
+.state.small {
+	padding: 16px;
+	font-size: 13px;
+}
 </style>
