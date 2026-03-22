@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { fly } from 'svelte/transition';
 	import FilterChips from '$lib/components/FilterChips.svelte';
 	import TripCard from '$lib/components/TripCard.svelte';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
@@ -33,13 +34,11 @@
 		} else if (filter !== 'all') {
 			queryArgs.push(`filter=${filter}`);
 		}
-		
 		if (mode === 'append' && cursor) {
 			queryArgs.push(`cursor=${cursor}`);
 		}
 		const queryString = queryArgs.join('&');
 		const endpoint = searchQuery.trim().length > 0 ? '/v1/explore' : '/v1/feed';
-
 		try {
 			const data = await apiFetch<{ items: TripCardData[]; next_cursor?: string; cursor?: string }>(
 				`${endpoint}${queryString ? `?${queryString}` : ''}`
@@ -63,9 +62,7 @@
 	const observe = () => {
 		if (!sentinel) return;
 		const io = new IntersectionObserver((entries) => {
-			if (entries[0]?.isIntersecting) {
-				fetchFeed('append');
-			}
+			if (entries[0]?.isIntersecting) fetchFeed('append');
 		});
 		io.observe(sentinel);
 		return () => io.disconnect();
@@ -102,172 +99,218 @@
 	});
 </script>
 
-<section class="feed-page">
+<svelte:head>
+	<title>TripListik — Feed</title>
+	<meta name="description" content="Browse curated trips and travel journeys from the community." />
+</svelte:head>
+
+<div class="page">
+	<!-- Sticky Header -->
+	<header class="top-bar">
+		<button class="icon-btn" aria-label="Open menu">
+			<span class="material-symbols-outlined">menu</span>
+		</button>
+		<span class="logo">TripListik</span>
+		<button class="icon-btn" aria-label="Notifications">
+			<span class="material-symbols-outlined">notifications</span>
+		</button>
+	</header>
 
 	<main class="content">
-		<div class="headline">
+		<!-- Hero -->
+		<section class="hero">
 			<p class="eyebrow">Public Feed</p>
-			<h1 class="serif-text">Find trips worth joining.</h1>
-			<p class="subtext">Curated journeys from the community.</p>
-		</div>
-		
-		<div class="search-wrap">
-			<span class="material-symbols-outlined search-icon">search</span>
-			<input 
-				type="text" 
-				placeholder="Search destinations, tags..." 
-				bind:value={searchQuery}
-			/>
-		</div>
+			<h1 class="serif">Find trips worth joining.</h1>
+			<p class="subtitle">Curated journeys from the community.</p>
+		</section>
 
+		<!-- Filter Pills -->
+		<FilterChips {filters} bind:active />
+
+		<!-- Trending Bar -->
 		{#if !searchQuery.trim()}
-			<FilterChips {filters} bind:active />
-
 			<div class="trending">
 				<div class="trend-left">
-					<span class="material-symbols-outlined">trending_up</span>
-					<p>Trending Now: <strong>#Iceland2026</strong></p>
+					<span class="material-symbols-outlined trend-icon">trending_up</span>
+					<span class="trend-text"><span class="trend-label">Trending Now:</span> <strong>#Iceland2026</strong></span>
 				</div>
 				<span class="trend-count">(1.2k)</span>
 			</div>
 		{/if}
 
-		<div class="cards" use:staggerList>
+		<!-- Cards -->
+		<div class="cards">
 			{#if loading}
 				{#each Array(2) as _}
-					<SkeletonCard ratio="3 / 4" />
+					<SkeletonCard ratio="4 / 5" />
 				{/each}
 			{:else if error}
 				<div class="state error">{error}</div>
 			{:else if items.length === 0}
-				<div class="state empty">No trips yet</div>
+				<div class="state empty">No trips yet—check back soon!</div>
 			{:else}
-				{#each items as trip (trip.id)}
-					<div data-item use:scalePress>
+				{#each items as trip, i (trip.id)}
+					<div in:fly={{ y: 40, duration: 300, delay: i * 80 }}>
 						<TripCard {trip} />
 					</div>
 				{/each}
 			{/if}
 			<div bind:this={sentinel} class="sentinel" aria-hidden="true"></div>
+
+			{#if loadingMore}
+				<SkeletonCard ratio="4 / 5" />
+			{/if}
 		</div>
 	</main>
-</section>
+</div>
 
 <style>
-	.feed-page {
-		min-height: 100dvh;
-		background: var(--bg);
-		color: var(--text);
-		padding-bottom: 5.5rem;
-	}
+.page {
+	min-height: 100dvh;
+	background: #161c18;
+	color: #f1f5f9;
+	padding-bottom: 96px;
+}
 
-	.content {
-		padding: 1.5rem 1rem 1.25rem;
-		max-width: 480px;
-		margin: 0 auto;
-	}
+/* ── Sticky Header ─────────────────────────────────────── */
+.top-bar {
+	position: sticky;
+	top: 0;
+	z-index: 50;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	height: 56px;
+	padding: 0 16px;
+	background: #161c18;
+	border-bottom: 1px solid rgba(77, 157, 109, 0.1);
+}
 
-	.headline {
-		margin-bottom: 0.9rem;
-	}
+.logo {
+	font-size: 18px;
+	font-weight: 700;
+	color: white;
+	letter-spacing: -0.01em;
+}
 
-	.eyebrow {
-		color: var(--primary);
-		font-size: 0.65rem;
-		font-weight: 700;
-		letter-spacing: 0.2em;
-		text-transform: uppercase;
-		margin-bottom: 0.5rem;
-	}
+.icon-btn {
+	width: 48px;
+	height: 48px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: white;
+	border-radius: 8px;
+	background: none;
+	border: none;
+	cursor: pointer;
+}
 
-	h1 {
-		font-size: 2.25rem;
-		line-height: 1.05;
-		margin-bottom: 0.5rem;
-	}
+.icon-btn .material-symbols-outlined {
+	font-size: 24px;
+}
 
-	.subtext {
-		color: var(--text-secondary);
-		font-size: 0.95rem;
-	}
+/* ── Content ────────────────────────────────────────────── */
+.content {
+	padding: 0 16px;
+	max-width: 480px;
+	margin: 0 auto;
+}
 
-	.search-wrap {
-		position: relative;
-		margin-bottom: 2rem;
-		margin-top: 1.5rem;
-		width: 80%;
-		transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-	}
+/* ── Hero ────────────────────────────────────────────────── */
+.hero {
+	padding-top: 32px;
+	padding-bottom: 0;
+	margin-bottom: 0;
+}
 
-	.search-wrap:focus-within {
-		width: 100%;
-	}
+.eyebrow {
+	font-size: 11px;
+	color: #4d9d6d;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.15em;
+	margin-bottom: 8px;
+}
 
-	.search-wrap input {
-		width: 100%;
-		padding: 1rem 1rem 1rem 3rem;
-		border-radius: var(--radius-xl);
-		background: rgba(255, 255, 255, 0.04);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		color: var(--text-primary);
-		font-size: 1.05rem;
-		outline: none;
-		transition: border-color 0.2s;
-	}
+h1 {
+	font-size: 36px;
+	line-height: 1.1;
+	color: white;
+	margin-bottom: 8px;
+}
 
-	.search-wrap input:focus {
-		border-color: var(--primary);
-	}
+.subtitle {
+	font-size: 15px;
+	color: #94a3b8;
+	font-weight: 400;
+}
 
-	.search-icon {
-		position: absolute;
-		left: 1rem;
-		top: 50%;
-		transform: translateY(-50%);
-		color: var(--text-secondary);
-		font-size: 1.2rem;
-	}
+/* ── Trending bar ────────────────────────────────────────── */
+.trending {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	background: rgba(77, 157, 109, 0.08);
+	border-radius: 12px;
+	padding: 14px 16px;
+	margin-bottom: 32px;
+}
 
-	.trending {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 0.9rem 1rem;
-		background: rgba(77, 157, 109, 0.12);
-		border-radius: 12px;
-		margin: 0.8rem 0 2rem;
-	}
+.trend-left {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
 
-	.trend-left {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		color: var(--primary);
-		font-weight: 600;
-		font-size: 0.85rem;
-	}
+.trend-icon {
+	font-size: 16px;
+	color: #4d9d6d;
+}
 
-	.trend-count {
-		color: rgba(77, 157, 109, 0.7);
-		font-weight: 700;
-		font-size: 0.75rem;
-	}
+.trend-text {
+	font-size: 14px;
+	color: #4d9d6d;
+	font-weight: 500;
+}
 
-	.cards {
-		display: flex;
-		flex-direction: column;
-		gap: 2rem;
-	}
+.trend-text strong {
+	font-weight: 700;
+}
 
-	.state {
-		border-radius: 12px;
-		padding: 1.4rem;
-		text-align: center;
-		background: rgba(255, 255, 255, 0.04);
-		color: var(--text-secondary);
-	}
+.trend-label {
+	font-weight: 500;
+}
 
-	.sentinel {
-		height: 1px;
-	}
+.trend-count {
+	font-size: 12px;
+	color: #4d9d6d;
+	font-weight: 700;
+	opacity: 0.8;
+}
+
+/* ── Cards ───────────────────────────────────────────────── */
+.cards {
+	display: flex;
+	flex-direction: column;
+	gap: 32px;
+}
+
+.state {
+	text-align: center;
+	padding: 24px;
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.04);
+	color: #94a3b8;
+	font-size: 14px;
+}
+
+.state.error {
+	color: #f87171;
+	background: rgba(248, 113, 113, 0.08);
+}
+
+.sentinel {
+	height: 1px;
+}
 </style>

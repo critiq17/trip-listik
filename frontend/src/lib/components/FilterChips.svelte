@@ -1,54 +1,52 @@
 <script lang="ts">
-	let { filters = [], active = $bindable() } = $props<{
+	let {
+		filters = ['All', 'Friends', 'Popular', 'Nearby'],
+		active = $bindable('All')
+	}: {
 		filters?: string[];
-		active: string;
-	}>();
+		active?: string;
+	} = $props();
 </script>
 
-<div class="chips">
+<div class="filter-pills no-scrollbar">
 	{#each filters as filter}
-		<button class:active={filter === active} onclick={() => (active = filter)}>
+		<button
+			class="pill"
+			class:active={active === filter}
+			onclick={() => (active = filter)}
+		>
 			{filter}
 		</button>
 	{/each}
 </div>
 
 <style>
-	.chips {
-		display: flex;
-		gap: 1.5rem;
-		overflow-x: auto;
-		padding: 0.5rem 0 0.9rem;
-		scrollbar-width: none;
-	}
+.filter-pills {
+	display: flex;
+	flex-direction: row;
+	gap: 24px;
+	overflow-x: auto;
+	padding: 16px 0;
+}
 
-	.chips::-webkit-scrollbar {
-		display: none;
-	}
+.pill {
+	flex-shrink: 0;
+	background: none;
+	border: none;
+	font-size: 15px;
+	font-weight: 500;
+	color: #64748b;
+	cursor: pointer;
+	padding-bottom: 8px;
+	border-bottom: 2px solid transparent;
+	transition: color 0.2s ease, border-color 0.2s ease;
+	white-space: nowrap;
+	-webkit-tap-highlight-color: transparent;
+}
 
-	button {
-		position: relative;
-		padding-bottom: 0.55rem;
-		color: var(--text-secondary);
-		font-weight: 600;
-		font-size: 0.85rem;
-		white-space: nowrap;
-		transition: color 0.2s ease;
-	}
-
-	button.active {
-		color: var(--text-primary);
-		font-weight: 700;
-	}
-
-	button.active::after {
-		content: '';
-		position: absolute;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		height: 2px;
-		background: var(--primary);
-		border-radius: 999px;
-	}
+.pill.active {
+	color: white;
+	font-weight: 600;
+	border-bottom-color: #4d9d6d;
+}
 </style>

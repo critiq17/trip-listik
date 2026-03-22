@@ -1,23 +1,25 @@
 @import "$lib/styles/tokens.css";
 
-* {
+/* ── Reset ─────────────────────────────────────────────── */
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-html,
-body {
-  height: 100%;
+/* ── Root ───────────────────────────────────────────────── */
+html {
+  background: #161c18;
+  color-scheme: dark;
 }
 
 body {
-  font-family: var(--font-display);
-  background: var(--background-dark);
-  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #161c18;
+  color: #f1f5f9;
+  min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-  min-height: max(884px, 100dvh);
+  -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
 }
 
@@ -43,33 +45,54 @@ input,
 textarea,
 select {
   font: inherit;
-  color: var(--text-primary);
+  color: #f1f5f9;
 }
 
 input::placeholder,
 textarea::placeholder {
-  color: rgba(154, 164, 161, 0.7);
+  color: rgba(255, 255, 255, 0.25);
+}
+
+/* ── Typography helpers ─────────────────────────────────── */
+.serif {
+  font-family: 'DM Serif Display', 'Georgia', serif;
 }
 
 .serif-text {
-  font-family: var(--font-serif);
+  font-family: 'DM Serif Display', 'Georgia', serif;
 }
 
+/* ── Material Symbols ───────────────────────────────────── */
 .material-symbols-outlined {
-  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  line-height: 1;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
+.fill-icon,
 .material-symbols-outlined.fill-1 {
-  font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
-.container {
-  width: 100%;
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 1.25rem 1.25rem 7rem;
+/* ── Scrollbar utils ────────────────────────────────────── */
+.no-scrollbar::-webkit-scrollbar,
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
+.no-scrollbar,
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ── Safe area ──────────────────────────────────────────── */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+
+/* ── Glass / panel utilities ────────────────────────────── */
 .glass {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -82,49 +105,38 @@ textarea::placeholder {
   border-radius: 12px;
 }
 
-.no-scrollbar::-webkit-scrollbar,
-.hide-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-
-.no-scrollbar,
-.hide-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
+/* ── Skeleton shimmer ───────────────────────────────────── */
 @keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 .skeleton {
-  background: linear-gradient(90deg, rgba(30, 38, 32, 1) 0%, rgba(38, 48, 40, 1) 40%, rgba(30, 38, 32, 1) 80%);
+  background: linear-gradient(
+    90deg,
+    rgba(30, 38, 32, 1) 0%,
+    rgba(38, 48, 40, 1) 40%,
+    rgba(30, 38, 32, 1) 80%
+  );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: 12px;
 }
 
-@keyframes pulseGlow {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.5);
-    opacity: 0.5;
-  }
+/* ── Button press feedback ──────────────────────────────── */
+button, a {
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 150ms ease, transform 100ms ease;
 }
 
+button:active, a:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+/* ── Reduced motion ─────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
   }
