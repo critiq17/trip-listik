@@ -32,32 +32,34 @@
 	};
 
 	// Build calendar grid
-	const calDays = $derived(() => {
-		const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
-		const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
-		const prevMonthDays = new Date(calendarYear, calendarMonth, 0).getDate();
+	function buildCalDays(year: number, month: number) {
+		const firstDay = new Date(year, month, 1).getDay();
+		const daysInMonth = new Date(year, month + 1, 0).getDate();
+		const prevMonthDays = new Date(year, month, 0).getDate();
 
 		const days: { day: number; month: 'prev' | 'cur' | 'next'; date: Date }[] = [];
 
 		// Previous month fill
 		for (let i = firstDay - 1; i >= 0; i--) {
 			const d = prevMonthDays - i;
-			days.push({ day: d, month: 'prev', date: new Date(calendarYear, calendarMonth - 1, d) });
+			days.push({ day: d, month: 'prev', date: new Date(year, month - 1, d) });
 		}
 
 		// Current month
 		for (let i = 1; i <= daysInMonth; i++) {
-			days.push({ day: i, month: 'cur', date: new Date(calendarYear, calendarMonth, i) });
+			days.push({ day: i, month: 'cur', date: new Date(year, month, i) });
 		}
 
 		// Next month fill
 		const remaining = 42 - days.length;
 		for (let i = 1; i <= remaining; i++) {
-			days.push({ day: i, month: 'next', date: new Date(calendarYear, calendarMonth + 1, i) });
+			days.push({ day: i, month: 'next', date: new Date(year, month + 1, i) });
 		}
 
 		return days;
-	});
+	}
+
+	const calDays = $derived(buildCalDays(calendarYear, calendarMonth));
 
 	const clickDay = (date: Date) => {
 		if (!startDate || (startDate && endDate)) {
@@ -195,7 +197,7 @@
 
 			<!-- Day grid -->
 			<div class="cal-grid">
-				{#each calDays() as entry}
+				{#each calDays as entry}
 					<button
 						class="cal-day"
 						class:other-month={entry.month !== 'cur'}

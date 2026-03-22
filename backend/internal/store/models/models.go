@@ -41,7 +41,7 @@ type TripMember struct {
 	TripID   uuid.UUID `gorm:"type:uuid;index" json:"trip_id"`
 	UserID   uuid.UUID `gorm:"type:uuid;index" json:"user_id"`
 	Role     string    `json:"role"`
-	JoinedAt time.Time `json:"joined_at"`
+	JoinedAt time.Time `gorm:"autoCreateTime" json:"joined_at"`
 }
 
 type TripJoinRequest struct {

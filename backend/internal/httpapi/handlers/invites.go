@@ -230,3 +230,32 @@ func (h *InvitesHandler) RespondInvite(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"status": status})
 }
+
+func (h *InvitesHandler) GetInvite(c *fiber.Ctx) error {
+	inviteID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid invite id")
+	}
+
+	ctx, cancel := context.WithTimeout(c.Context(), 3*time.Second)
+	defer cancel()
+
+	invite, err := h.Store.GetInviteByID(ctx, inviteID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "failed to load invite")
+	}
+	if invite == nil {
+		return fiber.NewError(fiber.StatusNotFound, "invite not found")
+	}
+
+	// Return enriched view with trip + inviter info
+	views, err := h.Store.ListUserInvites(ctx, invite.InvitedUserID, 20)
+	if err == nil {
+		for _, v := range views {
+			if v.ID == inviteID {
+				return c.JSON(fiber.Map{"invite": v})
+			}
+		}
+	}
+	return c.JSON(fiber.Map{"invite": invite})
+}

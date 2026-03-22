@@ -1,21 +1,27 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { apiFetch } from '$lib/api';
+	import { env } from '$env/dynamic/public';
 	import TripCard from '$lib/components/TripCard.svelte';
 	import { countUp } from '$lib/transitions';
-	import { getUserInitials, getUserName } from '$lib/format';
+	import { getUserInitials, getUserName, normalizeStats } from '$lib/format';
 	import { hapticNotification } from '$lib/telegram';
 	import type { TripCardData, User, UserStats } from '$lib/types';
 
 	let user = $state<User | null>(null);
 	let stats = $state<UserStats | null>(null);
 	let history = $state<TripCardData[]>([]);
-	let statEls = $state<Array<HTMLElement | null>>([]);
+	// Individual element refs — Svelte 5 bind:this on $state array indices is unreliable
+	let statEl0 = $state<HTMLElement | null>(null);
+	let statEl1 = $state<HTMLElement | null>(null);
+	let statEl2 = $state<HTMLElement | null>(null);
+	let statEl3 = $state<HTMLElement | null>(null);
 	let wishlist = $state<Array<{ id: string; country_code: string; city?: string; note?: string }>>([]);
 	let wishCountry = $state('');
 	let wishCity = $state('');
 	let wishNote = $state('');
 	let shareURL = $state('');
+	let referralCount = $state(0);
 	let editing = $state(false);
 	let bio = $state('');
 	let isPublic = $state(true);
@@ -38,7 +44,7 @@
 				isPublic = user?.is_public ?? true;
 				if (user?.id) {
 					const tg = (window as any).Telegram?.WebApp;
-					const botUsername = import.meta.env.PUBLIC_BOT_USERNAME || 'triplistikbot';
+					const botUsername = env.PUBLIC_BOT_USERNAME || 'triplistikbot';
 					if (tg?.initData) {
 						shareURL = `https://t.me/${botUsername}?startapp=profile_${user.id}`;
 					} else {
@@ -48,7 +54,7 @@
 			}
 
 			if (statsRes.status === 'fulfilled') {
-				stats = statsRes.value;
+				stats = normalizeStats(statsRes.value as Record<string, unknown>);
 			}
 
 			try {
@@ -67,16 +73,18 @@
 				historyError = e instanceof Error ? e.message : 'Failed to load trips';
 			}
 
-			if (statsRes.status === 'fulfilled' && statsRes.value && statEls.length) {
-				const values = [
-					statsRes.value.total_trips,
-					statsRes.value.countries_visited,
-					statsRes.value.cities_visited,
-					statsRes.value.trips_with_friends
-				];
-				statEls.forEach((el, idx) => {
-					if (el) countUp(el, values[idx] ?? 0);
-				});
+			// Fetch referral count (non-critical)
+			try {
+				const ref = await apiFetch<{ referral_count: number }>('/v1/me/referrals');
+				referralCount = ref.referral_count ?? 0;
+			} catch { /* non-critical */ }
+
+			// Animate stat counters after all data is loaded
+			if (stats) {
+				if (statEl0) countUp(statEl0, stats.total_trips);
+				if (statEl1) countUp(statEl1, stats.countries_visited);
+				if (statEl2) countUp(statEl2, stats.cities_visited);
+				if (statEl3) countUp(statEl3, stats.trips_with_friends);
 			}
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load profile';
@@ -177,7 +185,7 @@
 			<div class="profile-row">
 				<div class="avatar-wrap">
 					{#if user?.photo_url}
-						<img class="avatar-img" src={user.photo_url} alt="Profile photo" loading="lazy" />
+						<img class="avatar-img" src={user.photo_url} alt="Profile" loading="lazy" />
 					{:else}
 						<div class="avatar-fallback">{getUserInitials(user?.first_name, user?.last_name, user?.username)}</div>
 					{/if}
@@ -225,22 +233,22 @@
 			<!-- Stats Row -->
 			<div class="stats-row">
 				<div class="stat">
-					<p bind:this={statEls[0]}>0</p>
+					<p bind:this={statEl0}>0</p>
 					<span>Trips</span>
 				</div>
 				<div class="divider"></div>
 				<div class="stat">
-					<p bind:this={statEls[1]}>0</p>
+					<p bind:this={statEl1}>0</p>
 					<span>Countries</span>
 				</div>
 				<div class="divider"></div>
 				<div class="stat">
-					<p bind:this={statEls[2]}>0</p>
+					<p bind:this={statEl2}>0</p>
 					<span>Cities</span>
 				</div>
 				<div class="divider"></div>
 				<div class="stat">
-					<p bind:this={statEls[3]}>0</p>
+					<p bind:this={statEl3}>0</p>
 					<span>Friends</span>
 				</div>
 			</div>
@@ -296,6 +304,9 @@
 					<div class="referral-box">
 						<p class="ref-label">Your Referral Link</p>
 						<p class="ref-sub">Invite friends and earn limits</p>
+						{#if referralCount > 0}
+							<p class="ref-count">{referralCount} friend{referralCount !== 1 ? 's' : ''} joined via your link</p>
+						{/if}
 						<div class="ref-row">
 							<input type="text" readonly value={shareURL} class="ref-input" />
 							<button class="copy-btn" onclick={copyShare} aria-label="Copy referral link">

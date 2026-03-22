@@ -23,9 +23,9 @@
 		if (tg) {
 			tg.ready();                           // Tell Telegram the app is ready
 			tg.expand();                          // Full-screen — synchronous, before any await
-			tg.setHeaderColor?.('#0d1f17');
-			tg.setBackgroundColor?.('#0d1f17');
-			tg.setBottomBarColor?.('#0d1f17');
+			tg.setHeaderColor?.('#161c18');
+			tg.setBackgroundColor?.('#161c18');
+			tg.setBottomBarColor?.('#161c18');
 		}
 
 		// ── Auth (async, after Telegram init) ──

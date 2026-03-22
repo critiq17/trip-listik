@@ -31,6 +31,7 @@
 		member_count: number;
 		comment_count: number;
 		photo_count: number;
+		viewer_is_member: boolean;
 	};
 
 	type VoteItemData = {
@@ -94,6 +95,7 @@
 			memberCount = data.member_count ?? 0;
 			commentCount = data.comment_count ?? 0;
 			photoCount = data.photo_count ?? 0;
+			viewerIsMember = data.viewer_is_member ?? false;
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load trip';
 		} finally {
@@ -268,14 +270,7 @@
 		!!meId &&
 		(trip.owner_id === meId || (trip.visibility === 'group' && viewerIsMember));
 
-	$effect(() => {
-		if (!meId || members.length === 0) {
-			viewerIsMember = false;
-			return;
-		}
-		viewerIsMember = members.some((member) => member.user_id === meId);
-	});
-
+	// viewerIsMember is now populated correctly via loadTrip from the API
 	onMount(() => {
 		setupBackButton(() => history.back());
 		const id = $page.params.id ?? '';
@@ -328,9 +323,16 @@
 
 		stream.onerror = () => {
 			stream?.close();
-			setTimeout(() => {
+			let reconnectDelay = 3000;
+			const reconnect = () => {
 				stream = connectTripStream(id);
-			}, 3000);
+				stream.onerror = () => {
+					stream?.close();
+					reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+					setTimeout(reconnect, reconnectDelay);
+				};
+			};
+			setTimeout(reconnect, reconnectDelay);
 		};
 	});
 
@@ -657,6 +659,9 @@
 	{/if}
 </section>
 
+<!-- Escape key closes photo viewer -->
+<svelte:window onkeydown={(e) => { if (e.key === 'Escape') viewerPhoto = null; }} />
+
 <InviteModal bind:open={inviteOpen} tripId={trip?.id ?? ''} />
 
 {#if viewerPhoto}
@@ -695,10 +700,30 @@
 	}
 
 	.trip-img {
-		position: relative;
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
 		opacity: 0;
 		transition: opacity 0.4s ease;
 	}
+
+	:global(.trip-img.loaded) { opacity: 1; }
+	:global(.trip-img.error)  { display: none; }
+
+	/* Grid gallery thumbnails need relative positioning + intrinsic size */
+	.grid-img {
+		position: relative;
+		width: 100%;
+		height: auto;
+		opacity: 0;
+		transition: opacity 0.3s ease;
+		aspect-ratio: 1;
+		object-fit: cover;
+	}
+	:global(.grid-img.loaded) { opacity: 1; }
+	:global(.grid-img.error)  { display: none; }
 
 	.placeholder,
 	.skeleton {

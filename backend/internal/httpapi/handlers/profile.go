@@ -143,3 +143,25 @@ func computeWorldPercent(countriesVisited int64) float64 {
 	}
 	return (float64(countriesVisited) / 195.0) * 100.0
 }
+
+// Referrals returns how many users joined via this user's referral link.
+func (h *ProfileHandler) Referrals(c *fiber.Ctx) error {
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		return fiber.NewError(fiber.StatusUnauthorized, "unauthorized")
+	}
+
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
+	defer cancel()
+
+	var count int64
+	err := h.Store.DB.WithContext(ctx).
+		Table("referrals").
+		Where("referrer_id = ?", userID).
+		Count(&count).Error
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "failed to load referrals")
+	}
+	return c.JSON(fiber.Map{"referral_count": count})
+}
+

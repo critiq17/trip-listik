@@ -8,11 +8,11 @@ import (
 )
 
 type UserStatsSummary struct {
-	TotalTrips       int64
-	CountriesVisited int64
-	CitiesVisited    int64
-	TripsWithFriends int64
-	SoloTrips        int64
+	TotalTrips       int64 `json:"total_trips"`
+	CountriesVisited int64 `json:"countries_visited"`
+	CitiesVisited    int64 `json:"cities_visited"`
+	TripsWithFriends int64 `json:"trips_with_friends"`
+	SoloTrips        int64 `json:"solo_trips"`
 }
 
 type CountryVisit struct {
