@@ -40,6 +40,13 @@ type sendMessageRequest struct {
 	ReplyMarkup *replyMarkup `json:"reply_markup,omitempty"`
 }
 
+type sendMessageResponse struct {
+	OK     bool `json:"ok"`
+	Result struct {
+		MessageID int64 `json:"message_id"`
+	} `json:"result"`
+}
+
 type replyMarkup struct {
 	InlineKeyboard [][]inlineButton `json:"inline_keyboard"`
 }
@@ -70,6 +77,38 @@ func (b *Bot) SendMessage(ctx context.Context, telegramID int64, text string) {
 	})
 }
 
+// ── DeleteMessage: remove a previously sent message ───────────────────────────
+
+// DeleteMessage removes a Telegram message from a user's chat.
+// Used to clean up invite notifications once they are acted upon.
+func (b *Bot) DeleteMessage(ctx context.Context, chatID int64, messageID int64) {
+	if !b.Enabled() || messageID == 0 {
+		return
+	}
+
+	body, err := json.Marshal(map[string]any{
+		"chat_id":    chatID,
+		"message_id": messageID,
+	})
+	if err != nil {
+		return
+	}
+
+	url := fmt.Sprintf("%s/bot%s/deleteMessage", telegramAPIBase, b.token)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := b.httpClient.Do(req)
+	if err != nil {
+		slog.Warn("telegram: deleteMessage failed", "chat_id", chatID, "message_id", messageID, "err", err)
+		return
+	}
+	defer resp.Body.Close()
+}
+
 // ── SendWelcome: /start handler message ───────────────────────────────────────
 
 // SendWelcome sends the bilingual welcome message with an Open Mini App button.
@@ -96,9 +135,10 @@ func (b *Bot) SendWelcome(ctx context.Context, telegramID int64, miniAppURL stri
 	b.send(ctx, msg)
 }
 
-// ── SendInviteNotification: invite with deep link button ──────────────────────
+// ── SendInviteNotification: invite with deep link button (returns message_id) ──
 
-// SendInviteNotification sends an invite notification with a [View Invite] button.
+// SendInviteNotification sends an invite notification and returns the Telegram
+// message_id so it can be stored and later deleted when the invite is acted upon.
 func (b *Bot) SendInviteNotification(
 	ctx context.Context,
 	telegramID int64,
@@ -108,9 +148,9 @@ func (b *Bot) SendInviteNotification(
 	startDate string,
 	endDate string,
 	miniAppBaseURL string,
-) {
+) int64 {
 	if !b.Enabled() {
-		return
+		return 0
 	}
 
 	locationLine := ""
@@ -144,34 +184,42 @@ func (b *Bot) SendInviteNotification(
 			},
 		},
 	}
-	b.send(ctx, msg)
+	return b.send(ctx, msg)
 }
 
 // ── internal send ─────────────────────────────────────────────────────────────
 
-func (b *Bot) send(ctx context.Context, payload *sendMessageRequest) {
+// send dispatches a message to the Telegram API and returns the message_id (0 on error).
+func (b *Bot) send(ctx context.Context, payload *sendMessageRequest) int64 {
 	body, err := json.Marshal(payload)
 	if err != nil {
 		slog.Warn("telegram: failed to marshal message", "err", err)
-		return
+		return 0
 	}
 
 	url := fmt.Sprintf("%s/bot%s/sendMessage", telegramAPIBase, b.token)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		slog.Warn("telegram: failed to create request", "err", err)
-		return
+		return 0
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := b.httpClient.Do(req)
 	if err != nil {
 		slog.Warn("telegram: sendMessage failed", "telegram_id", payload.ChatID, "err", err)
-		return
+		return 0
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		slog.Warn("telegram: sendMessage non-200", "telegram_id", payload.ChatID, "status", resp.StatusCode)
+		return 0
 	}
+
+	var result sendMessageResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return 0
+	}
+	return result.Result.MessageID
 }

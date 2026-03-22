@@ -4,19 +4,27 @@ import (
 	"github.com/critiq17/tripListik/internal/config"
 	"github.com/critiq17/tripListik/internal/httpapi/handlers"
 	"github.com/critiq17/tripListik/internal/httpapi/middleware"
+	"github.com/critiq17/tripListik/internal/invites"
 	"github.com/critiq17/tripListik/internal/realtime"
 	"github.com/critiq17/tripListik/internal/store"
 	"github.com/critiq17/tripListik/internal/supabase"
 	"github.com/critiq17/tripListik/internal/telegram"
+	"github.com/critiq17/tripListik/internal/trips"
 	"github.com/gofiber/fiber/v2"
 )
 
 func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 	hub := realtime.NewHub()
 	bot := telegram.NewBot(cfg.BotToken)
+
+	// ── Services ──────────────────────────────────────────────────────────────
+	tripsService := trips.NewService(store)
+	invitesService := invites.NewService(store, bot, cfg)
+
+	// ── Handlers ──────────────────────────────────────────────────────────────
 	authHandler := &handlers.AuthHandler{Store: store, Cfg: cfg}
 	feedHandler := &handlers.FeedHandler{Store: store}
-	tripsHandler := &handlers.TripsHandler{Store: store}
+	tripsHandler := &handlers.TripsHandler{Service: tripsService}
 	membersHandler := &handlers.MembersHandler{Store: store, Bot: bot}
 	votesHandler := &handlers.VotesHandler{Store: store, Hub: hub}
 	voteItemsHandler := &handlers.VoteItemsHandler{Store: store, Hub: hub}
@@ -26,7 +34,7 @@ func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 	streamHandler := &handlers.StreamHandler{Hub: hub}
 	profileHandler := &handlers.ProfileHandler{Store: store}
 	inboxHandler := &handlers.InboxHandler{Store: store}
-	invitesHandler := &handlers.InvitesHandler{Store: store, Bot: bot, Cfg: cfg}
+	invitesHandler := &handlers.InvitesHandler{Service: invitesService, Store: store}
 	usersHandler := &handlers.UsersHandler{Store: store}
 	wishlistHandler := &handlers.WishlistHandler{Store: store}
 	publicProfileHandler := &handlers.PublicProfileHandler{Store: store}
@@ -49,6 +57,7 @@ func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 	protected := v1.Group("", middleware.RequireAuth(cfg))
 	protected.Post("/trips", tripsHandler.CreateTrip)
 	protected.Patch("/trips/:id", tripsHandler.UpdateTrip)
+	protected.Delete("/trips/:id", tripsHandler.DeleteTrip)
 	protected.Get("/trips", tripsHandler.ListMyTrips)
 
 	// Members
@@ -84,6 +93,7 @@ func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 	protected.Get("/trips/:id/invites", invitesHandler.ListTripInvites)
 	protected.Get("/invites/:id", invitesHandler.GetInvite)
 	protected.Post("/invites/:id/respond", invitesHandler.RespondInvite)
+	protected.Delete("/invites/:id", invitesHandler.CancelInvite)
 
 	// Search
 	protected.Get("/users/search", usersHandler.Search)

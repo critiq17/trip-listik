@@ -71,6 +71,10 @@ export async function getMe() {
 	return apiFetch<{ user: { id: string } }>('/v1/me');
 }
 
+export async function deleteTrip(tripId: string): Promise<void> {
+	await apiFetch<void>(`/v1/trips/${tripId}`, { method: 'DELETE' });
+}
+
 export type PresignResponse = {
 	signed_url: string;
 	token: string;

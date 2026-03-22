@@ -103,6 +103,20 @@ func (s *Store) ListUserInvites(ctx context.Context, userID uuid.UUID, limit int
 	return items, nil
 }
 
+func (s *Store) UpdateInviteTgMessageID(ctx context.Context, inviteID uuid.UUID, msgID int64) error {
+	return s.DB.WithContext(ctx).
+		Model(&models.TripInvite{}).
+		Where("id = ?", inviteID).
+		Update("tg_message_id", msgID).Error
+}
+
+func (s *Store) CancelInvite(ctx context.Context, inviteID uuid.UUID) error {
+	return s.DB.WithContext(ctx).
+		Model(&models.TripInvite{}).
+		Where("id = ?", inviteID).
+		Update("status", "cancelled").Error
+}
+
 func (s *Store) UpdateInviteStatus(ctx context.Context, inviteID uuid.UUID, status string, comment *string) error {
 	updates := map[string]any{
 		"status": status,
