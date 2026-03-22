@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { fly } from 'svelte/transition';
 	import { apiFetch } from '$lib/api';
-	import { staggerList } from '$lib/actions/animate';
-	import CityAutocomplete from '$lib/components/CityAutocomplete.svelte';
 	import { resolvePhotoUrl } from '$lib/photos';
 
 	let query = $state('');
@@ -13,6 +12,19 @@
 	let timer: ReturnType<typeof setTimeout> | null = null;
 	let ready = false;
 
+	const countries = [
+		{ code: '', label: 'All Regions' },
+		{ code: 'IS', label: 'Iceland' },
+		{ code: 'JP', label: 'Japan' },
+		{ code: 'IT', label: 'Italy' },
+		{ code: 'FR', label: 'France' },
+		{ code: 'CH', label: 'Switzerland' },
+		{ code: 'NO', label: 'Norway' },
+		{ code: 'NZ', label: 'New Zealand' },
+		{ code: 'TH', label: 'Thailand' },
+		{ code: 'PT', label: 'Portugal' },
+		{ code: 'ES', label: 'Spain' },
+	];
 
 	const search = async () => {
 		loading = true;
@@ -31,9 +43,7 @@
 
 	const debounceSearch = () => {
 		if (timer) clearTimeout(timer);
-		timer = setTimeout(() => {
-			search();
-		}, 300);
+		timer = setTimeout(() => search(), 300);
 	};
 
 	onMount(() => {
@@ -48,256 +58,434 @@
 			debounceSearch();
 		}
 	});
+
+	let favoured = $state<Set<string>>(new Set());
+
+	const toggleFav = (id: string) => {
+		const next = new Set(favoured);
+		if (next.has(id)) {
+			next.delete(id);
+		} else {
+			next.add(id);
+		}
+		favoured = next;
+	};
 </script>
 
-<section class="explore-page">
+<svelte:head>
+	<title>TripListik — Explore</title>
+	<meta name="description" content="Search for destinations and discover recommended travel routes." />
+</svelte:head>
+
+<div class="page">
+	<!-- Header -->
 	<header class="header">
-		<div class="header-row">
-			<span class="eyebrow">Explore</span>
+		<div class="header-top">
+			<p class="eyebrow">Explore</p>
 			<button class="icon-btn" aria-label="Menu">
 				<span class="material-symbols-outlined">menu</span>
 			</button>
 		</div>
 		<h1>Find the next route.</h1>
-		<p>Search for destinations and itineraries.</p>
+		<p class="subtitle">Search for destinations and itineraries.</p>
 	</header>
 
 	<main class="content">
+		<!-- Search Form -->
 		<div class="form">
-			<div class="field autocomplete-field">
-				<label for="explore-destination">Destination or Country</label>
-				<CityAutocomplete 
-					bind:value={query} 
-					bind:countryCode={country}
-					id="explore-destination" 
-					placeholder="Search cities or countries..." 
+			<!-- Destination -->
+			<div class="field">
+				<label class="field-label" for="explore-dest">Destination</label>
+				<input
+					id="explore-dest"
+					type="text"
+					class="underline-input"
+					placeholder="Where to?"
+					bind:value={query}
+					autocomplete="off"
 				/>
 			</div>
+
+			<!-- Country Filter -->
+			<div class="field">
+				<label class="field-label" for="explore-country">Country Filter</label>
+				<div class="select-wrap">
+					<select
+						id="explore-country"
+						class="underline-input"
+						bind:value={country}
+					>
+						{#each countries as c}
+							<option value={c.code}>{c.label}</option>
+						{/each}
+					</select>
+					<span class="material-symbols-outlined select-chevron">expand_more</span>
+				</div>
+			</div>
+
+			<!-- Search Button -->
 			<button
 				class="search-btn"
-				onclick={(event) => {
-					event.preventDefault();
-					search();
-				}}
+				onclick={(e) => { e.preventDefault(); search(); }}
 			>
 				Search Destinations
 			</button>
 		</div>
 
+		<!-- Recommended Routes -->
 		<section class="results">
-			<div class="results-header">
-				<h3>Recommended Routes</h3>
-			</div>
+			<p class="section-label">Recommended Routes</p>
+
 			{#if loading}
 				<div class="state">Searching…</div>
 			{:else if error}
 				<div class="state">{error}</div>
 			{:else if items.length === 0}
-				<div class="state">No routes found.</div>
+				<div class="state">No routes found. Try a different search.</div>
 			{:else}
-				<div class="cards" use:staggerList>
-					{#each items as item (item.id ?? item.title)}
-						<article class="route-card" data-item>
-							<div class="route-image-wrap">
-								<div class="img-skeleton skeleton"></div>
-								<img
-									class="trip-img route-image-element"
-									src={resolvePhotoUrl(item.cover_photo_url ?? item.image ?? '')}
-									alt={item.title ?? item.name ?? ''}
-									onload={(e) => e.currentTarget.classList.add('loaded')}
-									onerror={(e) => e.currentTarget.classList.add('error')}
-								/>
+				<div class="route-list">
+					{#each items as item, i (item.id ?? item.title)}
+						<article
+							class="route-card"
+							in:fly={{ y: 24, duration: 250, delay: i * 60 }}
+						>
+							<div class="route-img-wrap">
+								{#if item.cover_photo_url || item.image}
+									<div class="img-skeleton skeleton"></div>
+									<img
+										class="route-img"
+										src={resolvePhotoUrl(item.cover_photo_url ?? item.image ?? '')}
+										alt={item.title ?? item.name ?? ''}
+										loading="lazy"
+										onload={(e) => e.currentTarget.classList.add('loaded')}
+										onerror={(e) => e.currentTarget.classList.add('error')}
+									/>
+								{:else}
+									<div class="route-img-placeholder"></div>
+								{/if}
+
+								<button
+									class="fav-btn"
+									aria-label={favoured.has(item.id) ? 'Remove from saved' : 'Save route'}
+									onclick={() => toggleFav(item.id)}
+								>
+									<span
+										class="material-symbols-outlined"
+										class:fill-icon={favoured.has(item.id)}
+									>favorite</span>
+								</button>
 							</div>
+
 							<div class="route-body">
 								<div class="route-top">
 									<h4>{item.title ?? item.name ?? 'Untitled Route'}</h4>
-									<span class="price">{item.price ?? item.cost ?? ''}</span>
+									{#if item.price ?? item.cost}
+										<span class="price">{item.price ?? item.cost}</span>
+									{/if}
 								</div>
 								<div class="route-meta">
-									<span class="material-symbols-outlined">schedule</span>
-									<span>{item.duration ?? item.days ?? '—'}</span>
-									<span class="dot">•</span>
-									<span class="material-symbols-outlined">distance</span>
-									<span>{item.distance ?? item.length ?? '—'}</span>
+									{#if item.duration ?? item.days}
+										<span class="material-symbols-outlined meta-icon">schedule</span>
+										<span>{item.duration ?? item.days} Days</span>
+										<span class="dot">•</span>
+									{/if}
+									{#if item.distance ?? item.length ?? item.difficulty}
+										<span class="material-symbols-outlined meta-icon">distance</span>
+										<span>{item.distance ?? item.length ?? item.difficulty}</span>
+									{/if}
 								</div>
 							</div>
-							<button class="fav-btn" aria-label="Save">
-								<span class="material-symbols-outlined">favorite</span>
-							</button>
 						</article>
 					{/each}
 				</div>
 			{/if}
 		</section>
 	</main>
-</section>
+</div>
 
 <style>
-	.explore-page {
-		min-height: 100dvh;
-		background: var(--background-dark);
-		color: var(--text-primary);
-		padding-bottom: 5.5rem;
-	}
+.page {
+	min-height: 100dvh;
+	background: #161c18;
+	color: #f1f5f9;
+	padding-bottom: 96px;
+}
 
-	.header {
-		padding: 2rem 1.5rem 1rem;
-		max-width: 480px;
-		margin: 0 auto;
-	}
+/* ── Header ─────────────────────────────────────────────── */
+.header {
+	padding: 32px 24px 0;
+	max-width: 480px;
+	margin: 0 auto;
+}
 
-	.header-row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		margin-bottom: 1.5rem;
-	}
+.header-top {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 12px;
+}
 
-	.eyebrow {
-		color: var(--primary);
-		font-size: 0.65rem;
-		font-weight: 700;
-		letter-spacing: 0.2em;
-		text-transform: uppercase;
-	}
+.eyebrow {
+	font-size: 10px;
+	color: #4d9d6d;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.12em;
+}
 
-	.icon-btn {
-		width: 2.5rem;
-		height: 2.5rem;
-		display: grid;
-		place-items: center;
-	}
+.icon-btn {
+	width: 40px;
+	height: 40px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: white;
+	background: none;
+	border: none;
+	cursor: pointer;
+}
 
-	h1 {
-		font-size: 1.85rem;
-		font-weight: 700;
-		margin-bottom: 0.4rem;
-	}
+h1 {
+	font-size: 30px;
+	font-weight: 700;
+	color: white;
+	margin-bottom: 8px;
+	line-height: 1.15;
+}
 
-	p {
-		color: var(--text-secondary);
-		font-size: 0.85rem;
-	}
+.subtitle {
+	font-size: 14px;
+	color: #94a3b8;
+	margin-bottom: 0;
+}
 
-	.content {
-		padding: 0 1.5rem 1.5rem;
-		display: flex;
-		flex-direction: column;
-		gap: 2rem;
-		max-width: 480px;
-		margin: 0 auto;
-	}
+/* ── Content ─────────────────────────────────────────────── */
+.content {
+	padding: 0 24px;
+	max-width: 480px;
+	margin: 0 auto;
+	display: flex;
+	flex-direction: column;
+	gap: 24px;
+}
 
-	.form {
-		display: flex;
-		flex-direction: column;
-		gap: 1.5rem;
-	}
+/* ── Form ───────────────────────────────────────────────── */
+.form {
+	display: flex;
+	flex-direction: column;
+	gap: 24px;
+	padding-top: 24px;
+}
 
-	.field label {
-		display: block;
-		font-size: 0.65rem;
-		font-weight: 600;
-		letter-spacing: 0.18em;
-		text-transform: uppercase;
-		color: var(--text-secondary);
-		margin-bottom: 0.3rem;
-	}
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
 
+.field-label {
+	font-size: 10px;
+	color: #94a3b8;
+	font-weight: 500;
+	text-transform: uppercase;
+	letter-spacing: 0.1em;
+}
 
+.underline-input {
+	width: 100%;
+	background: transparent;
+	border: none;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+	border-radius: 0;
+	font-size: 18px;
+	color: white;
+	padding: 8px 0;
+	outline: none;
+	transition: border-bottom-color 0.2s ease;
+	appearance: none;
+	-webkit-appearance: none;
+}
 
-	.search-btn {
-		width: 100%;
-		padding: 0.95rem;
-		border-radius: 10px;
-		background: var(--primary);
-		color: white;
-		font-weight: 600;
-		font-size: 1rem;
-		box-shadow: 0 12px 24px rgba(77, 157, 109, 0.3);
-	}
+.underline-input::placeholder {
+	color: #4a5568;
+}
 
-	.results-header h3 {
-		color: var(--text-secondary);
-		font-size: 0.7rem;
-		letter-spacing: 0.18em;
-		text-transform: uppercase;
-		font-weight: 700;
-		margin-bottom: 1rem;
-	}
+.underline-input:focus {
+	border-bottom-color: #4d9d6d;
+}
 
-	.cards {
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-		padding-bottom: 2rem;
-	}
+/* Select wrapper */
+.select-wrap {
+	position: relative;
+}
 
-	.route-card {
-		position: relative;
-		background: rgba(255, 255, 255, 0.03);
-		border-radius: 12px;
-		overflow: hidden;
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		box-shadow: var(--shadow-card);
-	}
+.select-chevron {
+	position: absolute;
+	right: 0;
+	top: 50%;
+	transform: translateY(-50%);
+	font-size: 20px;
+	color: #64748b;
+	pointer-events: none;
+}
 
-	.route-body {
-		padding: 1rem;
-	}
+/* Search Button */
+.search-btn {
+	width: 100%;
+	padding: 16px;
+	border-radius: 8px;
+	background: #4d9d6d;
+	color: white;
+	font-size: 18px;
+	font-weight: 400;
+	border: none;
+	cursor: pointer;
+	box-shadow: 0 8px 20px rgba(77, 157, 109, 0.25);
+	transition: opacity 0.15s ease;
+}
 
-	.route-top {
-		display: flex;
-		justify-content: space-between;
-		align-items: flex-start;
-		margin-bottom: 0.4rem;
-	}
+.search-btn:hover {
+	opacity: 0.9;
+}
 
-	.route-top h4 {
-		font-size: 1.1rem;
-		font-weight: 700;
-	}
+/* ── Results ─────────────────────────────────────────────── */
+.results {
+	padding-bottom: 8px;
+}
 
-	.price {
-		color: var(--primary);
-		font-weight: 700;
-	}
+.section-label {
+	font-size: 12px;
+	color: #64748b;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.12em;
+	margin-bottom: 16px;
+}
 
-	.route-meta {
-		display: flex;
-		align-items: center;
-		gap: 0.35rem;
-		color: var(--text-secondary);
-		font-size: 0.75rem;
-	}
+.state {
+	text-align: center;
+	padding: 24px;
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.04);
+	color: #94a3b8;
+	font-size: 14px;
+}
 
-	.route-meta .material-symbols-outlined {
-		font-size: 1rem;
-	}
+.route-list {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
 
-	.dot {
-		margin: 0 0.2rem;
-	}
+/* ── Route Card ──────────────────────────────────────────── */
+.route-card {
+	position: relative;
+	border-radius: 12px;
+	overflow: hidden;
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	transition: transform 0.2s ease;
+}
 
-	.fav-btn {
-		position: absolute;
-		top: 1rem;
-		right: 1rem;
-		width: 2rem;
-		height: 2rem;
-		border-radius: 999px;
-		background: rgba(255, 255, 255, 0.2);
-		backdrop-filter: blur(10px);
-		color: white;
-		display: grid;
-		place-items: center;
-	}
+.route-card:hover {
+	transform: scale(1.01);
+}
 
-	.state {
-		padding: 1.2rem;
-		background: rgba(255, 255, 255, 0.04);
-		border-radius: 12px;
-		text-align: center;
-		color: var(--text-secondary);
-	}
+.route-img-wrap {
+	position: relative;
+	height: 192px;
+	overflow: hidden;
+}
+
+.img-skeleton {
+	position: absolute;
+	inset: 0;
+}
+
+.route-img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+	opacity: 0;
+	transition: opacity 0.3s ease;
+}
+
+.route-img.loaded {
+	opacity: 1;
+}
+
+.route-img.error {
+	display: none;
+}
+
+.route-img-placeholder {
+	width: 100%;
+	height: 100%;
+	background: rgba(255, 255, 255, 0.06);
+}
+
+.fav-btn {
+	position: absolute;
+	top: 16px;
+	right: 16px;
+	width: 36px;
+	height: 36px;
+	border-radius: 9999px;
+	background: rgba(255, 255, 255, 0.15);
+	backdrop-filter: blur(8px);
+	-webkit-backdrop-filter: blur(8px);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: white;
+	border: none;
+	cursor: pointer;
+	transition: background 0.2s ease;
+}
+
+.fav-btn .material-symbols-outlined {
+	font-size: 20px;
+}
+
+.route-body {
+	padding: 16px;
+}
+
+.route-top {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	margin-bottom: 8px;
+}
+
+.route-top h4 {
+	font-size: 18px;
+	font-weight: 700;
+	color: white;
+}
+
+.price {
+	font-size: 18px;
+	font-weight: 700;
+	color: #4d9d6d;
+	flex-shrink: 0;
+}
+
+.route-meta {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	color: #94a3b8;
+	font-size: 12px;
+}
+
+.meta-icon {
+	font-size: 14px;
+	color: #94a3b8;
+}
+
+.dot {
+	color: #94a3b8;
+}
 </style>
