@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"context"
 	"errors"
+	"time"
 
 	"github.com/critiq17/tripListik/internal/httpapi/middleware"
 	"github.com/critiq17/tripListik/internal/httpapi/validate"
@@ -24,8 +26,9 @@ type inviteRequest struct {
 }
 
 type respondInviteRequest struct {
-	Action  string  `json:"action" validate:"required,oneof=accept decline"`
-	Comment *string `json:"comment"`
+	Action          string  `json:"action" validate:"required,oneof=accept decline"`
+	Comment         *string `json:"comment"`
+	AlternativeDate *string `json:"alternative_date"`
 }
 
 // ── handlers ───────────────────────────────────────────────────────────────────
@@ -49,7 +52,10 @@ func (h *InvitesHandler) InviteUser(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "username or user_id is required")
 	}
 
-	invite, err := h.Service.InviteUser(c.Context(), requesterID, tripID, req.Username, req.UserID)
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
+	defer cancel()
+
+	invite, err := h.Service.InviteUser(ctx, requesterID, tripID, req.Username, req.UserID)
 	if err != nil {
 		if errors.Is(err, invites.ErrDuplicate) && invite != nil {
 			return c.JSON(fiber.Map{"invite_id": invite.ID.String(), "status": invite.Status})
@@ -79,7 +85,10 @@ func (h *InvitesHandler) RespondInvite(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid action")
 	}
 
-	if err := h.Service.RespondInvite(c.Context(), userID, inviteID, req.Action, req.Comment); err != nil {
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
+	defer cancel()
+
+	if err := h.Service.RespondInvite(ctx, userID, inviteID, req.Action, req.Comment, req.AlternativeDate); err != nil {
 		return mapInviteError(err)
 	}
 
@@ -98,7 +107,10 @@ func (h *InvitesHandler) CancelInvite(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid invite id")
 	}
 
-	if err := h.Service.CancelInvite(c.Context(), userID, inviteID); err != nil {
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
+	defer cancel()
+
+	if err := h.Service.CancelInvite(ctx, userID, inviteID); err != nil {
 		return mapInviteError(err)
 	}
 
@@ -116,7 +128,10 @@ func (h *InvitesHandler) ListTripInvites(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid trip id")
 	}
 
-	trip, err := h.Store.GetTripByID(c.Context(), tripID)
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
+	defer cancel()
+
+	trip, err := h.Store.GetTripByID(ctx, tripID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to load trip")
 	}
@@ -129,7 +144,7 @@ func (h *InvitesHandler) ListTripInvites(c *fiber.Ctx) error {
 		if trip.Visibility != "group" {
 			return fiber.NewError(fiber.StatusForbidden, "forbidden")
 		}
-		isMember, err := h.Store.IsTripMember(c.Context(), tripID, requesterID)
+		isMember, err := h.Store.IsTripMember(ctx, tripID, requesterID)
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, "failed to check membership")
 		}
@@ -138,7 +153,7 @@ func (h *InvitesHandler) ListTripInvites(c *fiber.Ctx) error {
 		}
 	}
 
-	items, err := h.Store.ListTripInvites(c.Context(), tripID)
+	items, err := h.Store.ListTripInvites(ctx, tripID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to load invites")
 	}
@@ -152,7 +167,10 @@ func (h *InvitesHandler) GetInvite(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid invite id")
 	}
 
-	invite, err := h.Store.GetInviteByID(c.Context(), inviteID)
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
+	defer cancel()
+
+	invite, err := h.Store.GetInviteByID(ctx, inviteID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to load invite")
 	}
@@ -161,7 +179,7 @@ func (h *InvitesHandler) GetInvite(c *fiber.Ctx) error {
 	}
 
 	// Return enriched view if available.
-	views, err := h.Store.ListUserInvites(c.Context(), invite.InvitedUserID, 20)
+	views, err := h.Store.ListUserInvites(ctx, invite.InvitedUserID, 20)
 	if err == nil {
 		for _, v := range views {
 			if v.ID == inviteID {

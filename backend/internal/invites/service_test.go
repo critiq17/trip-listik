@@ -131,7 +131,7 @@ func TestRespondInvite_Accept_AddsMember(t *testing.T) {
 	trip, _ := env.tripsService.CreateTrip(ctx, owner.ID, trips.CreateTripInput{Title: "Accept test"})
 	invite, _ := env.invitesService.InviteUser(ctx, owner.ID, trip.ID, invited.Username, "")
 
-	if err := env.invitesService.RespondInvite(ctx, invited.ID, invite.ID, "accept", nil); err != nil {
+	if err := env.invitesService.RespondInvite(ctx, invited.ID, invite.ID, "accept", nil, nil); err != nil {
 		t.Fatalf("respond: %v", err)
 	}
 
@@ -154,7 +154,7 @@ func TestRespondInvite_Decline_DoesNotAddMember(t *testing.T) {
 	trip, _ := env.tripsService.CreateTrip(ctx, owner.ID, trips.CreateTripInput{Title: "Decline test"})
 	invite, _ := env.invitesService.InviteUser(ctx, owner.ID, trip.ID, invited.Username, "")
 
-	if err := env.invitesService.RespondInvite(ctx, invited.ID, invite.ID, "decline", nil); err != nil {
+	if err := env.invitesService.RespondInvite(ctx, invited.ID, invite.ID, "decline", nil, nil); err != nil {
 		t.Fatalf("respond: %v", err)
 	}
 
@@ -175,7 +175,7 @@ func TestRespondInvite_WrongUser(t *testing.T) {
 	trip, _ := env.tripsService.CreateTrip(ctx, owner.ID, trips.CreateTripInput{Title: "Wrong user"})
 	invite, _ := env.invitesService.InviteUser(ctx, owner.ID, trip.ID, invited.Username, "")
 
-	err := env.invitesService.RespondInvite(ctx, other.ID, invite.ID, "accept", nil)
+	err := env.invitesService.RespondInvite(ctx, other.ID, invite.ID, "accept", nil, nil)
 	if err == nil {
 		t.Fatal("expected ErrForbidden: wrong user responding to invite")
 	}

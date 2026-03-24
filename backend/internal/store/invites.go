@@ -117,12 +117,15 @@ func (s *Store) CancelInvite(ctx context.Context, inviteID uuid.UUID) error {
 		Update("status", "cancelled").Error
 }
 
-func (s *Store) UpdateInviteStatus(ctx context.Context, inviteID uuid.UUID, status string, comment *string) error {
+func (s *Store) UpdateInviteStatus(ctx context.Context, inviteID uuid.UUID, status string, comment *string, alternativeDate *string) error {
 	updates := map[string]any{
 		"status": status,
 	}
 	if comment != nil {
 		updates["comment"] = *comment
+	}
+	if alternativeDate != nil {
+		updates["alternative_date"] = *alternativeDate
 	}
 	return s.DB.WithContext(ctx).
 		Model(&models.TripInvite{}).

@@ -1,106 +1,113 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { fly } from 'svelte/transition';
-	import FilterChips from '$lib/components/FilterChips.svelte';
 	import TripCard from '$lib/components/TripCard.svelte';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import { apiFetch } from '$lib/api';
 	import { expandTelegram } from '$lib/telegram';
-	import { staggerList, scalePress } from '$lib/actions/animate';
 	import type { TripCardData } from '$lib/types';
 
-	const filters = ['All', 'Friends', 'Popular', 'Nearby'];
-	let active = $state('All');
-	let searchQuery = $state('');
-	let items = $state<TripCardData[]>([]);
-	let loading = $state(true);
-	let error = $state('');
-	let ready = $state(false);
-	let cursor = $state<string | null>(null);
-	let loadingMore = $state(false);
-	let hasMore = $state(true);
-	let searchTimer: ReturnType<typeof setTimeout> | null = null;
-	let sentinel = $state<HTMLDivElement | null>(null);
+	// ── Public trips ────────────────────────────────────────
+	let publicItems = $state<TripCardData[]>([]);
+	let publicLoading = $state(true);
+	let publicError = $state('');
+	let publicCursor = $state<string | null>(null);
+	let publicLoadingMore = $state(false);
+	let publicHasMore = $state(true);
+	let publicSentinel = $state<HTMLDivElement | null>(null);
 
-	const fetchFeed = async (mode: 'reset' | 'append' = 'reset') => {
-		if (mode === 'append' && (loadingMore || !hasMore)) return;
-		if (mode === 'append') loadingMore = true;
-		loading = mode === 'reset';
-		error = '';
-		const filter = active.toLowerCase();
-		const queryArgs = [];
-		if (searchQuery.trim().length > 0) {
-			queryArgs.push(`q=${encodeURIComponent(searchQuery)}`);
-		} else if (filter !== 'all') {
-			queryArgs.push(`filter=${filter}`);
+	// ── Trending trips ──────────────────────────────────────
+	let trendingItems = $state<TripCardData[]>([]);
+	let trendingLoading = $state(true);
+	let trendingError = $state('');
+
+	// ── Friends' trips ──────────────────────────────────────
+	let friendItems = $state<TripCardData[]>([]);
+	let friendLoading = $state(true);
+	let friendError = $state('');
+
+	let ready = $state(false);
+
+	const fetchPublicTrips = async (mode: 'reset' | 'append' = 'reset') => {
+		if (mode === 'append' && (publicLoadingMore || !publicHasMore)) return;
+		if (mode === 'append') publicLoadingMore = true;
+		else publicLoading = true;
+		publicError = '';
+		const queryArgs = ['filter=all', 'limit=20'];
+		if (mode === 'append' && publicCursor) {
+			queryArgs.push(`cursor=${publicCursor}`);
 		}
-		if (mode === 'append' && cursor) {
-			queryArgs.push(`cursor=${cursor}`);
-		}
-		const queryString = queryArgs.join('&');
-		const endpoint = searchQuery.trim().length > 0 ? '/v1/explore' : '/v1/feed';
 		try {
 			const data = await apiFetch<{ items: TripCardData[]; next_cursor?: string; cursor?: string }>(
-				`${endpoint}${queryString ? `?${queryString}` : ''}`
+				`/v1/feed?${queryArgs.join('&')}`
 			);
 			const next = data.next_cursor ?? data.cursor ?? null;
 			if (mode === 'append') {
-				items = [...items, ...(data.items ?? [])];
+				publicItems = [...publicItems, ...(data.items ?? [])];
 			} else {
-				items = data.items ?? [];
+				publicItems = data.items ?? [];
 			}
-			cursor = next;
-			hasMore = Boolean(next);
+			publicCursor = next;
+			publicHasMore = Boolean(next);
 		} catch (err) {
-			const message = err instanceof Error ? err.message : 'Failed to load feed';
-			if (message.toLowerCase() === 'unauthorized' && filter === 'friends') {
-				error = 'Log in to see friends\' trips.';
-			} else {
-				error = message;
-			}
+			publicError = err instanceof Error ? err.message : 'Failed to load trips';
 		} finally {
-			loading = false;
-			loadingMore = false;
+			publicLoading = false;
+			publicLoadingMore = false;
 		}
 	};
 
-	const observe = () => {
-		if (!sentinel) return;
+	const fetchTrending = async () => {
+		trendingLoading = true;
+		trendingError = '';
+		try {
+			const data = await apiFetch<{ items: TripCardData[] }>(
+				'/v1/feed?filter=popular&limit=6'
+			);
+			trendingItems = data.items ?? [];
+		} catch (err) {
+			trendingError = err instanceof Error ? err.message : 'Failed to load';
+		} finally {
+			trendingLoading = false;
+		}
+	};
+
+	const fetchFriendTrips = async () => {
+		friendLoading = true;
+		friendError = '';
+		try {
+			const data = await apiFetch<{ items: TripCardData[] }>(
+				'/v1/feed?filter=friends&limit=10'
+			);
+			friendItems = data.items ?? [];
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Failed to load';
+			if (message.toLowerCase().includes('unauthorized')) {
+				friendError = 'connect';
+			} else {
+				friendError = message;
+			}
+		} finally {
+			friendLoading = false;
+		}
+	};
+
+	const observePublic = () => {
+		if (!publicSentinel) return;
 		const io = new IntersectionObserver((entries) => {
-			if (entries[0]?.isIntersecting) fetchFeed('append');
+			if (entries[0]?.isIntersecting) fetchPublicTrips('append');
 		});
-		io.observe(sentinel);
+		io.observe(publicSentinel);
 		return () => io.disconnect();
 	};
 
 	onMount(() => {
 		expandTelegram();
 		ready = true;
-		return observe();
-	});
-
-	const debounceSearch = () => {
-		if (searchTimer) clearTimeout(searchTimer);
-		searchTimer = setTimeout(() => {
-			cursor = null;
-			hasMore = true;
-			fetchFeed('reset');
-		}, 300);
-	};
-
-	$effect(() => {
-		if (ready && active) {
-			cursor = null;
-			hasMore = true;
-			fetchFeed('reset');
-		}
-	});
-
-	$effect(() => {
-		if (ready) {
-			searchQuery;
-			debounceSearch();
-		}
+		fetchTrending();
+		fetchPublicTrips('reset');
+		fetchFriendTrips();
+		return observePublic();
 	});
 </script>
 
@@ -129,43 +136,74 @@
 			<p class="subtitle">Curated journeys from the community.</p>
 		</section>
 
-		<!-- Filter Pills -->
-		<FilterChips {filters} bind:active />
-
-		<!-- Trending Bar -->
-		{#if !searchQuery.trim()}
-			<div class="trending">
-				<div class="trend-left">
-					<span class="material-symbols-outlined trend-icon">trending_up</span>
-					<span class="trend-text"><span class="trend-label">Trending Now:</span> <strong>#Iceland2026</strong></span>
-				</div>
-				<span class="trend-count">(1.2k)</span>
+		<!-- Trending -->
+		<section class="feed-section">
+			<p class="section-label">Trending</p>
+			<div class="trending-row">
+				{#if trendingLoading}
+					{#each Array(3) as _}
+						<div class="trending-skeleton"></div>
+					{/each}
+				{:else if trendingItems.length > 0}
+					{#each trendingItems as trip (trip.id)}
+						<div class="trending-card-wrap">
+							<TripCard {trip} variant="compact" />
+						</div>
+					{/each}
+				{/if}
 			</div>
-		{/if}
+		</section>
 
-		<!-- Cards -->
-		<div class="cards">
-			{#if loading}
-				{#each Array(2) as _}
-					<SkeletonCard ratio="4 / 5" />
-				{/each}
-			{:else if error}
-				<div class="state error">{error}</div>
-			{:else if items.length === 0}
-				<div class="state empty">No trips yet—check back soon!</div>
-			{:else}
-				{#each items as trip, i (trip.id)}
-					<div in:fly={{ y: 40, duration: 300, delay: i * 80 }}>
-						<TripCard {trip} />
+		<!-- For You -->
+		<section class="feed-section">
+			<p class="section-label">For You</p>
+			<div class="cards">
+				{#if publicLoading}
+					{#each Array(2) as _}
+						<SkeletonCard ratio="3 / 4" />
+					{/each}
+				{:else if publicError}
+					<div class="state error">{publicError}</div>
+				{:else if publicItems.length === 0}
+					<div class="state empty">No public trips yet — check back soon!</div>
+				{:else}
+					{#each publicItems as trip, i (trip.id)}
+						<div in:fly={{ y: 40, duration: 300, delay: i * 80 }}>
+							<TripCard {trip} />
+						</div>
+					{/each}
+				{/if}
+				<div bind:this={publicSentinel} class="sentinel" aria-hidden="true"></div>
+				{#if publicLoadingMore}
+					<SkeletonCard ratio="3 / 4" />
+				{/if}
+			</div>
+		</section>
+
+		<!-- Friends' Trips -->
+		<section class="feed-section">
+			<p class="section-label">Friends' Trips</p>
+			<div class="cards">
+				{#if friendLoading}
+					{#each Array(1) as _}
+						<SkeletonCard ratio="3 / 4" />
+					{/each}
+				{:else if friendError === 'connect' || friendItems.length === 0}
+					<div class="state connect">
+						<span class="material-symbols-outlined connect-icon">group</span>
+						<p>Log in to see friends' trips</p>
 					</div>
-				{/each}
-			{/if}
-			<div bind:this={sentinel} class="sentinel" aria-hidden="true"></div>
-
-			{#if loadingMore}
-				<SkeletonCard ratio="4 / 5" />
-			{/if}
-		</div>
+				{:else if friendError}
+					<div class="state error">{friendError}</div>
+				{:else}
+					{#each friendItems as trip, i (trip.id)}
+						<div in:fly={{ y: 40, duration: 300, delay: i * 80 }}>
+							<TripCard {trip} />
+						</div>
+					{/each}
+				{/if}
+			</div>
+		</section>
 	</main>
 </div>
 
@@ -251,47 +289,18 @@ h1 {
 	font-weight: 400;
 }
 
-/* ── Trending bar ────────────────────────────────────────── */
-.trending {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	background: rgba(77, 157, 109, 0.08);
-	border-radius: 12px;
-	padding: 14px 16px;
-	margin-bottom: 32px;
+/* ── Feed sections ────────────────────────────────────────── */
+.feed-section {
+	margin-top: 32px;
 }
 
-.trend-left {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-}
-
-.trend-icon {
-	font-size: 16px;
-	color: #4d9d6d;
-}
-
-.trend-text {
-	font-size: 14px;
-	color: #4d9d6d;
-	font-weight: 500;
-}
-
-.trend-text strong {
+.section-label {
+	font-size: 11px;
 	font-weight: 700;
-}
-
-.trend-label {
-	font-weight: 500;
-}
-
-.trend-count {
-	font-size: 12px;
 	color: #4d9d6d;
-	font-weight: 700;
-	opacity: 0.8;
+	text-transform: uppercase;
+	letter-spacing: 0.12em;
+	margin-bottom: 16px;
 }
 
 /* ── Cards ───────────────────────────────────────────────── */
@@ -315,7 +324,51 @@ h1 {
 	background: rgba(248, 113, 113, 0.08);
 }
 
+.state.connect {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	padding: 32px 24px;
+}
+
+.connect-icon {
+	font-size: 32px;
+	color: #4d9d6d;
+	opacity: 0.6;
+}
+
 .sentinel {
 	height: 1px;
+}
+
+/* ── Trending row ────────────────────────────────────────── */
+.trending-row {
+	display: flex;
+	gap: 12px;
+	overflow-x: auto;
+	padding-bottom: 8px;
+	scrollbar-width: none;
+}
+
+.trending-row::-webkit-scrollbar {
+	display: none;
+}
+
+.trending-card-wrap {
+	flex: 0 0 160px;
+}
+
+.trending-skeleton {
+	flex: 0 0 160px;
+	aspect-ratio: 3 / 4;
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.06);
+	animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+	0%, 100% { opacity: 0.6; }
+	50% { opacity: 1; }
 }
 </style>

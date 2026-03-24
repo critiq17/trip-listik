@@ -81,18 +81,6 @@
 					<span class="material-symbols-outlined input-suffix-icon">map</span>
 				</div>
 			</div>
-
-			<!-- Cover Photo Upload Zone -->
-			<div class="field">
-				<label class="field-label" for="cover-photo-hint">Cover Photo</label>
-				<div class="upload-zone" role="button" tabindex="0" aria-label="Add a cover image">
-					<div class="upload-icon-circle">
-						<span class="material-symbols-outlined">add_a_photo</span>
-					</div>
-					<p class="upload-hint">Add a cover image</p>
-					<p class="upload-sub">You can add a photo in the final step</p>
-				</div>
-			</div>
 		</div>
 
 		<!-- Continue Button -->
@@ -206,52 +194,6 @@ h1 {
 	font-size: 24px;
 	color: #64748b;
 	pointer-events: none;
-}
-
-/* ── Upload Zone ─────────────────────────────────────────── */
-.upload-zone {
-	aspect-ratio: 16 / 9;
-	border-radius: 12px;
-	border: 2px dashed rgba(255, 255, 255, 0.1);
-	background: rgba(255, 255, 255, 0.03);
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	gap: 8px;
-	cursor: pointer;
-	transition: border-color 0.2s ease, background 0.2s ease;
-}
-
-.upload-zone:hover {
-	border-color: rgba(77, 157, 109, 0.4);
-	background: rgba(77, 157, 109, 0.04);
-}
-
-.upload-icon-circle {
-	width: 48px;
-	height: 48px;
-	border-radius: 9999px;
-	background: rgba(77, 157, 109, 0.1);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-.upload-icon-circle .material-symbols-outlined {
-	font-size: 24px;
-	color: #4d9d6d;
-}
-
-.upload-hint {
-	font-size: 12px;
-	color: #64748b;
-	font-weight: 500;
-}
-
-.upload-sub {
-	font-size: 11px;
-	color: #4a5568;
 }
 
 /* ── Continue Button ─────────────────────────────────────── */

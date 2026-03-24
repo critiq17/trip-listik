@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-import { page } from '$app/stores';
+	import { page } from '$app/stores';
 	import {
 		apiFetch,
 		deleteTrip,
@@ -13,20 +13,17 @@ import { page } from '$app/stores';
 	import { resolvePhotoUrl } from '$lib/photos';
 	import { connectTripStream } from '$lib/realtime';
 	import InviteModal from '$lib/components/InviteModal.svelte';
-	import VoteItem from '$lib/components/VoteItem.svelte';
-	import { staggerList, scalePress } from '$lib/actions/animate';
-	import { animate } from 'motion';
+	import { scalePress } from '$lib/actions/animate';
 	import { hapticImpact, hapticNotification, setupBackButton, hideBackButton } from '$lib/telegram';
 	import {
 		formatDateRange,
 		formatLongDate,
-		formatRelativeDate,
 		getStatusLabel,
 		getTripLocation,
 		getUserInitials,
 		getUserName
 	} from '$lib/format';
-	import type { Comment, InviteItem, JoinRequest, Member, Photo, TripCardData } from '$lib/types';
+	import type { InviteItem, JoinRequest, Member, Photo, TripCardData, VoteItemData } from '$lib/types';
 
 	type TripDetailResponse = {
 		trip: TripCardData;
@@ -36,30 +33,15 @@ import { page } from '$app/stores';
 		viewer_is_member: boolean;
 	};
 
-	type VoteItemData = {
-		id: string;
-		trip_id: string;
-		category: string;
-		title: string;
-		description: string;
-		image_url: string;
-		added_by: string;
-		vote_count: number;
-		has_voted: boolean;
-	};
-
 	let trip = $state<TripCardData | null>(null);
 	let loading = $state(true);
 	let error = $state('');
 	let activeTab = $state('Details');
 	let members = $state<Member[]>([]);
-	let comments = $state<Comment[]>([]);
 	let photos = $state<Photo[]>([]);
-	let voteItems = $state<VoteItemData[]>([]);
 	let memberCount = $state(0);
 	let commentCount = $state(0);
 	let photoCount = $state(0);
-	let newComment = $state('');
 	let uploading = $state(false);
 	let uploadError = $state('');
 	let joinStatus = $state('');
@@ -85,7 +67,23 @@ import { page } from '$app/stores';
 	let coverUrl = $derived(resolvePhotoUrl(trip?.cover_photo_url));
 	let viewerIsMember = $state(false);
 
-	const tabs = ['Details', 'Members', 'Photos', 'Discussion'];
+	// Members bottom sheet
+	let membersSheetOpen = $state(false);
+	let sheetMembers = $state<Member[]>([]);
+	let sheetMembersLoading = $state(false);
+
+	// Vote items
+	let voteItems = $state<VoteItemData[]>([]);
+	let voteItemsLoading = $state(false);
+	let addOptionOpen = $state(false);
+	// Add option form
+	let newOptionCategory = $state('ACTIVITY');
+	let newOptionTitle = $state('');
+	let newOptionDesc = $state('');
+	let newOptionSubmitting = $state(false);
+	let newOptionError = $state('');
+
+	const tabs = ['Details', 'Photos'];
 	let loadedTabs = new Set<string>();
 
 	async function loadTrip(id: string) {
@@ -131,12 +129,6 @@ import { page } from '$app/stores';
 		}
 	}
 
-	async function loadComments(id: string) {
-		const data = await apiFetch<{ items: Comment[] }>(`/v1/trips/${id}/comments`);
-		comments = data.items ?? [];
-		commentCount = comments.length;
-	}
-
 	async function loadPhotos(id: string, mode: 'reset' | 'append' = 'reset') {
 		if (photosLoading) return;
 		if (mode === 'append' && !photosHasMore) return;
@@ -162,20 +154,6 @@ import { page } from '$app/stores';
 			photosLoading = false;
 		}
 	}
-
-	async function loadVoteItems(id: string) {
-		const data = await apiFetch<{ items: VoteItemData[] }>(`/v1/trips/${id}/vote-items`);
-		voteItems = data.items ?? [];
-	}
-
-	const handleVoteChange = (itemId: string, newCount: number, hasVoted: boolean) => {
-		voteItems = voteItems.map((item) => {
-			if (item.id === itemId) {
-				return { ...item, vote_count: newCount, has_voted: hasVoted };
-			}
-			return item;
-		});
-	};
 
 	async function loadMe() {
 		const data = await getMe();
@@ -231,16 +209,6 @@ import { page } from '$app/stores';
 		await loadJoinRequests(trip.id);
 	}
 
-	async function submitComment() {
-		if (!trip || !newComment.trim()) return;
-		await apiFetch(`/v1/trips/${trip.id}/comments`, {
-			method: 'POST',
-			body: JSON.stringify({ body: newComment })
-		});
-		newComment = '';
-		await loadComments(trip.id);
-	}
-
 	async function handlePhotoUpload(event: Event) {
 		if (!trip) return;
 		const input = event.target as HTMLInputElement;
@@ -281,12 +249,92 @@ import { page } from '$app/stores';
 			deletingTrip = false;
 		}
 	}
+
 	const canInvite = () =>
 		!!trip &&
 		!!meId &&
 		(trip.owner_id === meId || (trip.visibility === 'group' && viewerIsMember));
 
-	// viewerIsMember is now populated correctly via loadTrip from the API
+	async function openMembersSheet() {
+		membersSheetOpen = true;
+		if (sheetMembers.length > 0) return;
+		sheetMembersLoading = true;
+		try {
+			const data = await apiFetch<{ items: Member[] }>(
+				`/v1/trips/${trip!.id}/members?limit=50`
+			);
+			sheetMembers = data.items ?? [];
+		} catch {
+			// non-critical — sheet stays open showing empty state
+		} finally {
+			sheetMembersLoading = false;
+		}
+	}
+
+	async function loadVoteItems(id: string) {
+		if (!viewerIsMember) return;
+		voteItemsLoading = true;
+		try {
+			const data = await apiFetch<{ items: VoteItemData[] }>(`/v1/trips/${id}/vote-items`);
+			voteItems = data.items ?? [];
+		} catch {
+			// non-critical — silently ignore
+		} finally {
+			voteItemsLoading = false;
+		}
+	}
+
+	async function handleVote(item: VoteItemData) {
+		if (!trip) return;
+		// Optimistic update
+		const prev = { vote_count: item.vote_count, has_voted: item.has_voted };
+		if (item.has_voted) {
+			item.vote_count = Math.max(0, item.vote_count - 1);
+			item.has_voted = false;
+		} else {
+			item.vote_count += 1;
+			item.has_voted = true;
+		}
+		voteItems = [...voteItems]; // trigger reactivity
+		try {
+			const method = prev.has_voted ? 'DELETE' : 'POST';
+			const res = await apiFetch<{ item_id: string; vote_count: number }>(
+				`/v1/trips/${trip.id}/vote-items/${item.id}/vote`,
+				{ method }
+			);
+			// Sync server count
+			voteItems = voteItems.map(v => v.id === item.id ? { ...v, vote_count: res.vote_count } : v);
+		} catch {
+			// Roll back
+			voteItems = voteItems.map(v => v.id === item.id ? { ...v, ...prev } : v);
+		}
+	}
+
+	async function submitOption() {
+		if (!trip || !newOptionTitle.trim()) return;
+		newOptionSubmitting = true;
+		newOptionError = '';
+		try {
+			const item = await apiFetch<VoteItemData>(`/v1/trips/${trip.id}/vote-items`, {
+				method: 'POST',
+				body: JSON.stringify({
+					category: newOptionCategory,
+					title: newOptionTitle.trim(),
+					description: newOptionDesc.trim() || undefined
+				})
+			});
+			voteItems = [...voteItems, { ...item, vote_count: 0, has_voted: false }];
+			newOptionTitle = '';
+			newOptionDesc = '';
+			newOptionCategory = 'ACTIVITY';
+			addOptionOpen = false;
+		} catch (err) {
+			newOptionError = err instanceof Error ? err.message : 'Failed to add option';
+		} finally {
+			newOptionSubmitting = false;
+		}
+	}
+
 	onMount(() => {
 		setupBackButton(() => history.back());
 		const id = $page.params.id ?? '';
@@ -298,36 +346,6 @@ import { page } from '$app/stores';
 		loadTrip(id);
 		loadMe();
 		stream = connectTripStream(id);
-		stream.addEventListener('comment_created', (event) => {
-			const data = JSON.parse((event as MessageEvent).data) as Comment;
-			comments = [data, ...comments.filter((item) => item.id !== data.id)];
-			commentCount = comments.length;
-			requestAnimationFrame(() => {
-				const first = document.querySelector('.comments .comment:first-child');
-				if (first) {
-					import('motion').then(({ animate }) => {
-						animate(first, { y: ['20px', '0px'], opacity: [0, 1] } as any, { duration: 0.3 } as any);
-					});
-				}
-			});
-		});
-		stream.addEventListener('vote_item_vote', (event) => {
-			// Realtime update for vote counts from others
-			const data = JSON.parse((event as MessageEvent).data) as { item_id: string; vote_count: number };
-			voteItems = voteItems.map((item) => {
-				if (item.id === data.item_id) {
-					// We only update count, not `has_voted` which is viewer-specific
-					return { ...item, vote_count: data.vote_count };
-				}
-				return item;
-			});
-		});
-		stream.addEventListener('vote_item_created', (event) => {
-			const data = JSON.parse((event as MessageEvent).data) as VoteItemData;
-			// Add default has_voted if missing and insert at top
-			const newItem = { ...data, has_voted: false };
-			voteItems = [newItem, ...voteItems.filter(v => v.id !== newItem.id)];
-		});
 		stream.addEventListener('photo_created', (event) => {
 			const data = JSON.parse((event as MessageEvent).data) as Photo;
 			const exists = photos.find((item) => item.id === data.id);
@@ -335,6 +353,11 @@ import { page } from '$app/stores';
 			if (!exists) {
 				photoCount += 1;
 			}
+		});
+
+		stream.addEventListener('vote_item_updated', (event) => {
+			const data = JSON.parse((event as MessageEvent).data) as { item_id: string; vote_count: number };
+			voteItems = voteItems.map(v => v.id === data.item_id ? { ...v, vote_count: data.vote_count } : v);
 		});
 
 		stream.onerror = () => {
@@ -358,20 +381,6 @@ import { page } from '$app/stores';
 	});
 
 	$effect(() => {
-		if (trip && activeTab === 'Members' && !loadedTabs.has('Members')) {
-			loadedTabs.add('Members');
-			members = [];
-			membersCursor = null;
-			membersHasMore = true;
-			loadMembers(trip.id, 'reset');
-			if (isOwner()) {
-				loadJoinRequests(trip.id);
-				loadInvites(trip.id);
-			}
-		}
-	});
-
-	$effect(() => {
 		if (trip && activeTab === 'Photos' && !loadedTabs.has('Photos')) {
 			loadedTabs.add('Photos');
 			photos = [];
@@ -382,14 +391,7 @@ import { page } from '$app/stores';
 	});
 
 	$effect(() => {
-		if (trip && activeTab === 'Discussion' && !loadedTabs.has('Discussion')) {
-			loadedTabs.add('Discussion');
-			loadComments(trip.id);
-		}
-	});
-
-	$effect(() => {
-		if (trip && activeTab === 'Details' && !loadedTabs.has('Details')) {
+		if (trip && activeTab === 'Details' && !loadedTabs.has('Details') && viewerIsMember) {
 			loadedTabs.add('Details');
 			loadVoteItems(trip.id);
 		}
@@ -434,7 +436,9 @@ import { page } from '$app/stores';
 				<p>{getTripLocation(trip)}</p>
 				<div class="meta-row">
 					<span>{formatDateRange(trip.start_date, trip.end_date)}</span>
-					<span>{memberCount} members</span>
+					<button class="members-chip" onclick={openMembersSheet}>
+						{memberCount} members
+					</button>
 				</div>
 			</div>
 		</div>
@@ -458,10 +462,6 @@ import { page } from '$app/stores';
 							<span>Visibility</span>
 						</div>
 						<div class="stat glass">
-							<strong>{commentCount}</strong>
-							<span>Discussion</span>
-						</div>
-						<div class="stat glass">
 							<strong>{photoCount}</strong>
 							<span>Photos</span>
 						</div>
@@ -481,6 +481,53 @@ import { page } from '$app/stores';
 						<p>{formatLongDate(trip.start_date)} to {formatLongDate(trip.end_date)}</p>
 					</div>
 
+					<!-- Vote Items -->
+					{#if viewerIsMember}
+						<div class="detail-block vote-section">
+							<div class="vote-header">
+								<h2>Options</h2>
+								<button class="add-option-btn" onclick={() => (addOptionOpen = true)}>
+									<span class="material-symbols-outlined">add</span>
+									Add option
+								</button>
+							</div>
+
+							{#if voteItemsLoading}
+								<div class="vote-skeleton"></div>
+							{:else if voteItems.length === 0}
+								<p class="muted">No options yet. Add hotels, airlines, or activities to vote on.</p>
+							{:else}
+								<!-- Group by category -->
+								{#each ['HOTEL', 'AIRLINE', 'ACTIVITY', 'OTHER'] as cat}
+									{#if voteItems.some(v => v.category === cat)}
+										<div class="vote-group">
+											<p class="vote-cat-label">{cat}</p>
+											{#each voteItems.filter(v => v.category === cat) as item (item.id)}
+												<div class="vote-item-row">
+													<div class="vote-item-info">
+														<p class="vote-item-title">{item.title}</p>
+														{#if item.description}
+															<p class="vote-item-desc">{item.description}</p>
+														{/if}
+													</div>
+													<button
+														class="vote-btn"
+														class:voted={item.has_voted}
+														onclick={() => handleVote(item)}
+														aria-label="Vote for {item.title}"
+													>
+														<span class="material-symbols-outlined">thumb_up</span>
+														<span class="vote-count">{item.vote_count}</span>
+													</button>
+												</div>
+											{/each}
+										</div>
+									{/if}
+								{/each}
+							{/if}
+						</div>
+					{/if}
+
 					<div class="detail-block map-block">
 						<div>
 							<h2>Route map</h2>
@@ -490,19 +537,6 @@ import { page } from '$app/stores';
 							<strong>{getTripLocation(trip)}</strong>
 							<span>{trip.visibility === 'private' ? 'Private plan' : 'Public plan'}</span>
 						</div>
-					</div>
-
-					<div class="detail-block options-block">
-						<h2>Options to vote on</h2>
-						{#if voteItems.length === 0}
-							<p class="muted">No options added yet. Group organizers will add hotels and activities here.</p>
-						{:else}
-							<div class="vote-item-list">
-								{#each voteItems as item (item.id)}
-									<VoteItem {item} onVoteChange={handleVoteChange} />
-								{/each}
-							</div>
-						{/if}
 					</div>
 
 					{#if isOwner()}
@@ -520,89 +554,6 @@ import { page } from '$app/stores';
 						<button class="cta-button" onclick={joinTrip} disabled={joinLoading || !!joinStatus} use:scalePress>
 							{joinLoading ? 'Joining...' : (joinStatusLabel[joinStatus] ?? joinStatus) || 'Join Trip'}
 						</button>
-					{/if}
-				</div>
-			{:else if activeTab === 'Members'}
-				<div class="panel member-panel">
-					<div class="section-head">
-						<h2>Members</h2>
-						<span>{memberCount} total</span>
-					</div>
-					{#if canInvite()}
-						<button class="invite-btn" onclick={() => (inviteOpen = true)}>Invite friends</button>
-					{/if}
-					{#if members.length === 0}
-						<div class="empty glass">No members yet</div>
-					{:else}
-						<div class="member-list">
-							{#each members as member}
-								<div class="member-row glass">
-									<div class="avatar-ring avatar">
-										{#if member.photo_url}
-											<img src={member.photo_url} alt={getUserName(member)} />
-										{:else}
-											<div class="avatar-fallback">
-												{getUserInitials(member.first_name, member.last_name, member.username)}
-											</div>
-										{/if}
-									</div>
-									<div class="member-copy">
-										<strong>{getUserName(member)}</strong>
-										<small>@{member.username || 'traveler'}</small>
-									</div>
-									<span class="role">{member.role === 'owner' ? 'Crown' : 'Member'}</span>
-								</div>
-							{/each}
-						</div>
-						{#if membersHasMore}
-							<button class="load-more" onclick={() => trip && loadMembers(trip.id, 'append')}>
-								{membersLoading ? 'Loading...' : 'Load more'}
-							</button>
-						{/if}
-					{/if}
-
-					{#if isOwner()}
-						<div class="requests">
-							<div class="section-head">
-								<h3>Pending requests</h3>
-								<span>{joinRequests.length}</span>
-							</div>
-							{#if joinRequests.length === 0}
-								<div class="empty glass">No pending requests</div>
-							{:else}
-								{#each joinRequests as req}
-									<div class="request glass">
-										<div>
-											<strong>{getUserName(req)}</strong>
-											<p class="muted">{formatRelativeDate(req.created_at)}</p>
-										</div>
-										<div class="actions">
-											<button class="approve" onclick={() => approveJoin(req.user_id)}>Approve</button>
-											<button class="reject" onclick={() => rejectJoin(req.user_id)}>Reject</button>
-										</div>
-									</div>
-								{/each}
-							{/if}
-						</div>
-						<div class="requests">
-							<div class="section-head">
-								<h3>Pending invites</h3>
-								<span>{tripInvites.length}</span>
-							</div>
-							{#if tripInvites.length === 0}
-								<div class="empty glass">No pending invites</div>
-							{:else}
-								{#each tripInvites as inv}
-									<div class="request glass">
-										<div>
-											<strong>{inv.inviter_username ? `@${inv.inviter_username}` : 'Invite sent'}</strong>
-											<p class="muted">{inv.trip_title}</p>
-										</div>
-										<span class="role">{inv.status}</span>
-									</div>
-								{/each}
-							{/if}
-						</div>
 					{/if}
 				</div>
 			{:else if activeTab === 'Photos'}
@@ -647,49 +598,113 @@ import { page } from '$app/stores';
 						{/if}
 					{/if}
 				</div>
-			{:else}
-				<div class="panel discussion-panel">
-					<div class="section-head">
-						<h2>Discussion</h2>
-						<span>{commentCount} messages</span>
-					</div>
-					<div class="comments">
-						{#if comments.length === 0}
-							<div class="empty glass">No comments yet</div>
-						{:else}
-							{#each comments as comment}
-								<div class="comment glass">
-									<div class="comment-head">
-										<strong>{getUserName(comment)}</strong>
-										<span>{formatRelativeDate(comment.created_at)}</span>
-									</div>
-									<p>{comment.body}</p>
-								</div>
-							{/each}
-						{/if}
-					</div>
-
-					<div class="composer glass">
-						<input
-							bind:value={newComment}
-							placeholder="Write a comment..."
-							onkeydown={(e) => {
-								if (e.key === 'Enter' && !e.shiftKey) {
-									e.preventDefault();
-									submitComment();
-								}
-							}}
-						/>
-						<button onclick={submitComment} use:scalePress>Send</button>
-					</div>
-				</div>
 			{/if}
 		</div>
 	{/if}
 </section>
 
+<!-- Members bottom sheet -->
+{#if membersSheetOpen}
+	<button
+		class="sheet-backdrop"
+		onclick={() => (membersSheetOpen = false)}
+		aria-label="Close members panel"
+	></button>
+	<div class="sheet" role="dialog" aria-label="Trip members">
+		<div class="sheet-handle"></div>
+		<div class="sheet-header">
+			<h2>Members</h2>
+			<button class="sheet-close" onclick={() => (membersSheetOpen = false)} aria-label="Close">×</button>
+		</div>
+		{#if sheetMembersLoading}
+			<div class="sheet-state">Loading…</div>
+		{:else if sheetMembers.length === 0}
+			<div class="sheet-state">No members yet</div>
+		{:else}
+			<div class="sheet-list">
+				{#each sheetMembers as member}
+					<div class="sheet-member">
+						<div class="avatar-ring avatar">
+							{#if member.photo_url}
+								<img src={member.photo_url} alt={getUserName(member)} />
+							{:else}
+								<div class="avatar-fallback">
+									{getUserInitials(member.first_name, member.last_name, member.username)}
+								</div>
+							{/if}
+						</div>
+						<div class="member-copy">
+							<strong>{getUserName(member)}</strong>
+							<small>@{member.username || 'traveler'}</small>
+						</div>
+						<span class="role">{member.role === 'owner' ? 'Crown' : 'Member'}</span>
+					</div>
+				{/each}
+			</div>
+		{/if}
+	</div>
+{/if}
+
+<!-- Add Option Bottom Sheet -->
+{#if addOptionOpen}
+	<div class="sheet-backdrop" onclick={() => (addOptionOpen = false)} role="presentation"></div>
+	<div class="bottom-sheet" role="dialog" aria-label="Add option">
+		<div class="sheet-handle"></div>
+		<div class="sheet-header">
+			<h3>Add Option</h3>
+			<button class="sheet-close" onclick={() => (addOptionOpen = false)} aria-label="Close">×</button>
+		</div>
+
+		<div class="sheet-body">
+			<div class="sheet-field">
+				<label class="sheet-label" for="option-category">Category</label>
+				<select id="option-category" class="sheet-select" bind:value={newOptionCategory}>
+					<option value="HOTEL">Hotel</option>
+					<option value="AIRLINE">Airline</option>
+					<option value="ACTIVITY">Activity</option>
+					<option value="OTHER">Other</option>
+				</select>
+			</div>
+
+			<div class="sheet-field">
+				<label class="sheet-label" for="option-title">Title *</label>
+				<input
+					id="option-title"
+					class="sheet-input"
+					type="text"
+					placeholder="e.g. Marriott Rome"
+					bind:value={newOptionTitle}
+				/>
+			</div>
+
+			<div class="sheet-field">
+				<label class="sheet-label" for="option-desc">Description (optional)</label>
+				<textarea
+					id="option-desc"
+					class="sheet-textarea"
+					rows="2"
+					placeholder="Add details..."
+					bind:value={newOptionDesc}
+				></textarea>
+			</div>
+
+			{#if newOptionError}
+				<p class="sheet-error">{newOptionError}</p>
+			{/if}
+
+			<button
+				class="sheet-submit"
+				onclick={submitOption}
+				disabled={!newOptionTitle.trim() || newOptionSubmitting}
+			>
+				{newOptionSubmitting ? 'Adding...' : 'Add Option'}
+			</button>
+		</div>
+	</div>
+{/if}
+
 <!-- Escape key closes photo viewer -->
-<svelte:window onkeydown={(e) => { if (e.key === 'Escape') viewerPhoto = null; }} />
+<svelte:window onkeydown={(e) => { if (e.key === 'Escape') { viewerPhoto = null; membersSheetOpen = false; addOptionOpen = false; } }} />
 
 <InviteModal bind:open={inviteOpen} tripId={trip?.id ?? ''} />
 
@@ -837,6 +852,22 @@ import { page } from '$app/stores';
 		font-size: 0.8rem;
 	}
 
+	.members-chip {
+		padding: 0.45rem 0.7rem;
+		border-radius: var(--radius-pill);
+		background: rgba(255, 255, 255, 0.08);
+		backdrop-filter: blur(16px);
+		font-size: 0.8rem;
+		color: white;
+		border: none;
+		cursor: pointer;
+		transition: background 0.15s ease;
+	}
+
+	.members-chip:hover {
+		background: rgba(255, 255, 255, 0.14);
+	}
+
 	.tabs-wrap {
 		position: sticky;
 		top: 0;
@@ -887,9 +918,7 @@ import { page } from '$app/stores';
 	}
 
 	.detail-panel,
-	.member-panel,
-	.photo-panel,
-	.discussion-panel {
+	.photo-panel {
 		display: grid;
 		gap: 1rem;
 		padding: 1.15rem;
@@ -898,7 +927,7 @@ import { page } from '$app/stores';
 
 	.stats-grid {
 		display: grid;
-		grid-template-columns: repeat(2, 1fr);
+		grid-template-columns: repeat(3, 1fr);
 		gap: 0.75rem;
 	}
 
@@ -921,8 +950,7 @@ import { page } from '$app/stores';
 	}
 
 	.detail-block h2,
-	.section-head h2,
-	.requests h3 {
+	.section-head h2 {
 		font-size: 1rem;
 		font-weight: 800;
 		margin-bottom: 0.35rem;
@@ -961,16 +989,6 @@ import { page } from '$app/stores';
 		margin-bottom: 0.25rem;
 	}
 
-	.options-block {
-		margin-top: 1rem;
-	}
-
-	.vote-item-list {
-		display: grid;
-		gap: 1rem;
-		margin-top: 0.8rem;
-	}
-
 	.section-head {
 		display: flex;
 		justify-content: space-between;
@@ -981,71 +999,6 @@ import { page } from '$app/stores';
 	.section-head span {
 		color: var(--text-secondary);
 		font-size: 0.82rem;
-	}
-
-	.member-list,
-	.requests,
-	.comments {
-		display: grid;
-		gap: 0.75rem;
-	}
-
-	.member-row,
-	.request,
-	.comment {
-		display: flex;
-		align-items: center;
-		gap: 0.8rem;
-		padding: 0.8rem 0.9rem;
-		border-radius: var(--radius-xl);
-	}
-
-	.comment {
-		display: block;
-	}
-
-	.avatar {
-		width: 48px;
-		height: 48px;
-		flex-shrink: 0;
-	}
-
-	.member-copy {
-		flex: 1;
-		min-width: 0;
-	}
-
-	.member-copy small {
-		color: var(--text-secondary);
-	}
-
-	.role {
-		padding: 0.35rem 0.6rem;
-		border-radius: var(--radius-pill);
-		background: rgba(77, 157, 109, 0.16);
-		color: var(--accent-strong);
-		font-size: 0.72rem;
-		font-weight: 700;
-	}
-
-	.actions {
-		display: flex;
-		gap: 0.5rem;
-	}
-
-	.actions button {
-		padding: 0.7rem 0.9rem;
-		border-radius: var(--radius-lg);
-		font-weight: 700;
-	}
-
-	.approve {
-		background: var(--accent-grad);
-		color: white;
-	}
-
-	.reject {
-		background: rgba(255, 255, 255, 0.06);
 	}
 
 	.upload-fab {
@@ -1087,45 +1040,6 @@ import { page } from '$app/stores';
 	.photo img {
 		width: 100%;
 		border-radius: 18px;
-	}
-
-	.comment-head {
-		display: flex;
-		justify-content: space-between;
-		align-items: baseline;
-		gap: 1rem;
-		margin-bottom: 0.45rem;
-	}
-
-	.comment-head span,
-	.comment p {
-		color: var(--text-secondary);
-	}
-
-	.composer {
-		position: sticky;
-		bottom: 5.7rem;
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) auto;
-		gap: 0.6rem;
-		padding: 0.7rem;
-		border-radius: var(--radius-xl);
-	}
-
-	.composer input {
-		min-height: 46px;
-		padding: 0 0.85rem;
-		border-radius: var(--radius-lg);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		background: rgba(255, 255, 255, 0.04);
-	}
-
-	.composer button {
-		min-width: 86px;
-		border-radius: var(--radius-lg);
-		background: var(--accent-grad);
-		color: white;
-		font-weight: 800;
 	}
 
 	.empty,
@@ -1175,45 +1089,363 @@ import { page } from '$app/stores';
 		}
 	}
 
-.owner-actions {
-	display: flex;
-	gap: 12px;
-	margin-top: 8px;
-}
+	.owner-actions {
+		display: flex;
+		gap: 12px;
+		margin-top: 8px;
+	}
 
-.owner-btn {
-	flex: 1;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 6px;
-	padding: 13px 16px;
-	border-radius: 12px;
-	font-size: 14px;
-	font-weight: 600;
-	cursor: pointer;
-	border: none;
-	text-decoration: none;
-	transition: opacity 0.15s ease;
-	-webkit-tap-highlight-color: transparent;
-}
+	.owner-btn {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		padding: 13px 16px;
+		border-radius: 12px;
+		font-size: 14px;
+		font-weight: 600;
+		cursor: pointer;
+		border: none;
+		text-decoration: none;
+		transition: opacity 0.15s ease;
+		-webkit-tap-highlight-color: transparent;
+	}
 
-.owner-btn:disabled {
-	opacity: 0.5;
-	cursor: default;
-}
+	.owner-btn:disabled {
+		opacity: 0.5;
+		cursor: default;
+	}
 
-.owner-btn--edit {
-	background: rgba(77, 157, 109, 0.15);
-	color: #4d9d6d;
-}
+	.owner-btn--edit {
+		background: rgba(77, 157, 109, 0.15);
+		color: #4d9d6d;
+	}
 
-.owner-btn--delete {
-	background: rgba(239, 68, 68, 0.1);
-	color: #ef4444;
-}
+	.owner-btn--delete {
+		background: rgba(239, 68, 68, 0.1);
+		color: #ef4444;
+	}
 
-.owner-btn .material-symbols-outlined {
-	font-size: 18px;
-}
+	.owner-btn .material-symbols-outlined {
+		font-size: 18px;
+	}
+
+	/* ── Members bottom sheet ─────────────────────────────── */
+	.sheet-backdrop {
+		position: fixed;
+		inset: 0;
+		z-index: 30;
+		background: rgba(0, 0, 0, 0.6);
+		backdrop-filter: blur(4px);
+		border: none;
+		cursor: pointer;
+	}
+
+	.sheet {
+		position: fixed;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		z-index: 31;
+		background: #1a2420;
+		border-radius: 20px 20px 0 0;
+		padding: 12px 20px 40px;
+		max-height: 70vh;
+		overflow-y: auto;
+	}
+
+	.sheet-handle {
+		width: 36px;
+		height: 4px;
+		border-radius: 9999px;
+		background: rgba(255, 255, 255, 0.12);
+		margin: 0 auto 16px;
+	}
+
+	.sheet-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 16px;
+	}
+
+	.sheet-header h2 {
+		font-size: 16px;
+		font-weight: 700;
+		color: white;
+	}
+
+	.sheet-close {
+		width: 32px;
+		height: 32px;
+		border-radius: 50%;
+		background: rgba(255, 255, 255, 0.08);
+		color: white;
+		font-size: 1.4rem;
+		display: grid;
+		place-items: center;
+		border: none;
+		cursor: pointer;
+	}
+
+	.sheet-state {
+		text-align: center;
+		color: var(--text-secondary);
+		font-size: 14px;
+		padding: 24px 0;
+	}
+
+	.sheet-list {
+		display: grid;
+		gap: 0.75rem;
+	}
+
+	.sheet-member {
+		display: flex;
+		align-items: center;
+		gap: 0.8rem;
+		padding: 0.8rem 0.9rem;
+		border-radius: var(--radius-xl);
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.06);
+	}
+
+	.avatar {
+		width: 48px;
+		height: 48px;
+		flex-shrink: 0;
+	}
+
+	.avatar-ring {
+		border-radius: 50%;
+		overflow: hidden;
+	}
+
+	.avatar-ring img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.avatar-fallback {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: rgba(77, 157, 109, 0.18);
+		color: var(--accent-strong);
+		font-size: 1rem;
+		font-weight: 700;
+		border-radius: 50%;
+	}
+
+	.member-copy {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.member-copy strong {
+		display: block;
+		color: white;
+		font-size: 0.9rem;
+	}
+
+	.member-copy small {
+		color: var(--text-secondary);
+		font-size: 0.8rem;
+	}
+
+	.role {
+		padding: 0.35rem 0.6rem;
+		border-radius: var(--radius-pill);
+		background: rgba(77, 157, 109, 0.16);
+		color: var(--accent-strong);
+		font-size: 0.72rem;
+		font-weight: 700;
+	}
+
+	.load-more {
+		padding: 0.7rem 1rem;
+		border-radius: var(--radius-pill);
+		background: rgba(255, 255, 255, 0.06);
+		color: var(--text-secondary);
+		font-size: 0.85rem;
+		font-weight: 600;
+		border: none;
+		cursor: pointer;
+		width: 100%;
+	}
+
+	.muted {
+		color: var(--text-secondary);
+	}
+
+	/* ── Vote Items ─────────────────────────────────────────── */
+	.vote-section { gap: 0; }
+
+	.vote-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 12px;
+	}
+
+	.add-option-btn {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		background: rgba(77,157,109,0.12);
+		border: 1px solid rgba(77,157,109,0.3);
+		color: #4d9d6d;
+		border-radius: 8px;
+		padding: 6px 12px;
+		font-size: 13px;
+		font-weight: 600;
+		cursor: pointer;
+	}
+
+	.add-option-btn .material-symbols-outlined { font-size: 16px; }
+
+	.vote-group { margin-bottom: 16px; }
+
+	.vote-cat-label {
+		font-size: 10px;
+		font-weight: 700;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: #64748b;
+		margin-bottom: 8px;
+	}
+
+	.vote-item-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 10px 0;
+		border-bottom: 1px solid rgba(255,255,255,0.06);
+	}
+
+	.vote-item-info { flex: 1; min-width: 0; }
+
+	.vote-item-title {
+		font-size: 15px;
+		color: #f1f5f9;
+		font-weight: 500;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.vote-item-desc {
+		font-size: 12px;
+		color: #64748b;
+		margin-top: 2px;
+	}
+
+	.vote-btn {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 2px;
+		background: rgba(255,255,255,0.06);
+		border: 1px solid rgba(255,255,255,0.1);
+		border-radius: 10px;
+		padding: 6px 10px;
+		color: #94a3b8;
+		cursor: pointer;
+		min-width: 48px;
+		transition: background 0.15s, color 0.15s;
+		flex-shrink: 0;
+		margin-left: 12px;
+	}
+
+	.vote-btn.voted {
+		background: rgba(77,157,109,0.15);
+		border-color: rgba(77,157,109,0.4);
+		color: #4d9d6d;
+	}
+
+	.vote-btn .material-symbols-outlined { font-size: 18px; }
+
+	.vote-count { font-size: 12px; font-weight: 600; }
+
+	.vote-skeleton {
+		height: 60px;
+		border-radius: 8px;
+		background: rgba(255,255,255,0.06);
+		animation: pulse 1.5s infinite;
+	}
+
+	/* ── Add Option bottom sheet ─── */
+	.bottom-sheet {
+		position: fixed;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		z-index: 31;
+		background: #1a2420;
+		border-radius: 20px 20px 0 0;
+		padding: 12px 20px 40px;
+		max-height: 80vh;
+		overflow-y: auto;
+	}
+
+	.bottom-sheet .sheet-header h3 {
+		font-size: 16px;
+		font-weight: 700;
+		color: white;
+	}
+
+	.sheet-body { padding-top: 8px; }
+
+	/* ── Add Option sheet fields ─── */
+	.sheet-field { margin-bottom: 16px; }
+
+	.sheet-label {
+		display: block;
+		font-size: 12px;
+		color: #94a3b8;
+		font-weight: 500;
+		margin-bottom: 6px;
+	}
+
+	.sheet-select,
+	.sheet-input,
+	.sheet-textarea {
+		width: 100%;
+		background: rgba(255,255,255,0.06);
+		border: 1px solid rgba(255,255,255,0.1);
+		border-radius: 8px;
+		padding: 10px 12px;
+		font-size: 15px;
+		color: #f1f5f9;
+		outline: none;
+		box-sizing: border-box;
+	}
+
+	.sheet-select option { background: #1e2a22; }
+
+	.sheet-textarea { resize: none; }
+
+	.sheet-error {
+		color: #f87171;
+		font-size: 13px;
+		margin-bottom: 12px;
+	}
+
+	.sheet-submit {
+		width: 100%;
+		padding: 14px;
+		background: #4d9d6d;
+		border: none;
+		border-radius: 10px;
+		color: white;
+		font-size: 15px;
+		font-weight: 700;
+		cursor: pointer;
+	}
+
+	.sheet-submit:disabled { opacity: 0.4; cursor: not-allowed; }
 </style>

@@ -79,6 +79,11 @@ func (s *Service) CreateTrip(ctx context.Context, ownerID uuid.UUID, in CreateTr
 	if len(in.Description) > 2000 {
 		return nil, fmt.Errorf("%w: description must be at most 2000 characters", ErrValidation)
 	}
+	if v := in.Visibility; v != "" {
+		if v != "public" && v != "private" && v != "group" {
+			return nil, fmt.Errorf("%w: visibility must be one of public, private, group", ErrValidation)
+		}
+	}
 
 	startDate, endDate, err := parseDateRange(in.StartDate, in.EndDate)
 	if err != nil {
@@ -141,7 +146,11 @@ func (s *Service) UpdateTrip(ctx context.Context, requesterID, tripID uuid.UUID,
 		trip.Description = *in.Description
 	}
 	if in.Visibility != nil {
-		trip.Visibility = *in.Visibility
+		v := *in.Visibility
+		if v != "public" && v != "private" && v != "group" {
+			return nil, fmt.Errorf("%w: visibility must be one of public, private, group", ErrValidation)
+		}
+		trip.Visibility = v
 	}
 	if in.Status != nil {
 		trip.Status = *in.Status
