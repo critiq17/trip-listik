@@ -108,11 +108,12 @@
 						body: JSON.stringify({ cover_photo_url: publicUrl })
 					});
 				} catch (uploadErr) {
-					console.warn('Cover photo upload failed, continuing without it', uploadErr);
+					error = 'Trip created! (Cover photo failed to upload — you can add one from the trip page)';
 				}
 			}
 
 			// 2.5 Send Invites
+			const failedInvites: string[] = [];
 			for (const friend of selectedFriends) {
 				try {
 					await apiFetch(`/v1/trips/${trip.id}/invite`, {
@@ -120,8 +121,12 @@
 						body: JSON.stringify({ user_id: friend.id })
 					});
 				} catch (e) {
-					console.warn('Failed to invite friend:', e);
+					failedInvites.push(friend.first_name || friend.username || 'someone');
 				}
+			}
+			if (failedInvites.length > 0) {
+				error = `Trip created! Some invites failed to send: ${failedInvites.join(', ')}`;
+				await new Promise(r => setTimeout(r, 1500));
 			}
 
 			// 3. Clear draft and navigate
