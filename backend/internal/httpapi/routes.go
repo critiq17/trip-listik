@@ -22,7 +22,7 @@ func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 	invitesService := invites.NewService(store, bot, cfg)
 
 	// ── Handlers ──────────────────────────────────────────────────────────────
-	authHandler := &handlers.AuthHandler{Store: store, Cfg: cfg}
+	authHandler := &handlers.AuthHandler{Store: store, Cfg: cfg, Bot: bot}
 	feedHandler := &handlers.FeedHandler{Store: store}
 	tripsHandler := &handlers.TripsHandler{Service: tripsService}
 	membersHandler := &handlers.MembersHandler{Store: store, Bot: bot}

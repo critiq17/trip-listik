@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/critiq17/tripListik/internal/httpapi/validate"
 	"github.com/critiq17/tripListik/internal/store"
 	"github.com/critiq17/tripListik/internal/store/models"
+	"github.com/critiq17/tripListik/internal/telegram"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
@@ -17,6 +19,7 @@ import (
 type AuthHandler struct {
 	Store *store.Store
 	Cfg   *config.Config
+	Bot   *telegram.Bot
 }
 
 type telegramAuthRequest struct {
@@ -84,13 +87,31 @@ func (h *AuthHandler) TelegramAuth(c *fiber.Ctx) error {
 	}
 
 	// Record referral if user came via a profile link (e.g. startapp=profile_<uuid>)
-	if strings.HasPrefix(req.StartParam, "profile_") {
-		referrerIDStr := strings.TrimPrefix(req.StartParam, "profile_")
+	if referrerIDStr, ok := strings.CutPrefix(req.StartParam, "profile_"); ok {
 		if referrerID, parseErr := uuid.Parse(referrerIDStr); parseErr == nil && referrerID != stored.ID {
 			go func() {
 				rCtx, rCancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer rCancel()
-				_ = h.Store.RecordReferral(rCtx, referrerID.String(), stored.ID.String())
+				if err := h.Store.RecordReferral(rCtx, referrerID.String(), stored.ID.String()); err != nil {
+					return // referral already recorded or error — skip notification
+				}
+				// Get referrer to find their telegram_id
+				referrer, err := h.Store.GetUserByID(rCtx, referrerID)
+				if err != nil || referrer == nil || h.Bot == nil {
+					return
+				}
+				// Get new referral count
+				var count int64
+				h.Store.DB.WithContext(rCtx).Table("referrals").Where("referrer_id = ?", referrerID).Count(&count)
+				// Build notification
+				newUserName := stored.Username
+				if newUserName == "" {
+					newUserName = stored.FirstName
+				}
+				text := fmt.Sprintf("🎉 <b>@%s</b> just joined TripListik via your link! You now have <b>%d</b> referral(s).", newUserName, count)
+				nCtx, nCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer nCancel()
+				h.Bot.SendMessage(nCtx, referrer.TelegramID, text)
 			}()
 		}
 	}

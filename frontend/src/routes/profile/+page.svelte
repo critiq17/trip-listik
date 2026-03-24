@@ -16,6 +16,9 @@
 	let error = $state('');
 	let historyTab = $state<'active' | 'past'>('active');
 	let settingsOpen = $state(false);
+	let referralCount = $state(0);
+	let referralLink = $state('');
+	let referralCopied = $state(false);
 
 	onMount(async () => {
 		try {
@@ -59,6 +62,25 @@
 		if (!trip.end_date) return false;
 		return new Date(trip.end_date) < new Date();
 	}));
+
+	$effect(() => {
+		if (settingsOpen && !referralLink && user?.id) {
+			referralLink = `https://t.me/triplistik_bot?startapp=profile_${user.id}`;
+			apiFetch<{ referral_count: number }>('/v1/me/referrals')
+				.then(data => { referralCount = data.referral_count; })
+				.catch(() => {});
+		}
+	});
+
+	const copyReferralLink = async () => {
+		try {
+			await navigator.clipboard.writeText(referralLink);
+			referralCopied = true;
+			setTimeout(() => (referralCopied = false), 2000);
+		} catch {
+			// fallback: do nothing
+		}
+	};
 </script>
 
 <svelte:head>
@@ -175,7 +197,31 @@
 			<h2>Settings</h2>
 			<button class="sheet-close" onclick={() => (settingsOpen = false)} aria-label="Close">×</button>
 		</div>
-		<p class="sheet-placeholder">Coming soon</p>
+		<div class="sheet-body">
+			<p class="sheet-section-label">Referral Link</p>
+			<p class="sheet-section-sub">Share your link and earn referrals when friends join.</p>
+
+			{#if referralLink}
+				<div class="referral-row">
+					<input
+						class="referral-input"
+						type="text"
+						readonly
+						value={referralLink}
+					/>
+					<button class="copy-btn" onclick={copyReferralLink}>
+						<span class="material-symbols-outlined">
+							{referralCopied ? 'check' : 'content_copy'}
+						</span>
+					</button>
+				</div>
+				{#if referralCount > 0}
+					<p class="referral-count">{referralCount} {referralCount === 1 ? 'referral' : 'referrals'} so far</p>
+				{/if}
+			{:else}
+				<div class="referral-skeleton"></div>
+			{/if}
+		</div>
 	</div>
 {/if}
 
@@ -461,5 +507,77 @@ h1 {
 	color: #64748b;
 	font-size: 14px;
 	padding: 32px 0;
+}
+
+.sheet-body {
+	padding: 0 4px;
+}
+
+.sheet-section-label {
+	font-size: 13px;
+	font-weight: 700;
+	color: #f1f5f9;
+	margin-bottom: 4px;
+}
+
+.sheet-section-sub {
+	font-size: 12px;
+	color: #64748b;
+	margin-bottom: 16px;
+}
+
+.referral-row {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.referral-input {
+	flex: 1;
+	background: rgba(255,255,255,0.06);
+	border: 1px solid rgba(255,255,255,0.1);
+	border-radius: 8px;
+	padding: 10px 12px;
+	font-size: 12px;
+	color: #94a3b8;
+	outline: none;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.copy-btn {
+	width: 40px;
+	height: 40px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(77,157,109,0.15);
+	border: 1px solid rgba(77,157,109,0.3);
+	border-radius: 8px;
+	color: #4d9d6d;
+	cursor: pointer;
+	flex-shrink: 0;
+}
+
+.copy-btn .material-symbols-outlined { font-size: 18px; }
+
+.referral-count {
+	font-size: 12px;
+	color: #4d9d6d;
+	margin-top: 8px;
+	font-weight: 600;
+}
+
+.referral-skeleton {
+	height: 40px;
+	border-radius: 8px;
+	background: rgba(255,255,255,0.06);
+	animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+	0%, 100% { opacity: 0.5; }
+	50% { opacity: 0.9; }
 }
 </style>
