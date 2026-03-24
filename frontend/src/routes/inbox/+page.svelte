@@ -94,7 +94,8 @@
 </script>
 
 <svelte:head>
-	<title>Inbox - TripListik</title>
+	<title>TripListik — Inbox</title>
+	<meta name="description" content="Your pending trip invites and travel notifications." />
 </svelte:head>
 
 <section class="inbox-page">

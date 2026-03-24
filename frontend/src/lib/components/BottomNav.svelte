@@ -14,8 +14,11 @@
 	];
 
 	const isActive = (href: string) => {
-		if (href === '/') return $page.url.pathname === '/';
-		return $page.url.pathname.startsWith(href);
+		const path = $page.url.pathname;
+		if (href === '/') return path === '/';
+		// Exclude create routes from matching the Trips tab
+		if (path.startsWith('/create') || path.startsWith('/trips/create')) return false;
+		return path.startsWith(href);
 	};
 
 	const navigate = (href: string) => {

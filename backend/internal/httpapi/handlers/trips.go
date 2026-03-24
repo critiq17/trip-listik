@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"context"
 	"errors"
+	"time"
 
 	"github.com/critiq17/tripListik/internal/httpapi/middleware"
 	"github.com/critiq17/tripListik/internal/trips"
@@ -53,7 +55,10 @@ func (h *TripsHandler) CreateTrip(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
 	}
 
-	trip, err := h.Service.CreateTrip(c.Context(), userID, trips.CreateTripInput{
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
+	defer cancel()
+
+	trip, err := h.Service.CreateTrip(ctx, userID, trips.CreateTripInput{
 		Title:         req.Title,
 		Description:   req.Description,
 		StartDate:     req.StartDate,
@@ -82,7 +87,10 @@ func (h *TripsHandler) GetTrip(c *fiber.Ctx) error {
 		viewerID = &uid
 	}
 
-	view, err := h.Service.GetTrip(c.Context(), tripID, viewerID)
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
+	defer cancel()
+
+	view, err := h.Service.GetTrip(ctx, tripID, viewerID)
 	if err != nil {
 		return mapTripError(err)
 	}
@@ -106,7 +114,10 @@ func (h *TripsHandler) UpdateTrip(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
 	}
 
-	trip, err := h.Service.UpdateTrip(c.Context(), userID, tripID, trips.UpdateTripInput{
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
+	defer cancel()
+
+	trip, err := h.Service.UpdateTrip(ctx, userID, tripID, trips.UpdateTripInput{
 		Title:         req.Title,
 		Description:   req.Description,
 		StartDate:     req.StartDate,
@@ -135,7 +146,10 @@ func (h *TripsHandler) DeleteTrip(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid trip id")
 	}
 
-	if err := h.Service.DeleteTrip(c.Context(), userID, tripID); err != nil {
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
+	defer cancel()
+
+	if err := h.Service.DeleteTrip(ctx, userID, tripID); err != nil {
 		return mapTripError(err)
 	}
 
@@ -154,7 +168,10 @@ func (h *TripsHandler) ListMyTrips(c *fiber.Ctx) error {
 	}
 	status := c.Query("status", "")
 
-	items, err := h.Service.ListUserTrips(c.Context(), userID, status)
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
+	defer cancel()
+
+	items, err := h.Service.ListUserTrips(ctx, userID, status)
 	if err != nil {
 		if errors.Is(err, gorm.ErrInvalidData) {
 			return fiber.NewError(fiber.StatusBadRequest, "invalid status")
@@ -170,7 +187,7 @@ func (h *TripsHandler) ListMyTrips(c *fiber.Ctx) error {
 func mapTripError(err error) error {
 	switch {
 	case errors.Is(err, trips.ErrNotFound):
-		return fiber.NewError(fiber.StatusNotFound, err.Error())
+		return fiber.NewError(fiber.StatusNotFound, "not found")
 	case errors.Is(err, trips.ErrForbidden):
 		return fiber.NewError(fiber.StatusForbidden, "forbidden")
 	case errors.Is(err, trips.ErrValidation):
