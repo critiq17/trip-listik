@@ -56,7 +56,7 @@ func (h *FeedHandler) Feed(c *fiber.Ctx) error {
 	case "friends":
 		userID, ok := middleware.GetUserID(c)
 		if !ok {
-			return fiber.NewError(fiber.StatusUnauthorized, "unauthorized")
+			return c.JSON(fiber.Map{"items": []TripFeedItem{}, "next_cursor": ""})
 		}
 		trips, err = h.Store.ListFriendTrips(ctx, userID, limit, cursor)
 	case "popular":

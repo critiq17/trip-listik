@@ -144,7 +144,7 @@ func computeWorldPercent(countriesVisited int64) float64 {
 	return (float64(countriesVisited) / 195.0) * 100.0
 }
 
-// Referrals returns how many users joined via this user's referral link.
+// Referrals returns the list of users who joined via this user's referral link.
 func (h *ProfileHandler) Referrals(c *fiber.Ctx) error {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
@@ -154,14 +154,26 @@ func (h *ProfileHandler) Referrals(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 	defer cancel()
 
-	var count int64
+	type ReferralEntry struct {
+		Username string    `json:"username"`
+		JoinedAt time.Time `json:"joined_at"`
+	}
+
+	var entries []ReferralEntry
 	err := h.Store.DB.WithContext(ctx).
-		Table("referrals").
-		Where("referrer_id = ?", userID).
-		Count(&count).Error
+		Table("referrals r").
+		Select("COALESCE(u.username, u.first_name, 'User') as username, r.created_at as joined_at").
+		Joins("JOIN users u ON u.id::text = r.referred_id").
+		Where("r.referrer_id = ?", userID).
+		Order("r.created_at DESC").
+		Scan(&entries).Error
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to load referrals")
 	}
-	return c.JSON(fiber.Map{"referral_count": count})
+
+	return c.JSON(fiber.Map{
+		"referral_count": len(entries),
+		"referrals":      entries,
+	})
 }
 

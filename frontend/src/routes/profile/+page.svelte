@@ -1,35 +1,24 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { apiFetch } from '$lib/api';
-	import { env } from '$env/dynamic/public';
 	import TripCard from '$lib/components/TripCard.svelte';
 	import { countUp } from '$lib/transitions';
 	import { getUserInitials, getUserName, normalizeStats } from '$lib/format';
-	import { hapticNotification } from '$lib/telegram';
 	import type { TripCardData, User, UserStats } from '$lib/types';
 
 	let user = $state<User | null>(null);
 	let stats = $state<UserStats | null>(null);
 	let history = $state<TripCardData[]>([]);
-	// Individual element refs — Svelte 5 bind:this on $state array indices is unreliable
 	let statEl0 = $state<HTMLElement | null>(null);
 	let statEl1 = $state<HTMLElement | null>(null);
 	let statEl2 = $state<HTMLElement | null>(null);
-	let statEl3 = $state<HTMLElement | null>(null);
-	let wishlist = $state<Array<{ id: string; country_code: string; city?: string; note?: string }>>([]);
-	let wishCountry = $state('');
-	let wishCity = $state('');
-	let wishNote = $state('');
-	let shareURL = $state('');
-	let referralCount = $state(0);
-	let editing = $state(false);
-	let bio = $state('');
-	let isPublic = $state(true);
-	let saveError = $state('');
-	let wishlistError = $state('');
 	let historyError = $state('');
 	let error = $state('');
 	let historyTab = $state<'active' | 'past'>('active');
+	let settingsOpen = $state(false);
+	let referralCount = $state(0);
+	let referralLink = $state('');
+	let referralCopied = $state(false);
 
 	onMount(async () => {
 		try {
@@ -40,30 +29,10 @@
 
 			if (meRes.status === 'fulfilled') {
 				user = meRes.value.user;
-				bio = user?.bio ?? '';
-				isPublic = user?.is_public ?? true;
-				if (user?.id) {
-					const tg = (window as any).Telegram?.WebApp;
-					const botUsername = env.PUBLIC_BOT_USERNAME || 'triplistikbot';
-					if (tg?.initData) {
-						shareURL = `https://t.me/${botUsername}?startapp=profile_${user.id}`;
-					} else {
-						shareURL = `${window.location.origin}/profile/${user.id}`;
-					}
-				}
 			}
 
 			if (statsRes.status === 'fulfilled') {
 				stats = normalizeStats(statsRes.value as Record<string, unknown>);
-			}
-
-			try {
-				const wishlistRes = await apiFetch<{
-					items: Array<{ id: string; country_code: string; city?: string; note?: string }>;
-				}>('/v1/me/wishlist');
-				wishlist = wishlistRes.items ?? [];
-			} catch (e) {
-				wishlistError = e instanceof Error ? e.message : 'Failed to load wishlist';
 			}
 
 			try {
@@ -73,77 +42,16 @@
 				historyError = e instanceof Error ? e.message : 'Failed to load trips';
 			}
 
-			// Fetch referral count (non-critical)
-			try {
-				const ref = await apiFetch<{ referral_count: number }>('/v1/me/referrals');
-				referralCount = ref.referral_count ?? 0;
-			} catch { /* non-critical */ }
-
 			// Animate stat counters after all data is loaded
 			if (stats) {
 				if (statEl0) countUp(statEl0, stats.total_trips);
 				if (statEl1) countUp(statEl1, stats.countries_visited);
-				if (statEl2) countUp(statEl2, stats.cities_visited);
-				if (statEl3) countUp(statEl3, stats.trips_with_friends);
+				if (statEl2) countUp(statEl2, stats.trips_with_friends);
 			}
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load profile';
 		}
 	});
-
-	const copyShare = async () => {
-		if (!shareURL) return;
-		try {
-			await navigator.clipboard.writeText(shareURL);
-			hapticNotification('success');
-			const tg = (window as any).Telegram?.WebApp;
-			if (tg?.showPopup) {
-				tg.showPopup({ title: 'Copied', message: 'Referral link copied to clipboard!' });
-			} else {
-				alert('Link copied to clipboard!');
-			}
-		} catch (err) {
-			console.error('Failed to copy', err);
-		}
-	};
-
-	const saveProfile = async () => {
-		saveError = '';
-		try {
-			const updated = await apiFetch<User>('/v1/me', {
-				method: 'PATCH',
-				body: JSON.stringify({ bio, is_public: isPublic })
-			});
-			user = updated;
-			editing = false;
-		} catch (err) {
-			saveError = err instanceof Error ? err.message : 'Failed to update profile';
-		}
-	};
-
-	const addWishlist = async () => {
-		if (!wishCountry.trim()) return;
-		const item = await apiFetch<{ id: string; country_code: string; city?: string; note?: string }>(
-			'/v1/me/wishlist',
-			{
-				method: 'POST',
-				body: JSON.stringify({
-					country_code: wishCountry.trim().toUpperCase(),
-					city: wishCity.trim(),
-					note: wishNote.trim()
-				})
-			}
-		);
-		wishlist = [item, ...wishlist];
-		wishCountry = '';
-		wishCity = '';
-		wishNote = '';
-	};
-
-	const removeWishlist = async (id: string) => {
-		await apiFetch(`/v1/me/wishlist/${id}`, { method: 'DELETE' });
-		wishlist = wishlist.filter((item) => item.id !== id);
-	};
 
 	let activeHistory = $derived(history.filter((trip) => {
 		if (!trip.end_date) return true;
@@ -155,10 +63,24 @@
 		return new Date(trip.end_date) < new Date();
 	}));
 
-	// World explored percentage (from stats or default)
-	const worldPct = $derived(
-		stats?.countries_visited ? Math.min((stats.countries_visited / 195) * 100, 100).toFixed(1) : '3.5'
-	);
+	$effect(() => {
+		if (settingsOpen && !referralLink && user?.id) {
+			referralLink = `https://t.me/triplistik_bot?startapp=profile_${user.id}`;
+			apiFetch<{ referral_count: number }>('/v1/me/referrals')
+				.then(data => { referralCount = data.referral_count; })
+				.catch(() => {});
+		}
+	});
+
+	const copyReferralLink = async () => {
+		try {
+			await navigator.clipboard.writeText(referralLink);
+			referralCopied = true;
+			setTimeout(() => (referralCopied = false), 2000);
+		} catch {
+			// fallback: do nothing
+		}
+	};
 </script>
 
 <svelte:head>
@@ -170,7 +92,7 @@
 	<!-- Header -->
 	<header class="header">
 		<p class="eyebrow">Profile</p>
-		<button class="settings-btn" aria-label="Settings">
+		<button class="settings-btn" aria-label="Settings" onclick={() => (settingsOpen = true)}>
 			<span class="material-symbols-outlined">settings</span>
 		</button>
 	</header>
@@ -196,40 +118,6 @@
 				</div>
 			</div>
 
-			<!-- Edit Profile Button -->
-			<div class="edit-row">
-				<button class="edit-btn" onclick={() => (editing = !editing)}>
-					{editing ? 'Cancel' : 'Edit profile'}
-				</button>
-			</div>
-
-			<!-- Edit Panel -->
-			{#if editing}
-				<div class="edit-panel glass">
-					<label class="edit-label">
-						Bio
-						<textarea rows="3" bind:value={bio} placeholder="Tell the world about your travel style"></textarea>
-					</label>
-					<label class="toggle-row">
-						<span>Public profile</span>
-						<input type="checkbox" bind:checked={isPublic} />
-					</label>
-					{#if saveError}
-						<div class="save-error">{saveError}</div>
-					{/if}
-					<button class="save-btn" onclick={saveProfile}>Save changes</button>
-				</div>
-			{/if}
-
-			<!-- World Explored -->
-			<div class="world-row">
-				<p class="world-label">World Explored</p>
-				<p class="world-pct">{worldPct}%</p>
-			</div>
-			<div class="world-bar-track">
-				<div class="world-bar-fill" style="width: {worldPct}%"></div>
-			</div>
-
 			<!-- Stats Row -->
 			<div class="stats-row">
 				<div class="stat">
@@ -244,11 +132,6 @@
 				<div class="divider"></div>
 				<div class="stat">
 					<p bind:this={statEl2}>0</p>
-					<span>Cities</span>
-				</div>
-				<div class="divider"></div>
-				<div class="stat">
-					<p bind:this={statEl3}>0</p>
 					<span>Friends</span>
 				</div>
 			</div>
@@ -297,28 +180,50 @@
 					</div>
 				{/if}
 			</section>
-
-			<!-- Referral Box -->
-			{#if shareURL}
-				<section class="referral-section">
-					<div class="referral-box">
-						<p class="ref-label">Your Referral Link</p>
-						<p class="ref-sub">Invite friends and earn limits</p>
-						{#if referralCount > 0}
-							<p class="ref-count">{referralCount} friend{referralCount !== 1 ? 's' : ''} joined via your link</p>
-						{/if}
-						<div class="ref-row">
-							<input type="text" readonly value={shareURL} class="ref-input" />
-							<button class="copy-btn" onclick={copyShare} aria-label="Copy referral link">
-								<span class="material-symbols-outlined">content_copy</span>
-							</button>
-						</div>
-					</div>
-				</section>
-			{/if}
 		{/if}
 	</main>
 </div>
+
+<!-- Settings bottom sheet -->
+{#if settingsOpen}
+	<button
+		class="sheet-backdrop"
+		onclick={() => (settingsOpen = false)}
+		aria-label="Close settings"
+	></button>
+	<div class="sheet" role="dialog" aria-label="Settings">
+		<div class="sheet-handle"></div>
+		<div class="sheet-header">
+			<h2>Settings</h2>
+			<button class="sheet-close" onclick={() => (settingsOpen = false)} aria-label="Close">×</button>
+		</div>
+		<div class="sheet-body">
+			<p class="sheet-section-label">Referral Link</p>
+			<p class="sheet-section-sub">Share your link and earn referrals when friends join.</p>
+
+			{#if referralLink}
+				<div class="referral-row">
+					<input
+						class="referral-input"
+						type="text"
+						readonly
+						value={referralLink}
+					/>
+					<button class="copy-btn" onclick={copyReferralLink}>
+						<span class="material-symbols-outlined">
+							{referralCopied ? 'check' : 'content_copy'}
+						</span>
+					</button>
+				</div>
+				{#if referralCount > 0}
+					<p class="referral-count">{referralCount} {referralCount === 1 ? 'referral' : 'referrals'} so far</p>
+				{/if}
+			{:else}
+				<div class="referral-skeleton"></div>
+			{/if}
+		</div>
+	</div>
+{/if}
 
 <style>
 .page {
@@ -382,7 +287,7 @@ h1 {
 	display: flex;
 	align-items: center;
 	gap: 20px;
-	margin-bottom: 24px;
+	margin-bottom: 32px;
 }
 
 .avatar-wrap {
@@ -432,150 +337,10 @@ h1 {
 	color: #94a3b8;
 }
 
-/* ── Edit ───────────────────────────────────────────────── */
-.edit-row {
-	margin-bottom: 40px;
-}
-
-.edit-btn {
-	width: 100%;
-	padding: 10px;
-	border: 1px solid rgba(255, 255, 255, 0.1);
-	border-radius: 8px;
-	background: transparent;
-	color: white;
-	font-size: 14px;
-	font-weight: 600;
-	cursor: pointer;
-	transition: background 0.2s ease;
-}
-
-.edit-btn:hover {
-	background: rgba(255, 255, 255, 0.04);
-}
-
-.edit-panel {
-	padding: 16px;
-	border-radius: 12px;
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-	margin-bottom: 24px;
-}
-
-.edit-label {
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-	font-size: 12px;
-	color: #94a3b8;
-	text-transform: uppercase;
-	letter-spacing: 0.1em;
-}
-
-.edit-label textarea {
-	background: rgba(255, 255, 255, 0.06);
-	border: 1px solid rgba(255, 255, 255, 0.08);
-	border-radius: 8px;
-	color: white;
-	padding: 10px 12px;
-	font-size: 14px;
-	resize: none;
-	font-family: inherit;
-}
-
-.toggle-row {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	font-size: 14px;
-	color: #94a3b8;
-}
-
-.toggle-row input {
-	width: 42px;
-	height: 22px;
-	appearance: none;
-	border-radius: 999px;
-	background: rgba(255, 255, 255, 0.12);
-	position: relative;
-	cursor: pointer;
-}
-
-.toggle-row input::after {
-	content: '';
-	position: absolute;
-	top: 2px;
-	left: 2px;
-	width: 18px;
-	height: 18px;
-	border-radius: 999px;
-	background: white;
-	transition: transform 0.2s ease;
-}
-
-.toggle-row input:checked {
-	background: #4d9d6d;
-}
-
-.toggle-row input:checked::after {
-	transform: translateX(20px);
-}
-
-.save-error {
-	color: #f87171;
-	font-size: 13px;
-}
-
-.save-btn {
-	padding: 10px;
-	border-radius: 9999px;
-	background: #4d9d6d;
-	color: white;
-	font-size: 14px;
-	font-weight: 700;
-	border: none;
-	cursor: pointer;
-}
-
-/* ── World Explored ──────────────────────────────────────── */
-.world-row {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	margin-bottom: 8px;
-}
-
-.world-label {
-	font-size: 12px;
-	color: #94a3b8;
-	font-weight: 600;
-	text-transform: uppercase;
-	letter-spacing: 0.1em;
-}
-
-.world-pct {
-	font-size: 24px;
-	font-weight: 700;
-	color: #4d9d6d;
-}
-
-.world-bar-track {
-	height: 1px;
-	background: rgba(255, 255, 255, 0.08);
-	margin-bottom: 40px;
-}
-
-.world-bar-fill {
-	height: 100%;
-	background: #4d9d6d;
-	transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
 /* ── Stats Row ───────────────────────────────────────────── */
 .stats-row {
 	display: grid;
-	grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+	grid-template-columns: 1fr auto 1fr auto 1fr;
 	align-items: center;
 	padding: 16px 0;
 	border-top: 1px solid rgba(255, 255, 255, 0.06);
@@ -666,66 +431,6 @@ h1 {
 	gap: 0;
 }
 
-/* ── Referral ────────────────────────────────────────────── */
-.referral-section {
-	margin-top: 8px;
-}
-
-.referral-box {
-	padding: 20px;
-	border-radius: 12px;
-	background: rgba(77, 157, 109, 0.05);
-	border: 1px solid rgba(77, 157, 109, 0.2);
-}
-
-.ref-label {
-	font-size: 15px;
-	font-weight: 700;
-	color: white;
-	margin-bottom: 4px;
-}
-
-.ref-sub {
-	font-size: 13px;
-	color: #94a3b8;
-	margin-bottom: 12px;
-}
-
-.ref-row {
-	display: flex;
-	gap: 8px;
-	align-items: center;
-}
-
-.ref-input {
-	flex: 1;
-	background: rgba(255, 255, 255, 0.06);
-	border: 1px solid rgba(255, 255, 255, 0.08);
-	border-radius: 8px;
-	padding: 10px 12px;
-	color: white;
-	font-size: 13px;
-	font-family: monospace;
-}
-
-.copy-btn {
-	width: 42px;
-	height: 42px;
-	border-radius: 8px;
-	background: #4d9d6d;
-	color: white;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	border: none;
-	cursor: pointer;
-	flex-shrink: 0;
-}
-
-.copy-btn .material-symbols-outlined {
-	font-size: 20px;
-}
-
 /* ── Misc ────────────────────────────────────────────────── */
 .state {
 	padding: 20px;
@@ -739,5 +444,140 @@ h1 {
 .state.small {
 	padding: 16px;
 	font-size: 13px;
+}
+
+/* ── Settings sheet ──────────────────────────────────────── */
+.sheet-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 30;
+	background: rgba(0, 0, 0, 0.6);
+	backdrop-filter: blur(4px);
+	border: none;
+	cursor: pointer;
+}
+
+.sheet {
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	z-index: 31;
+	background: #1a2420;
+	border-radius: 20px 20px 0 0;
+	padding: 12px 20px 48px;
+}
+
+.sheet-handle {
+	width: 36px;
+	height: 4px;
+	border-radius: 9999px;
+	background: rgba(255, 255, 255, 0.12);
+	margin: 0 auto 16px;
+}
+
+.sheet-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 24px;
+}
+
+.sheet-header h2 {
+	font-size: 16px;
+	font-weight: 700;
+	color: white;
+}
+
+.sheet-close {
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.08);
+	color: white;
+	font-size: 1.4rem;
+	display: grid;
+	place-items: center;
+	border: none;
+	cursor: pointer;
+}
+
+.sheet-placeholder {
+	text-align: center;
+	color: #64748b;
+	font-size: 14px;
+	padding: 32px 0;
+}
+
+.sheet-body {
+	padding: 0 4px;
+}
+
+.sheet-section-label {
+	font-size: 13px;
+	font-weight: 700;
+	color: #f1f5f9;
+	margin-bottom: 4px;
+}
+
+.sheet-section-sub {
+	font-size: 12px;
+	color: #64748b;
+	margin-bottom: 16px;
+}
+
+.referral-row {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.referral-input {
+	flex: 1;
+	background: rgba(255,255,255,0.06);
+	border: 1px solid rgba(255,255,255,0.1);
+	border-radius: 8px;
+	padding: 10px 12px;
+	font-size: 12px;
+	color: #94a3b8;
+	outline: none;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.copy-btn {
+	width: 40px;
+	height: 40px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(77,157,109,0.15);
+	border: 1px solid rgba(77,157,109,0.3);
+	border-radius: 8px;
+	color: #4d9d6d;
+	cursor: pointer;
+	flex-shrink: 0;
+}
+
+.copy-btn .material-symbols-outlined { font-size: 18px; }
+
+.referral-count {
+	font-size: 12px;
+	color: #4d9d6d;
+	margin-top: 8px;
+	font-weight: 600;
+}
+
+.referral-skeleton {
+	height: 40px;
+	border-radius: 8px;
+	background: rgba(255,255,255,0.06);
+	animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+	0%, 100% { opacity: 0.5; }
+	50% { opacity: 0.9; }
 }
 </style>
