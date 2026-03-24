@@ -24,8 +24,9 @@ type inviteRequest struct {
 }
 
 type respondInviteRequest struct {
-	Action  string  `json:"action" validate:"required,oneof=accept decline"`
-	Comment *string `json:"comment"`
+	Action          string  `json:"action" validate:"required,oneof=accept decline"`
+	Comment         *string `json:"comment"`
+	AlternativeDate *string `json:"alternative_date"`
 }
 
 // ── handlers ───────────────────────────────────────────────────────────────────
@@ -79,7 +80,7 @@ func (h *InvitesHandler) RespondInvite(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid action")
 	}
 
-	if err := h.Service.RespondInvite(c.Context(), userID, inviteID, req.Action, req.Comment); err != nil {
+	if err := h.Service.RespondInvite(c.Context(), userID, inviteID, req.Action, req.Comment, req.AlternativeDate); err != nil {
 		return mapInviteError(err)
 	}
 

@@ -104,7 +104,7 @@ func (s *Service) InviteUser(ctx context.Context, requesterID, tripID uuid.UUID,
 // On accept, the user is added as a trip member.
 // Regardless of action, the TG invite message is deleted and the trip owner
 // is notified.
-func (s *Service) RespondInvite(ctx context.Context, userID, inviteID uuid.UUID, action string, comment *string) error {
+func (s *Service) RespondInvite(ctx context.Context, userID, inviteID uuid.UUID, action string, comment *string, alternativeDate *string) error {
 	invite, err := s.store.GetInviteByID(ctx, inviteID)
 	if err != nil {
 		return fmt.Errorf("invites.RespondInvite get: %w", err)
@@ -118,7 +118,7 @@ func (s *Service) RespondInvite(ctx context.Context, userID, inviteID uuid.UUID,
 
 	status := map[string]string{"accept": "accepted", "decline": "declined"}[action]
 
-	if err := s.store.UpdateInviteStatus(ctx, inviteID, status, comment); err != nil {
+	if err := s.store.UpdateInviteStatus(ctx, inviteID, status, comment, alternativeDate); err != nil {
 		return fmt.Errorf("invites.RespondInvite update status: %w", err)
 	}
 
@@ -129,7 +129,7 @@ func (s *Service) RespondInvite(ctx context.Context, userID, inviteID uuid.UUID,
 	}
 
 	// Delete TG invite message and notify owner — non-blocking.
-	go s.handleInviteResponse(invite, userID, status)
+	go s.handleInviteResponse(invite, userID, status, comment, alternativeDate)
 
 	return nil
 }
@@ -220,7 +220,7 @@ func (s *Service) sendInviteNotification(invite *models.TripInvite, trip *models
 	}
 }
 
-func (s *Service) handleInviteResponse(invite *models.TripInvite, responderID uuid.UUID, status string) {
+func (s *Service) handleInviteResponse(invite *models.TripInvite, responderID uuid.UUID, status string, comment *string, alternativeDate *string) {
 	bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -258,9 +258,15 @@ func (s *Service) handleInviteResponse(invite *models.TripInvite, responderID uu
 
 	var text string
 	if status == "accepted" {
-		text = fmt.Sprintf("✅ <b>%s</b> принял(а) приглашение в поездку «<b>%s</b>»", responderName, trip.Title)
+		text = fmt.Sprintf("✅ <b>%s</b> accepted your invite to <b>%s</b>!", responderName, trip.Title)
 	} else {
-		text = fmt.Sprintf("❌ <b>%s</b> отклонил(а) приглашение в поездку «<b>%s</b>»", responderName, trip.Title)
+		text = fmt.Sprintf("❌ <b>%s</b> declined your invite to <b>%s</b>.", responderName, trip.Title)
+		if comment != nil && *comment != "" {
+			text += fmt.Sprintf("\nReason: %s", *comment)
+		}
+		if alternativeDate != nil && *alternativeDate != "" {
+			text += fmt.Sprintf("\nSuggested date: %s", *alternativeDate)
+		}
 	}
 
 	nctx, ncancel := context.WithTimeout(context.Background(), 5*time.Second)

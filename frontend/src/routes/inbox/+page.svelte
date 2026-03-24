@@ -54,18 +54,42 @@
 		}
 	});
 
-	const respondInvite = async (inviteId: string, action: 'accept' | 'decline') => {
-		// Optimistic UI hide
+	let declineSheetOpen = $state(false);
+	let decliningInviteId = $state('');
+	let declineReason = $state('');
+	let declineSuggestDate = $state('');
+	let declineSubmitting = $state(false);
+
+	const respondInvite = async (inviteId: string, action: 'accept' | 'decline', reason?: string, suggestDate?: string) => {
+		// Optimistic UI: fade-remove card (set a "removing" state, then filter after transition)
 		invites = invites.filter((inv) => inv.id !== inviteId);
 		try {
+			const body: Record<string, unknown> = { action };
+			if (reason) body.comment = reason;
+			if (suggestDate) body.alternative_date = suggestDate;
 			await apiFetch(`/v1/invites/${inviteId}/respond`, {
 				method: 'POST',
-				body: JSON.stringify({ action })
+				body: JSON.stringify(body)
 			});
 		} catch (err) {
 			console.error(`Failed to ${action} invite:`, err);
-			// Ideally we'd rollback, but for simplicity we rely on next reload
 		}
+	};
+
+	const openDeclineSheet = (inviteId: string) => {
+		decliningInviteId = inviteId;
+		declineReason = '';
+		declineSuggestDate = '';
+		declineSheetOpen = true;
+	};
+
+	const confirmDecline = async () => {
+		if (!decliningInviteId) return;
+		declineSubmitting = true;
+		declineSheetOpen = false;
+		await respondInvite(decliningInviteId, 'decline', declineReason || undefined, declineSuggestDate || undefined);
+		declineSubmitting = false;
+		decliningInviteId = '';
 	};
 </script>
 
@@ -105,7 +129,7 @@
 						</p>
 						<div class="actions">
 							<button class="btn accept" onclick={() => respondInvite(inv.id, 'accept')}>Accept</button>
-							<button class="btn decline" onclick={() => respondInvite(inv.id, 'decline')}>Decline</button>
+							<button class="btn decline" onclick={() => openDeclineSheet(inv.id)}>Decline</button>
 						</div>
 					</div>
 				{/each}
@@ -136,6 +160,48 @@
 		{/if}
 	</div>
 </section>
+
+<!-- Decline bottom sheet -->
+{#if declineSheetOpen}
+	<div
+		class="sheet-backdrop"
+		onclick={() => (declineSheetOpen = false)}
+		role="presentation"
+	></div>
+	<div class="decline-sheet" role="dialog" aria-label="Decline invite">
+		<div class="sheet-handle"></div>
+		<h3 class="sheet-title">Decline Invite</h3>
+
+		<div class="sheet-field">
+			<label class="sheet-label" for="decline-reason">Reason (optional)</label>
+			<textarea
+				id="decline-reason"
+				class="sheet-textarea"
+				rows="3"
+				placeholder="Let them know why..."
+				bind:value={declineReason}
+			></textarea>
+		</div>
+
+		<div class="sheet-field">
+			<label class="sheet-label" for="decline-date">Suggest another date (optional)</label>
+			<input
+				id="decline-date"
+				class="sheet-input"
+				type="date"
+				bind:value={declineSuggestDate}
+			/>
+		</div>
+
+		<button
+			class="decline-confirm-btn"
+			onclick={confirmDecline}
+			disabled={declineSubmitting}
+		>
+			{declineSubmitting ? 'Declining...' : 'Decline Invite'}
+		</button>
+	</div>
+{/if}
 
 <style>
 	.inbox-page {
@@ -308,5 +374,84 @@
 		0% { opacity: 0.6; }
 		50% { opacity: 0.3; }
 		100% { opacity: 0.6; }
+	}
+
+	.sheet-backdrop {
+		position: fixed;
+		inset: 0;
+		background: rgba(0,0,0,0.5);
+		z-index: 100;
+	}
+
+	.decline-sheet {
+		position: fixed;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		z-index: 101;
+		background: #1e2a22;
+		border-radius: 20px 20px 0 0;
+		padding: 12px 20px 32px;
+		max-width: 480px;
+		margin: 0 auto;
+	}
+
+	.sheet-handle {
+		width: 40px;
+		height: 4px;
+		background: rgba(255,255,255,0.2);
+		border-radius: 2px;
+		margin: 0 auto 16px;
+	}
+
+	.sheet-title {
+		font-size: 17px;
+		font-weight: 700;
+		color: #f1f5f9;
+		margin-bottom: 20px;
+	}
+
+	.sheet-field {
+		margin-bottom: 16px;
+	}
+
+	.sheet-label {
+		display: block;
+		font-size: 12px;
+		color: #94a3b8;
+		font-weight: 500;
+		margin-bottom: 6px;
+	}
+
+	.sheet-textarea,
+	.sheet-input {
+		width: 100%;
+		background: rgba(255,255,255,0.06);
+		border: 1px solid rgba(255,255,255,0.1);
+		border-radius: 8px;
+		padding: 10px 12px;
+		font-size: 15px;
+		color: #f1f5f9;
+		outline: none;
+		box-sizing: border-box;
+		resize: none;
+	}
+
+	.decline-confirm-btn {
+		width: 100%;
+		padding: 14px;
+		background: #ef4444;
+		border: none;
+		border-radius: 10px;
+		color: white;
+		font-size: 15px;
+		font-weight: 700;
+		cursor: pointer;
+		margin-top: 8px;
+	}
+
+	.decline-confirm-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 </style>
