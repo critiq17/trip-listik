@@ -118,3 +118,16 @@ export type InviteItem = {
 	inviter_last_name?: string;
 	inviter_photo_url?: string;
 };
+
+export type VoteItemData = {
+	id: string;
+	trip_id: string;
+	category: string;
+	title: string;
+	description?: string;
+	image_url?: string;
+	added_by: string;
+	vote_count: number;
+	has_voted: boolean;
+	created_at: string;
+};

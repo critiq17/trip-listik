@@ -23,7 +23,7 @@
 		getUserInitials,
 		getUserName
 	} from '$lib/format';
-	import type { InviteItem, JoinRequest, Member, Photo, TripCardData } from '$lib/types';
+	import type { InviteItem, JoinRequest, Member, Photo, TripCardData, VoteItemData } from '$lib/types';
 
 	type TripDetailResponse = {
 		trip: TripCardData;
@@ -71,6 +71,17 @@
 	let membersSheetOpen = $state(false);
 	let sheetMembers = $state<Member[]>([]);
 	let sheetMembersLoading = $state(false);
+
+	// Vote items
+	let voteItems = $state<VoteItemData[]>([]);
+	let voteItemsLoading = $state(false);
+	let addOptionOpen = $state(false);
+	// Add option form
+	let newOptionCategory = $state('ACTIVITY');
+	let newOptionTitle = $state('');
+	let newOptionDesc = $state('');
+	let newOptionSubmitting = $state(false);
+	let newOptionError = $state('');
 
 	const tabs = ['Details', 'Photos'];
 	let loadedTabs = new Set<string>();
@@ -260,6 +271,70 @@
 		}
 	}
 
+	async function loadVoteItems(id: string) {
+		if (!viewerIsMember) return;
+		voteItemsLoading = true;
+		try {
+			const data = await apiFetch<{ items: VoteItemData[] }>(`/v1/trips/${id}/vote-items`);
+			voteItems = data.items ?? [];
+		} catch {
+			// non-critical — silently ignore
+		} finally {
+			voteItemsLoading = false;
+		}
+	}
+
+	async function handleVote(item: VoteItemData) {
+		if (!trip) return;
+		// Optimistic update
+		const prev = { vote_count: item.vote_count, has_voted: item.has_voted };
+		if (item.has_voted) {
+			item.vote_count = Math.max(0, item.vote_count - 1);
+			item.has_voted = false;
+		} else {
+			item.vote_count += 1;
+			item.has_voted = true;
+		}
+		voteItems = [...voteItems]; // trigger reactivity
+		try {
+			const method = prev.has_voted ? 'DELETE' : 'POST';
+			const res = await apiFetch<{ item_id: string; vote_count: number }>(
+				`/v1/trips/${trip.id}/vote-items/${item.id}/vote`,
+				{ method }
+			);
+			// Sync server count
+			voteItems = voteItems.map(v => v.id === item.id ? { ...v, vote_count: res.vote_count } : v);
+		} catch {
+			// Roll back
+			voteItems = voteItems.map(v => v.id === item.id ? { ...v, ...prev } : v);
+		}
+	}
+
+	async function submitOption() {
+		if (!trip || !newOptionTitle.trim()) return;
+		newOptionSubmitting = true;
+		newOptionError = '';
+		try {
+			const item = await apiFetch<VoteItemData>(`/v1/trips/${trip.id}/vote-items`, {
+				method: 'POST',
+				body: JSON.stringify({
+					category: newOptionCategory,
+					title: newOptionTitle.trim(),
+					description: newOptionDesc.trim() || undefined
+				})
+			});
+			voteItems = [...voteItems, { ...item, vote_count: 0, has_voted: false }];
+			newOptionTitle = '';
+			newOptionDesc = '';
+			newOptionCategory = 'ACTIVITY';
+			addOptionOpen = false;
+		} catch (err) {
+			newOptionError = err instanceof Error ? err.message : 'Failed to add option';
+		} finally {
+			newOptionSubmitting = false;
+		}
+	}
+
 	onMount(() => {
 		setupBackButton(() => history.back());
 		const id = $page.params.id ?? '';
@@ -278,6 +353,11 @@
 			if (!exists) {
 				photoCount += 1;
 			}
+		});
+
+		stream.addEventListener('vote_item_updated', (event) => {
+			const data = JSON.parse((event as MessageEvent).data) as { item_id: string; vote_count: number };
+			voteItems = voteItems.map(v => v.id === data.item_id ? { ...v, vote_count: data.vote_count } : v);
 		});
 
 		stream.onerror = () => {
@@ -307,6 +387,13 @@
 			photosCursor = null;
 			photosHasMore = true;
 			loadPhotos(trip.id, 'reset');
+		}
+	});
+
+	$effect(() => {
+		if (trip && activeTab === 'Details' && !loadedTabs.has('Details') && viewerIsMember) {
+			loadedTabs.add('Details');
+			loadVoteItems(trip.id);
 		}
 	});
 
@@ -393,6 +480,53 @@
 						<h2>Dates</h2>
 						<p>{formatLongDate(trip.start_date)} to {formatLongDate(trip.end_date)}</p>
 					</div>
+
+					<!-- Vote Items -->
+					{#if viewerIsMember}
+						<div class="detail-block vote-section">
+							<div class="vote-header">
+								<h2>Options</h2>
+								<button class="add-option-btn" onclick={() => (addOptionOpen = true)}>
+									<span class="material-symbols-outlined">add</span>
+									Add option
+								</button>
+							</div>
+
+							{#if voteItemsLoading}
+								<div class="vote-skeleton"></div>
+							{:else if voteItems.length === 0}
+								<p class="muted">No options yet. Add hotels, airlines, or activities to vote on.</p>
+							{:else}
+								<!-- Group by category -->
+								{#each ['HOTEL', 'AIRLINE', 'ACTIVITY', 'OTHER'] as cat}
+									{#if voteItems.some(v => v.category === cat)}
+										<div class="vote-group">
+											<p class="vote-cat-label">{cat}</p>
+											{#each voteItems.filter(v => v.category === cat) as item (item.id)}
+												<div class="vote-item-row">
+													<div class="vote-item-info">
+														<p class="vote-item-title">{item.title}</p>
+														{#if item.description}
+															<p class="vote-item-desc">{item.description}</p>
+														{/if}
+													</div>
+													<button
+														class="vote-btn"
+														class:voted={item.has_voted}
+														onclick={() => handleVote(item)}
+														aria-label="Vote for {item.title}"
+													>
+														<span class="material-symbols-outlined">thumb_up</span>
+														<span class="vote-count">{item.vote_count}</span>
+													</button>
+												</div>
+											{/each}
+										</div>
+									{/if}
+								{/each}
+							{/if}
+						</div>
+					{/if}
 
 					<div class="detail-block map-block">
 						<div>
@@ -511,8 +645,66 @@
 	</div>
 {/if}
 
+<!-- Add Option Bottom Sheet -->
+{#if addOptionOpen}
+	<div class="sheet-backdrop" onclick={() => (addOptionOpen = false)} role="presentation"></div>
+	<div class="bottom-sheet" role="dialog" aria-label="Add option">
+		<div class="sheet-handle"></div>
+		<div class="sheet-header">
+			<h3>Add Option</h3>
+			<button class="sheet-close" onclick={() => (addOptionOpen = false)} aria-label="Close">×</button>
+		</div>
+
+		<div class="sheet-body">
+			<div class="sheet-field">
+				<label class="sheet-label" for="option-category">Category</label>
+				<select id="option-category" class="sheet-select" bind:value={newOptionCategory}>
+					<option value="HOTEL">Hotel</option>
+					<option value="AIRLINE">Airline</option>
+					<option value="ACTIVITY">Activity</option>
+					<option value="OTHER">Other</option>
+				</select>
+			</div>
+
+			<div class="sheet-field">
+				<label class="sheet-label" for="option-title">Title *</label>
+				<input
+					id="option-title"
+					class="sheet-input"
+					type="text"
+					placeholder="e.g. Marriott Rome"
+					bind:value={newOptionTitle}
+				/>
+			</div>
+
+			<div class="sheet-field">
+				<label class="sheet-label" for="option-desc">Description (optional)</label>
+				<textarea
+					id="option-desc"
+					class="sheet-textarea"
+					rows="2"
+					placeholder="Add details..."
+					bind:value={newOptionDesc}
+				></textarea>
+			</div>
+
+			{#if newOptionError}
+				<p class="sheet-error">{newOptionError}</p>
+			{/if}
+
+			<button
+				class="sheet-submit"
+				onclick={submitOption}
+				disabled={!newOptionTitle.trim() || newOptionSubmitting}
+			>
+				{newOptionSubmitting ? 'Adding...' : 'Add Option'}
+			</button>
+		</div>
+	</div>
+{/if}
+
 <!-- Escape key closes photo viewer -->
-<svelte:window onkeydown={(e) => { if (e.key === 'Escape') { viewerPhoto = null; membersSheetOpen = false; } }} />
+<svelte:window onkeydown={(e) => { if (e.key === 'Escape') { viewerPhoto = null; membersSheetOpen = false; addOptionOpen = false; } }} />
 
 <InviteModal bind:open={inviteOpen} tripId={trip?.id ?? ''} />
 
@@ -1089,4 +1281,171 @@
 	.muted {
 		color: var(--text-secondary);
 	}
+
+	/* ── Vote Items ─────────────────────────────────────────── */
+	.vote-section { gap: 0; }
+
+	.vote-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 12px;
+	}
+
+	.add-option-btn {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		background: rgba(77,157,109,0.12);
+		border: 1px solid rgba(77,157,109,0.3);
+		color: #4d9d6d;
+		border-radius: 8px;
+		padding: 6px 12px;
+		font-size: 13px;
+		font-weight: 600;
+		cursor: pointer;
+	}
+
+	.add-option-btn .material-symbols-outlined { font-size: 16px; }
+
+	.vote-group { margin-bottom: 16px; }
+
+	.vote-cat-label {
+		font-size: 10px;
+		font-weight: 700;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: #64748b;
+		margin-bottom: 8px;
+	}
+
+	.vote-item-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 10px 0;
+		border-bottom: 1px solid rgba(255,255,255,0.06);
+	}
+
+	.vote-item-info { flex: 1; min-width: 0; }
+
+	.vote-item-title {
+		font-size: 15px;
+		color: #f1f5f9;
+		font-weight: 500;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.vote-item-desc {
+		font-size: 12px;
+		color: #64748b;
+		margin-top: 2px;
+	}
+
+	.vote-btn {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 2px;
+		background: rgba(255,255,255,0.06);
+		border: 1px solid rgba(255,255,255,0.1);
+		border-radius: 10px;
+		padding: 6px 10px;
+		color: #94a3b8;
+		cursor: pointer;
+		min-width: 48px;
+		transition: background 0.15s, color 0.15s;
+		flex-shrink: 0;
+		margin-left: 12px;
+	}
+
+	.vote-btn.voted {
+		background: rgba(77,157,109,0.15);
+		border-color: rgba(77,157,109,0.4);
+		color: #4d9d6d;
+	}
+
+	.vote-btn .material-symbols-outlined { font-size: 18px; }
+
+	.vote-count { font-size: 12px; font-weight: 600; }
+
+	.vote-skeleton {
+		height: 60px;
+		border-radius: 8px;
+		background: rgba(255,255,255,0.06);
+		animation: pulse 1.5s infinite;
+	}
+
+	/* ── Add Option bottom sheet ─── */
+	.bottom-sheet {
+		position: fixed;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		z-index: 31;
+		background: #1a2420;
+		border-radius: 20px 20px 0 0;
+		padding: 12px 20px 40px;
+		max-height: 80vh;
+		overflow-y: auto;
+	}
+
+	.bottom-sheet .sheet-header h3 {
+		font-size: 16px;
+		font-weight: 700;
+		color: white;
+	}
+
+	.sheet-body { padding-top: 8px; }
+
+	/* ── Add Option sheet fields ─── */
+	.sheet-field { margin-bottom: 16px; }
+
+	.sheet-label {
+		display: block;
+		font-size: 12px;
+		color: #94a3b8;
+		font-weight: 500;
+		margin-bottom: 6px;
+	}
+
+	.sheet-select,
+	.sheet-input,
+	.sheet-textarea {
+		width: 100%;
+		background: rgba(255,255,255,0.06);
+		border: 1px solid rgba(255,255,255,0.1);
+		border-radius: 8px;
+		padding: 10px 12px;
+		font-size: 15px;
+		color: #f1f5f9;
+		outline: none;
+		box-sizing: border-box;
+	}
+
+	.sheet-select option { background: #1e2a22; }
+
+	.sheet-textarea { resize: none; }
+
+	.sheet-error {
+		color: #f87171;
+		font-size: 13px;
+		margin-bottom: 12px;
+	}
+
+	.sheet-submit {
+		width: 100%;
+		padding: 14px;
+		background: #4d9d6d;
+		border: none;
+		border-radius: 10px;
+		color: white;
+		font-size: 15px;
+		font-weight: 700;
+		cursor: pointer;
+	}
+
+	.sheet-submit:disabled { opacity: 0.4; cursor: not-allowed; }
 </style>
