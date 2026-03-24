@@ -104,7 +104,7 @@
 
 /* ── Feed variant ──────────────────────────────────────── */
 .card.feed .media {
-	aspect-ratio: 4 / 5;
+	aspect-ratio: 3 / 4;
 	position: relative;
 	overflow: hidden;
 }
@@ -181,7 +181,7 @@
 .bottom {
 	position: absolute;
 	bottom: 0; left: 0; right: 0;
-	padding: 24px;
+	padding: 16px;
 	display: flex;
 	justify-content: space-between;
 	align-items: flex-end;
@@ -189,7 +189,7 @@
 }
 
 .info h3 {
-	font-size: 22px;
+	font-size: 18px;
 	font-weight: 700;
 	color: white;
 	margin: 0 0 4px;
@@ -197,7 +197,7 @@
 }
 
 .info p {
-	font-size: 14px;
+	font-size: 12px;
 	color: rgba(255, 255, 255, 0.75);
 	font-weight: 500;
 	margin: 0;
