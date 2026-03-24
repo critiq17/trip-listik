@@ -16,6 +16,11 @@
 	let publicHasMore = $state(true);
 	let publicSentinel = $state<HTMLDivElement | null>(null);
 
+	// ── Trending trips ──────────────────────────────────────
+	let trendingItems = $state<TripCardData[]>([]);
+	let trendingLoading = $state(true);
+	let trendingError = $state('');
+
 	// ── Friends' trips ──────────────────────────────────────
 	let friendItems = $state<TripCardData[]>([]);
 	let friendLoading = $state(true);
@@ -52,6 +57,21 @@
 		}
 	};
 
+	const fetchTrending = async () => {
+		trendingLoading = true;
+		trendingError = '';
+		try {
+			const data = await apiFetch<{ items: TripCardData[] }>(
+				'/v1/feed?filter=popular&limit=6'
+			);
+			trendingItems = data.items ?? [];
+		} catch (err) {
+			trendingError = err instanceof Error ? err.message : 'Failed to load';
+		} finally {
+			trendingLoading = false;
+		}
+	};
+
 	const fetchFriendTrips = async () => {
 		friendLoading = true;
 		friendError = '';
@@ -84,6 +104,7 @@
 	onMount(() => {
 		expandTelegram();
 		ready = true;
+		fetchTrending();
 		fetchPublicTrips('reset');
 		fetchFriendTrips();
 		return observePublic();
@@ -115,9 +136,27 @@
 			<p class="subtitle">Curated journeys from the community.</p>
 		</section>
 
-		<!-- Public Trips -->
+		<!-- Trending -->
 		<section class="feed-section">
-			<p class="section-label">Public Trips</p>
+			<p class="section-label">Trending</p>
+			<div class="trending-row">
+				{#if trendingLoading}
+					{#each Array(3) as _}
+						<div class="trending-skeleton"></div>
+					{/each}
+				{:else if trendingItems.length > 0}
+					{#each trendingItems as trip (trip.id)}
+						<div class="trending-card-wrap">
+							<TripCard {trip} variant="compact" />
+						</div>
+					{/each}
+				{/if}
+			</div>
+		</section>
+
+		<!-- For You -->
+		<section class="feed-section">
+			<p class="section-label">For You</p>
 			<div class="cards">
 				{#if publicLoading}
 					{#each Array(2) as _}
@@ -152,7 +191,7 @@
 				{:else if friendError === 'connect' || friendItems.length === 0}
 					<div class="state connect">
 						<span class="material-symbols-outlined connect-icon">group</span>
-						<p>Connect with friends to see their trips</p>
+						<p>Log in to see friends' trips</p>
 					</div>
 				{:else if friendError}
 					<div class="state error">{friendError}</div>
@@ -301,5 +340,35 @@ h1 {
 
 .sentinel {
 	height: 1px;
+}
+
+/* ── Trending row ────────────────────────────────────────── */
+.trending-row {
+	display: flex;
+	gap: 12px;
+	overflow-x: auto;
+	padding-bottom: 8px;
+	scrollbar-width: none;
+}
+
+.trending-row::-webkit-scrollbar {
+	display: none;
+}
+
+.trending-card-wrap {
+	flex: 0 0 160px;
+}
+
+.trending-skeleton {
+	flex: 0 0 160px;
+	aspect-ratio: 3 / 4;
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.06);
+	animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+	0%, 100% { opacity: 0.6; }
+	50% { opacity: 1; }
 }
 </style>
