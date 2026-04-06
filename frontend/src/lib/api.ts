@@ -7,10 +7,17 @@ let _token = '';
 let _refreshToken = '';
 
 export const getToken = () => _token;
-export const setToken = (t: string) => { _token = t; };
+export const setToken = (t: string) => {
+	_token = t;
+};
 export const getRefreshToken = () => _refreshToken;
-export const setRefreshToken = (t: string) => { _refreshToken = t; };
-export const clearTokens = () => { _token = ''; _refreshToken = ''; };
+export const setRefreshToken = (t: string) => {
+	_refreshToken = t;
+};
+export const clearTokens = () => {
+	_token = '';
+	_refreshToken = '';
+};
 
 const refreshSession = async () => {
 	if (!_refreshToken) throw new Error('Missing refresh token');
@@ -96,12 +103,11 @@ export async function presignTripPhoto(tripId: string, fileName: string, content
 	});
 }
 
-export async function uploadSignedPhoto(signedUrl: string, token: string, file: File) {
+export async function uploadSignedPhoto(signedUrl: string, _token: string, file: File) {
 	const res = await fetch(signedUrl, {
 		method: 'PUT',
 		headers: {
-			'Content-Type': file.type,
-			Authorization: `Bearer ${token}`
+			'Content-Type': file.type
 		},
 		body: file
 	});
