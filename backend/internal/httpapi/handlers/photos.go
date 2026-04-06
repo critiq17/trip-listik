@@ -182,8 +182,15 @@ func (h *PhotosHandler) PresignUpload(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to create signed upload url")
 	}
 
+	// Supabase returns a relative signedUrl (e.g. /storage/v1/object/upload/sign/...)
+	// Prepend the base URL so the client can upload directly to Supabase.
+	signedURL := upload.SignedURL
+	if len(signedURL) > 0 && signedURL[0] == '/' {
+		signedURL = h.Storage.BaseURL + signedURL
+	}
+
 	return c.JSON(fiber.Map{
-		"signed_url": upload.SignedURL,
+		"signed_url": signedURL,
 		"token":      upload.Token,
 		"path":       upload.Path,
 	})

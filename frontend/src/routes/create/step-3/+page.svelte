@@ -31,9 +31,8 @@
 		}
 		searchTimeout = setTimeout(async () => {
 			try {
-				const res = await apiFetch<{ users: User[] }>(`/v1/users/search?q=${encodeURIComponent(friendSearch.trim())}`);
-				// Filter out already selected
-				searchResults = (res.users || []).filter(u => !selectedFriends.some(sf => sf.id === u.id));
+				const res = await apiFetch<{ items: User[] }>(`/v1/users/search?q=${encodeURIComponent(friendSearch.trim())}`);
+				searchResults = (res.items || []).filter(u => !selectedFriends.some(sf => sf.id === u.id));
 			} catch (e) {
 				console.error('Search failed', e);
 			}
