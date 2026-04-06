@@ -3,9 +3,11 @@ package handlers
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/critiq17/tripListik/internal/httpapi/middleware"
+	"github.com/critiq17/tripListik/internal/supabase"
 	"github.com/critiq17/tripListik/internal/trips"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -14,6 +16,8 @@ import (
 
 type TripsHandler struct {
 	Service *trips.Service
+	Storage *supabase.StorageClient
+	Bucket  string
 }
 
 // ── request bodies ─────────────────────────────────────────────────────────────
@@ -54,6 +58,7 @@ func (h *TripsHandler) CreateTrip(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
 	}
+	req.CoverPhotoURL = h.normalizeCoverPhotoURL(req.CoverPhotoURL)
 
 	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 	defer cancel()
@@ -72,6 +77,7 @@ func (h *TripsHandler) CreateTrip(c *fiber.Ctx) error {
 	if err != nil {
 		return mapTripError(err)
 	}
+	normalizeTripCoverPhoto(h.Storage, h.Bucket, trip)
 
 	return c.Status(fiber.StatusCreated).JSON(trip)
 }
@@ -94,6 +100,7 @@ func (h *TripsHandler) GetTrip(c *fiber.Ctx) error {
 	if err != nil {
 		return mapTripError(err)
 	}
+	normalizeTripCoverPhoto(h.Storage, h.Bucket, view.Trip)
 
 	return c.JSON(view)
 }
@@ -113,6 +120,10 @@ func (h *TripsHandler) UpdateTrip(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
 	}
+	if req.CoverPhotoURL != nil {
+		normalized := h.normalizeCoverPhotoURL(*req.CoverPhotoURL)
+		req.CoverPhotoURL = &normalized
+	}
 
 	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 	defer cancel()
@@ -131,6 +142,7 @@ func (h *TripsHandler) UpdateTrip(c *fiber.Ctx) error {
 	if err != nil {
 		return mapTripError(err)
 	}
+	normalizeTripCoverPhoto(h.Storage, h.Bucket, trip)
 
 	return c.JSON(trip)
 }
@@ -178,8 +190,17 @@ func (h *TripsHandler) ListMyTrips(c *fiber.Ctx) error {
 		}
 		return mapTripError(err)
 	}
+	normalizeTripCoverPhotos(h.Storage, h.Bucket, items)
 
 	return c.JSON(fiber.Map{"items": items})
+}
+
+func (h *TripsHandler) normalizeCoverPhotoURL(raw string) string {
+	cleanRaw := strings.TrimSpace(raw)
+	if cleanRaw == "" {
+		return ""
+	}
+	return normalizeStoredPhotoURL(h.Storage, h.Bucket, cleanRaw)
 }
 
 // ── error mapping ──────────────────────────────────────────────────────────────

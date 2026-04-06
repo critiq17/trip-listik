@@ -9,6 +9,7 @@ import (
 	"github.com/critiq17/tripListik/internal/httpapi/validate"
 	"github.com/critiq17/tripListik/internal/invites"
 	"github.com/critiq17/tripListik/internal/store"
+	"github.com/critiq17/tripListik/internal/supabase"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
@@ -16,6 +17,8 @@ import (
 type InvitesHandler struct {
 	Service *invites.Service
 	Store   *store.Store // kept for read-only queries (GetInvite, ListTripInvites)
+	Storage *supabase.StorageClient
+	Bucket  string
 }
 
 // ── request bodies ─────────────────────────────────────────────────────────────
@@ -157,6 +160,7 @@ func (h *InvitesHandler) ListTripInvites(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to load invites")
 	}
+	normalizeInviteViews(h.Storage, h.Bucket, items)
 
 	return c.JSON(fiber.Map{"items": items})
 }
@@ -183,6 +187,7 @@ func (h *InvitesHandler) GetInvite(c *fiber.Ctx) error {
 	if err == nil {
 		for _, v := range views {
 			if v.ID == inviteID {
+				v.TripCover = normalizeStoredPhotoURL(h.Storage, h.Bucket, v.TripCover)
 				return c.JSON(fiber.Map{"invite": v})
 			}
 		}

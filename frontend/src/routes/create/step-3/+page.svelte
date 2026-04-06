@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { apiFetch, presignTripPhoto, uploadSignedPhoto, getPublicPhotoURL } from '$lib/api';
+	import { apiFetch, presignTripPhoto, uploadSignedPhoto } from '$lib/api';
 	import { getDraft, clearDraft } from '$lib/tripDraft';
 	import { onMount, onDestroy } from 'svelte';
 	import type { User } from '$lib/types';
@@ -13,6 +13,8 @@
 	let fileInput: HTMLInputElement | null = null;
 	let loading = $state(false);
 	let error = $state('');
+	let createdTripId = $state('');
+	let invitesSent = $state(false);
 
 	let selectedFriends = $state<User[]>([]);
 	let friendSearch = $state('');
@@ -46,7 +48,12 @@
 	};
 
 	$effect(() => {
-		setupMainButton(loading ? 'Creating...' : 'Create Trip', submit, true, !loading);
+		const buttonLabel = loading
+			? 'Creating...'
+			: createdTripId && coverPhotoFile
+				? 'Retry Cover Upload'
+				: 'Create Trip';
+		setupMainButton(buttonLabel, submit, true, !loading);
 	});
 
 	onMount(() => {
@@ -81,58 +88,66 @@
 		error = '';
 
 		try {
-			// 1. Create Trip
-			const trip = await apiFetch<{ id: string }>('/v1/trips', {
-				method: 'POST',
-				body: JSON.stringify({
-					title: draft.title,
-					city: draft.destination,
-					country_code: draft.country_code,
-					description: description || undefined,
-					start_date: draft.start_date || null,
-					end_date: draft.end_date || null,
-					status: 'planned',
-					visibility: draft.visibility || 'public'
-				})
-			});
+			const tripId =
+				createdTripId ||
+				(
+					await apiFetch<{ id: string }>('/v1/trips', {
+						method: 'POST',
+						body: JSON.stringify({
+							title: draft.title,
+							city: draft.destination,
+							country_code: draft.country_code,
+							description: description || undefined,
+							start_date: draft.start_date || null,
+							end_date: draft.end_date || null,
+							status: 'planned',
+							visibility: draft.visibility || 'public'
+						})
+					})
+				).id;
+			createdTripId = tripId;
 
 			// 2. Upload Photo
 			if (coverPhotoFile) {
 				try {
-					const presign = await presignTripPhoto(trip.id, coverPhotoFile.name, coverPhotoFile.type);
+					const presign = await presignTripPhoto(tripId, coverPhotoFile.name, coverPhotoFile.type);
 					await uploadSignedPhoto(presign.signed_url, presign.token, coverPhotoFile);
-					// Prefer the constructed public URL; fall back to raw storage path so
-					// the backend can serve it even if env vars are not set on this client.
-					const publicUrl = getPublicPhotoURL(presign.path) || presign.path;
-					await apiFetch(`/v1/trips/${trip.id}`, {
+					await apiFetch(`/v1/trips/${tripId}`, {
 						method: 'PATCH',
-						body: JSON.stringify({ cover_photo_url: publicUrl })
+						body: JSON.stringify({ cover_photo_url: presign.public_url || presign.path })
 					});
-				} catch (uploadErr) {
-					error = 'Trip created! (Cover photo failed to upload — you can add one from the trip page)';
+				} catch {
+					error =
+						'Trip created, but cover photo failed to save. Tap the button again to retry the cover upload.';
+					return;
 				}
 			}
 
 			// 2.5 Send Invites
-			const failedInvites: string[] = [];
-			for (const friend of selectedFriends) {
-				try {
-					await apiFetch(`/v1/trips/${trip.id}/invite`, {
-						method: 'POST',
-						body: JSON.stringify({ user_id: friend.id })
-					});
-				} catch (e) {
-					failedInvites.push(friend.first_name || friend.username || 'someone');
+			if (!invitesSent) {
+				const failedInvites: string[] = [];
+				for (const friend of selectedFriends) {
+					try {
+						await apiFetch(`/v1/trips/${tripId}/invite`, {
+							method: 'POST',
+							body: JSON.stringify({ user_id: friend.id })
+						});
+					} catch {
+						failedInvites.push(friend.first_name || friend.username || 'someone');
+					}
 				}
-			}
-			if (failedInvites.length > 0) {
-				error = `Trip created! Some invites failed to send: ${failedInvites.join(', ')}`;
-				await new Promise(r => setTimeout(r, 1500));
+				invitesSent = true;
+				if (failedInvites.length > 0) {
+					error = `Trip created! Some invites failed to send: ${failedInvites.join(', ')}`;
+					await new Promise((r) => setTimeout(r, 1500));
+				}
 			}
 
 			// 3. Clear draft and navigate
 			clearDraft();
-			goto(`/trips/${trip.id}`);
+			createdTripId = '';
+			invitesSent = false;
+			goto(`/trips/${tripId}`);
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to create trip';
 		} finally {

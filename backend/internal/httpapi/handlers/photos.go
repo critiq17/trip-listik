@@ -25,7 +25,7 @@ type PhotosHandler struct {
 
 type createPhotoRequest struct {
 	StoragePath string `json:"storage_path" validate:"required"`
-	URL         string `json:"url" validate:"required,url"`
+	URL         string `json:"url" validate:"omitempty,url"`
 }
 
 type presignRequest struct {
@@ -71,6 +71,7 @@ func (h *PhotosHandler) ListPhotos(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to load photos")
 	}
+	normalizeTripPhotos(h.Storage, h.Bucket, photos)
 
 	return c.JSON(fiber.Map{"items": photos})
 }
@@ -99,22 +100,42 @@ func (h *PhotosHandler) CreatePhoto(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
 	}
 	if err := validate.Struct(&req); err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, "storage_path and url are required")
+		return fiber.NewError(fiber.StatusBadRequest, "storage_path is required")
 	}
 
 	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 	defer cancel()
 
+	storagePath := strings.TrimSpace(req.StoragePath)
+	if h.Storage != nil {
+		storagePath = h.Storage.NormalizeObjectPath(h.Bucket, storagePath)
+	}
+	if storagePath == "" {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid storage_path")
+	}
+
+	photoURL := strings.TrimSpace(req.URL)
+	if h.Storage != nil {
+		canonicalURL := h.Storage.PublicObjectURL(h.Bucket, storagePath)
+		if canonicalURL != "" {
+			photoURL = canonicalURL
+		}
+	}
+	if photoURL == "" {
+		return fiber.NewError(fiber.StatusBadRequest, "url is required")
+	}
+
 	photo := &models.TripPhoto{
 		TripID:      tripID,
 		UserID:      userID,
-		StoragePath: req.StoragePath,
-		URL:         req.URL,
+		StoragePath: storagePath,
+		URL:         photoURL,
 	}
 
 	if err := h.Store.CreatePhoto(ctx, photo); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to create photo")
 	}
+	normalizeTripPhoto(h.Storage, h.Bucket, photo)
 
 	if h.Hub != nil {
 		h.Hub.Publish("trip:"+tripID.String(), realtime.Event{
@@ -193,11 +214,18 @@ func (h *PhotosHandler) PresignUpload(c *fiber.Ctx) error {
 	// Supabase may echo back the path with the bucket name prepended
 	// (e.g. "trip-photos/trip_photos/uuid/file.jpg"). Strip the bucket prefix
 	// so the frontend receives just the object path ("trip_photos/uuid/file.jpg").
-	storagePath := strings.TrimPrefix(upload.Path, h.Bucket+"/")
+	storagePath := upload.Path
+	if storagePath == "" {
+		storagePath = objectPath
+	}
+	if h.Storage != nil {
+		storagePath = h.Storage.NormalizeObjectPath(h.Bucket, storagePath)
+	}
 
 	return c.JSON(fiber.Map{
 		"signed_url": signedURL,
 		"token":      upload.Token,
 		"path":       storagePath,
+		"public_url": h.Storage.PublicObjectURL(h.Bucket, storagePath),
 	})
 }

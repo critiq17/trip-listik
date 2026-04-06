@@ -86,6 +86,7 @@ export type PresignResponse = {
 	signed_url: string;
 	token: string;
 	path: string;
+	public_url: string;
 };
 
 export const getPublicPhotoURL = (path: string) => {
@@ -104,7 +105,12 @@ export async function presignTripPhoto(tripId: string, fileName: string, content
 }
 
 export async function uploadSignedPhoto(signedUrl: string, _token: string, file: File) {
-	const res = await fetch(signedUrl, {
+	const uploadUrl = new URL(signedUrl);
+	if (_token && !uploadUrl.searchParams.has('token')) {
+		uploadUrl.searchParams.set('token', _token);
+	}
+
+	const res = await fetch(uploadUrl.toString(), {
 		method: 'PUT',
 		headers: {
 			'Content-Type': file.type
