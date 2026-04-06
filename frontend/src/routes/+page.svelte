@@ -28,9 +28,13 @@
 	let ready = $state(false);
 
 	const fetchAllTrips = async (mode: 'reset' | 'append' = 'reset') => {
-		if (mode === 'append' && (allLoadingMore || !allHasMore)) return;
+		if (mode === 'append' && (allLoading || allLoadingMore || !allHasMore || !allCursor)) return;
 		if (mode === 'append') allLoadingMore = true;
-		else allLoading = true;
+		else {
+			allLoading = true;
+			allCursor = null;
+			allHasMore = true;
+		}
 		allError = '';
 		const params = ['filter=all', 'limit=20'];
 		if (mode === 'append' && allCursor) params.push(`cursor=${allCursor}`);

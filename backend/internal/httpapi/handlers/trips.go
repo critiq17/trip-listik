@@ -200,7 +200,12 @@ func (h *TripsHandler) normalizeCoverPhotoURL(raw string) string {
 	if cleanRaw == "" {
 		return ""
 	}
-	return normalizeStoredPhotoURL(h.Storage, h.Bucket, cleanRaw)
+	if h.Storage != nil {
+		if cleanPath := h.Storage.NormalizeObjectPath(h.Bucket, cleanRaw); cleanPath != "" {
+			return cleanPath
+		}
+	}
+	return cleanRaw
 }
 
 // ── error mapping ──────────────────────────────────────────────────────────────

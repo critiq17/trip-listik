@@ -3,7 +3,7 @@
 	import { apiFetch, presignTripPhoto, uploadSignedPhoto } from '$lib/api';
 	import { getDraft, clearDraft } from '$lib/tripDraft';
 	import { onMount, onDestroy } from 'svelte';
-	import type { User } from '$lib/types';
+	import type { TripCardData, User } from '$lib/types';
 	import { getUserName, getUserInitials } from '$lib/format';
 	import { setupMainButton, hideMainButton, setMainButtonState, setupBackButton } from '$lib/telegram';
 
@@ -112,10 +112,15 @@
 				try {
 					const presign = await presignTripPhoto(tripId, coverPhotoFile.name, coverPhotoFile.type);
 					await uploadSignedPhoto(presign.signed_url, presign.token, coverPhotoFile);
-					await apiFetch(`/v1/trips/${tripId}`, {
+					const updatedTrip = await apiFetch<TripCardData>(`/v1/trips/${tripId}`, {
 						method: 'PATCH',
-						body: JSON.stringify({ cover_photo_url: presign.public_url || presign.path })
+						body: JSON.stringify({ cover_photo_url: presign.path || presign.public_url })
 					});
+					if (!updatedTrip.cover_photo_url) {
+						error =
+							'Trip created, but cover photo was not attached yet. Tap the button again to retry the cover upload.';
+						return;
+					}
 				} catch {
 					error =
 						'Trip created, but cover photo failed to save. Tap the button again to retry the cover upload.';
