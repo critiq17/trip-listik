@@ -100,8 +100,9 @@
 	let timer: number | null = null;
 	$effect(() => {
 		if (!open) return;
+		const trimmedQuery = query.trim();
 		if (timer) window.clearTimeout(timer);
-		timer = window.setTimeout(() => search(query.trim()), 250);
+		timer = window.setTimeout(() => search(trimmedQuery), 250);
 		return () => timer && window.clearTimeout(timer);
 	});
 
