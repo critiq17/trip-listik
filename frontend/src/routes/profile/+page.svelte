@@ -4,16 +4,19 @@
 	import TripCard from '$lib/components/TripCard.svelte';
 	import { countUp } from '$lib/transitions';
 	import { getUserInitials, getUserName, normalizeStats } from '$lib/format';
-	import type { TripCardData, User, UserStats } from '$lib/types';
+	import type { TripCardData, User, UserStats, UserSummary } from '$lib/types';
 
 	let user = $state<User | null>(null);
 	let stats = $state<UserStats | null>(null);
 	let history = $state<TripCardData[]>([]);
+	let friends = $state<UserSummary[]>([]);
 	let statEl0 = $state<HTMLElement | null>(null);
 	let statEl1 = $state<HTMLElement | null>(null);
 	let statEl2 = $state<HTMLElement | null>(null);
+	let statEl3 = $state<HTMLElement | null>(null);
 	let historyError = $state('');
 	let error = $state('');
+	let contentTab = $state<'trips' | 'friends'>('trips');
 	let historyTab = $state<'active' | 'past'>('active');
 	let settingsOpen = $state(false);
 	let referralCount = $state(0);
@@ -22,31 +25,42 @@
 
 	onMount(async () => {
 		try {
-			const [meRes, statsRes] = await Promise.allSettled([
+			const [meRes, statsRes, referralsRes] = await Promise.allSettled([
 				apiFetch<{ user: User }>('/v1/me'),
-				apiFetch<UserStats>('/v1/me/stats')
+				apiFetch<UserStats>('/v1/me/stats'),
+				apiFetch<{ referral_count: number }>('/v1/me/referrals')
 			]);
 
 			if (meRes.status === 'fulfilled') {
 				user = meRes.value.user;
+				referralLink = `https://t.me/triplistik_bot?startapp=profile_${user?.id}`;
 			}
 
 			if (statsRes.status === 'fulfilled') {
 				stats = normalizeStats(statsRes.value as Record<string, unknown>);
 			}
 
-			try {
-				const trips = await apiFetch<{ items: TripCardData[] }>('/v1/trips?scope=mine');
-				history = trips.items ?? [];
-			} catch (e) {
-				historyError = e instanceof Error ? e.message : 'Failed to load trips';
+			if (referralsRes.status === 'fulfilled') {
+				referralCount = referralsRes.value.referral_count ?? 0;
 			}
 
-			// Animate stat counters after all data is loaded
+			try {
+				const [tripsRes, friendsRes] = await Promise.allSettled([
+					apiFetch<{ items: TripCardData[] }>('/v1/trips?scope=mine'),
+					apiFetch<{ items: UserSummary[] }>('/v1/me/friends')
+				]);
+				if (tripsRes.status === 'fulfilled') history = tripsRes.value.items ?? [];
+				else historyError = tripsRes.reason instanceof Error ? tripsRes.reason.message : 'Failed to load trips';
+				if (friendsRes.status === 'fulfilled') friends = friendsRes.value.items ?? [];
+			} catch (e) {
+				historyError = e instanceof Error ? e.message : 'Failed to load';
+			}
+
 			if (stats) {
 				if (statEl0) countUp(statEl0, stats.total_trips);
 				if (statEl1) countUp(statEl1, stats.countries_visited);
 				if (statEl2) countUp(statEl2, stats.trips_with_friends);
+				if (statEl3) countUp(statEl3, referralCount);
 			}
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load profile';
@@ -62,15 +76,6 @@
 		if (!trip.end_date) return false;
 		return new Date(trip.end_date) < new Date();
 	}));
-
-	$effect(() => {
-		if (settingsOpen && !referralLink && user?.id) {
-			referralLink = `https://t.me/triplistik_bot?startapp=profile_${user.id}`;
-			apiFetch<{ referral_count: number }>('/v1/me/referrals')
-				.then(data => { referralCount = data.referral_count; })
-				.catch(() => {});
-		}
-	});
 
 	const copyReferralLink = async () => {
 		try {
@@ -89,7 +94,6 @@
 </svelte:head>
 
 <div class="page">
-	<!-- Header -->
 	<header class="header">
 		<p class="eyebrow">Profile</p>
 		<button class="settings-btn" aria-label="Settings" onclick={() => (settingsOpen = true)}>
@@ -98,8 +102,6 @@
 	</header>
 
 	<main class="content hide-scrollbar">
-		<h1>Your travel identity.</h1>
-
 		{#if error}
 			<div class="state">{error}</div>
 		{:else}
@@ -134,52 +136,99 @@
 					<p bind:this={statEl2}>0</p>
 					<span>Friends</span>
 				</div>
+				<div class="divider"></div>
+				<div class="stat">
+					<p bind:this={statEl3}>0</p>
+					<span>Referrals</span>
+				</div>
 			</div>
 
-			<!-- Travel History -->
-			<section class="history">
-				<div class="history-head">
-					<p class="history-title">Travel History</p>
-					<button class="view-map-btn">View Map</button>
+			<!-- Referral link row -->
+			{#if referralLink}
+				<div class="referral-row">
+					<input class="referral-input" type="text" readonly value={referralLink} />
+					<button class="copy-btn" onclick={copyReferralLink} aria-label="Copy referral link">
+						<span class="material-symbols-outlined">
+							{referralCopied ? 'check' : 'content_copy'}
+						</span>
+					</button>
 				</div>
+			{/if}
 
-				{#if historyError}
-					<div class="state">{historyError}</div>
-				{:else}
-					<div class="history-tabs">
-						<button
-							class="htab"
-							class:active={historyTab === 'active'}
-							onclick={() => (historyTab = 'active')}
-						>Active / Upcoming</button>
-						<button
-							class="htab"
-							class:active={historyTab === 'past'}
-							onclick={() => (historyTab = 'past')}
-						>Past</button>
-					</div>
+			<!-- Content tabs: Trips / Friends -->
+			<div class="content-tabs">
+				<button class="ctab" class:active={contentTab === 'trips'} onclick={() => (contentTab = 'trips')}>
+					Trips
+				</button>
+				<button class="ctab" class:active={contentTab === 'friends'} onclick={() => (contentTab = 'friends')}>
+					Friends {#if friends.length > 0}<span class="tab-count">{friends.length}</span>{/if}
+				</button>
+			</div>
 
-					<div class="history-list">
-						{#if historyTab === 'active'}
-							{#if activeHistory.length === 0}
-								<div class="state small">No active or upcoming trips.</div>
+			{#if contentTab === 'trips'}
+				<!-- Travel History -->
+				<section class="history">
+					{#if historyError}
+						<div class="state">{historyError}</div>
+					{:else}
+						<div class="history-tabs">
+							<button
+								class="htab"
+								class:active={historyTab === 'active'}
+								onclick={() => (historyTab = 'active')}
+							>Active / Upcoming</button>
+							<button
+								class="htab"
+								class:active={historyTab === 'past'}
+								onclick={() => (historyTab = 'past')}
+							>Past</button>
+						</div>
+
+						<div class="history-list">
+							{#if historyTab === 'active'}
+								{#if activeHistory.length === 0}
+									<div class="state small">No active or upcoming trips.</div>
+								{:else}
+									{#each activeHistory as trip}
+										<TripCard {trip} variant="horizontal" />
+									{/each}
+								{/if}
 							{:else}
-								{#each activeHistory as trip}
-									<TripCard {trip} variant="horizontal" />
-								{/each}
+								{#if pastHistory.length === 0}
+									<div class="state small">No past trips yet.</div>
+								{:else}
+									{#each pastHistory as trip}
+										<TripCard {trip} variant="horizontal" />
+									{/each}
+								{/if}
 							{/if}
-						{:else}
-							{#if pastHistory.length === 0}
-								<div class="state small">No past trips yet.</div>
-							{:else}
-								{#each pastHistory as trip}
-									<TripCard {trip} variant="horizontal" />
-								{/each}
-							{/if}
-						{/if}
-					</div>
-				{/if}
-			</section>
+						</div>
+					{/if}
+				</section>
+			{:else}
+				<!-- Friends list -->
+				<section class="friends-list">
+					{#if friends.length === 0}
+						<div class="state small">No friends yet. Join or create trips with others to connect.</div>
+					{:else}
+						{#each friends as friend (friend.id)}
+							<div class="friend-row">
+								<div class="friend-avatar">
+									{#if friend.photo_url}
+										<img src={friend.photo_url} alt={getUserName(friend)} loading="lazy" />
+									{:else}
+										<span>{getUserInitials(friend.first_name, friend.last_name, friend.username)}</span>
+									{/if}
+								</div>
+								<div class="friend-info">
+									<p class="friend-name">{getUserName(friend)}</p>
+									<p class="friend-handle">@{friend.username ?? 'traveler'}</p>
+								</div>
+							</div>
+						{/each}
+					{/if}
+				</section>
+			{/if}
 		{/if}
 	</main>
 </div>
@@ -198,29 +247,8 @@
 			<button class="sheet-close" onclick={() => (settingsOpen = false)} aria-label="Close">×</button>
 		</div>
 		<div class="sheet-body">
-			<p class="sheet-section-label">Referral Link</p>
-			<p class="sheet-section-sub">Share your link and earn referrals when friends join.</p>
-
-			{#if referralLink}
-				<div class="referral-row">
-					<input
-						class="referral-input"
-						type="text"
-						readonly
-						value={referralLink}
-					/>
-					<button class="copy-btn" onclick={copyReferralLink}>
-						<span class="material-symbols-outlined">
-							{referralCopied ? 'check' : 'content_copy'}
-						</span>
-					</button>
-				</div>
-				{#if referralCount > 0}
-					<p class="referral-count">{referralCount} {referralCount === 1 ? 'referral' : 'referrals'} so far</p>
-				{/if}
-			{:else}
-				<div class="referral-skeleton"></div>
-			{/if}
+			<p class="sheet-section-label">Account</p>
+			<p class="sheet-section-sub">Manage your profile settings and preferences.</p>
 		</div>
 	</div>
 {/if}
@@ -274,25 +302,18 @@
 	margin: 0 auto;
 }
 
-h1 {
-	font-size: 30px;
-	font-weight: 700;
-	color: white;
-	margin: 8px 0 32px;
-	line-height: 1.15;
-}
-
 /* ── Profile Row ─────────────────────────────────────────── */
 .profile-row {
 	display: flex;
 	align-items: center;
 	gap: 20px;
-	margin-bottom: 32px;
+	margin-top: 20px;
+	margin-bottom: 28px;
 }
 
 .avatar-wrap {
-	width: 96px;
-	height: 96px;
+	width: 80px;
+	height: 80px;
 	border-radius: 9999px;
 	outline: 1px solid rgba(77, 157, 109, 0.4);
 	outline-offset: 3px;
@@ -315,7 +336,7 @@ h1 {
 	justify-content: center;
 	background: rgba(255, 255, 255, 0.08);
 	color: white;
-	font-size: 24px;
+	font-size: 22px;
 	font-weight: 700;
 	border-radius: 9999px;
 }
@@ -340,12 +361,12 @@ h1 {
 /* ── Stats Row ───────────────────────────────────────────── */
 .stats-row {
 	display: grid;
-	grid-template-columns: 1fr auto 1fr auto 1fr;
+	grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
 	align-items: center;
 	padding: 16px 0;
 	border-top: 1px solid rgba(255, 255, 255, 0.06);
 	border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-	margin-bottom: 32px;
+	margin-bottom: 20px;
 }
 
 .stat {
@@ -360,7 +381,7 @@ h1 {
 }
 
 .stat span {
-	font-size: 10px;
+	font-size: 9px;
 	text-transform: uppercase;
 	letter-spacing: 0.1em;
 	color: #64748b;
@@ -373,33 +394,85 @@ h1 {
 	align-self: center;
 }
 
+/* ── Referral row ────────────────────────────────────────── */
+.referral-row {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	margin-bottom: 24px;
+}
+
+.referral-input {
+	flex: 1;
+	background: rgba(255,255,255,0.06);
+	border: 1px solid rgba(255,255,255,0.1);
+	border-radius: 8px;
+	padding: 10px 12px;
+	font-size: 12px;
+	color: #94a3b8;
+	outline: none;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.copy-btn {
+	width: 40px;
+	height: 40px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(77,157,109,0.15);
+	border: 1px solid rgba(77,157,109,0.3);
+	border-radius: 8px;
+	color: #4d9d6d;
+	cursor: pointer;
+	flex-shrink: 0;
+	border: none;
+}
+
+.copy-btn .material-symbols-outlined { font-size: 18px; }
+
+/* ── Content tabs ────────────────────────────────────────── */
+.content-tabs {
+	display: flex;
+	gap: 20px;
+	margin-bottom: 16px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.ctab {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 0;
+	font-size: 14px;
+	font-weight: 600;
+	color: #64748b;
+	background: none;
+	border: none;
+	border-bottom: 2px solid transparent;
+	margin-bottom: -1px;
+	cursor: pointer;
+	transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.ctab.active {
+	color: white;
+	border-bottom-color: #4d9d6d;
+}
+
+.tab-count {
+	font-size: 11px;
+	background: rgba(77, 157, 109, 0.2);
+	color: #4d9d6d;
+	padding: 1px 6px;
+	border-radius: 9999px;
+}
+
 /* ── Travel History ──────────────────────────────────────── */
 .history {
 	margin-bottom: 32px;
-}
-
-.history-head {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	margin-bottom: 16px;
-}
-
-.history-title {
-	font-size: 13px;
-	font-weight: 700;
-	color: white;
-	text-transform: uppercase;
-	letter-spacing: 0.08em;
-}
-
-.view-map-btn {
-	font-size: 13px;
-	font-weight: 500;
-	color: #4d9d6d;
-	background: none;
-	border: none;
-	cursor: pointer;
 }
 
 .history-tabs {
@@ -429,6 +502,59 @@ h1 {
 	display: flex;
 	flex-direction: column;
 	gap: 0;
+}
+
+/* ── Friends list ────────────────────────────────────────── */
+.friends-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+}
+
+.friend-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 12px 0;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.friend-avatar {
+	width: 44px;
+	height: 44px;
+	border-radius: 9999px;
+	overflow: hidden;
+	background: rgba(255, 255, 255, 0.06);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	font-size: 16px;
+	font-weight: 700;
+	color: white;
+}
+
+.friend-avatar img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.friend-info {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.friend-name {
+	font-size: 15px;
+	font-weight: 600;
+	color: white;
+}
+
+.friend-handle {
+	font-size: 13px;
+	color: #94a3b8;
 }
 
 /* ── Misc ────────────────────────────────────────────────── */
@@ -502,13 +628,6 @@ h1 {
 	cursor: pointer;
 }
 
-.sheet-placeholder {
-	text-align: center;
-	color: #64748b;
-	font-size: 14px;
-	padding: 32px 0;
-}
-
 .sheet-body {
 	padding: 0 4px;
 }
@@ -523,61 +642,5 @@ h1 {
 .sheet-section-sub {
 	font-size: 12px;
 	color: #64748b;
-	margin-bottom: 16px;
-}
-
-.referral-row {
-	display: flex;
-	gap: 8px;
-	align-items: center;
-}
-
-.referral-input {
-	flex: 1;
-	background: rgba(255,255,255,0.06);
-	border: 1px solid rgba(255,255,255,0.1);
-	border-radius: 8px;
-	padding: 10px 12px;
-	font-size: 12px;
-	color: #94a3b8;
-	outline: none;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.copy-btn {
-	width: 40px;
-	height: 40px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	background: rgba(77,157,109,0.15);
-	border: 1px solid rgba(77,157,109,0.3);
-	border-radius: 8px;
-	color: #4d9d6d;
-	cursor: pointer;
-	flex-shrink: 0;
-}
-
-.copy-btn .material-symbols-outlined { font-size: 18px; }
-
-.referral-count {
-	font-size: 12px;
-	color: #4d9d6d;
-	margin-top: 8px;
-	font-weight: 600;
-}
-
-.referral-skeleton {
-	height: 40px;
-	border-radius: 8px;
-	background: rgba(255,255,255,0.06);
-	animation: shimmer 1.5s infinite;
-}
-
-@keyframes shimmer {
-	0%, 100% { opacity: 0.5; }
-	50% { opacity: 0.9; }
 }
 </style>

@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+const maxRetries = 3
+
 const telegramAPIBase = "https://api.telegram.org"
 
 type Bot struct {
@@ -139,6 +141,7 @@ func (b *Bot) SendWelcome(ctx context.Context, telegramID int64, miniAppURL stri
 
 // SendInviteNotification sends an invite notification and returns the Telegram
 // message_id so it can be stored and later deleted when the invite is acted upon.
+// Uses retry logic for reliability.
 func (b *Bot) SendInviteNotification(
 	ctx context.Context,
 	telegramID int64,
@@ -184,10 +187,51 @@ func (b *Bot) SendInviteNotification(
 			},
 		},
 	}
-	return b.send(ctx, msg)
+	return b.sendWithRetry(ctx, msg)
+}
+
+// SendReferralNotification notifies a referrer that someone joined via their link.
+func (b *Bot) SendReferralNotification(ctx context.Context, telegramID int64, newUserName string, referralCount int64) {
+	if !b.Enabled() {
+		return
+	}
+	text := fmt.Sprintf(
+		"<b>@%s</b> just joined TripListik via your link! You now have <b>%d</b> referral(s).",
+		newUserName, referralCount,
+	)
+	b.sendWithRetry(ctx, &sendMessageRequest{
+		ChatID:    telegramID,
+		Text:      text,
+		ParseMode: "HTML",
+	})
 }
 
 // ── internal send ─────────────────────────────────────────────────────────────
+
+// sendWithRetry wraps send with up to maxRetries attempts and exponential backoff.
+// It logs a structured error on each failed attempt.
+func (b *Bot) sendWithRetry(ctx context.Context, payload *sendMessageRequest) int64 {
+	delays := []time.Duration{1 * time.Second, 2 * time.Second}
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		msgID := b.send(ctx, payload)
+		if msgID != 0 {
+			return msgID
+		}
+		slog.Error("telegram: send attempt failed",
+			"attempt", attempt+1,
+			"max_attempts", maxRetries,
+			"chat_id", payload.ChatID,
+		)
+		if attempt < len(delays) {
+			select {
+			case <-ctx.Done():
+				return 0
+			case <-time.After(delays[attempt]):
+			}
+		}
+	}
+	return 0
+}
 
 // send dispatches a message to the Telegram API and returns the message_id (0 on error).
 func (b *Bot) send(ctx context.Context, payload *sendMessageRequest) int64 {

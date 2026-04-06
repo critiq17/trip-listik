@@ -118,4 +118,7 @@ func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 
 	// Referrals
 	protected.Get("/me/referrals", profileHandler.Referrals)
+
+	// Friends
+	protected.Get("/me/friends", profileHandler.Friends)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/critiq17/tripListik/internal/config"
@@ -180,13 +181,18 @@ func (s *Service) CancelInvite(ctx context.Context, requesterID, inviteID uuid.U
 // ── internal notification helpers ─────────────────────────────────────────────
 
 func (s *Service) sendInviteNotification(invite *models.TripInvite, trip *models.Trip, inviterID, invitedUserID uuid.UUID) {
-	bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	bgCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	invitedUser, err := s.store.GetUserByID(bgCtx, invitedUserID)
 	if err != nil || invitedUser == nil {
 		return
 	}
+	if invitedUser.TelegramID == 0 {
+		slog.Warn("telegram: invited user has no TelegramID", "user_id", invitedUserID)
+		return
+	}
+
 	inviter, err := s.store.GetUserByID(bgCtx, inviterID)
 	if err != nil || inviter == nil {
 		return
@@ -210,14 +216,16 @@ func (s *Service) sendInviteNotification(invite *models.TripInvite, trip *models
 		miniAppURL = s.cfg.MiniAppURL
 	}
 
-	nctx, ncancel := context.WithTimeout(context.Background(), 5*time.Second)
+	nctx, ncancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer ncancel()
 
 	msgID := s.bot.SendInviteNotification(nctx, invitedUser.TelegramID, inviterName, trip.Title, trip.City, startDate, endDate, miniAppURL)
-	if msgID > 0 {
-		// Best-effort: store message_id for later deletion.
-		_ = s.store.UpdateInviteTgMessageID(context.Background(), invite.ID, msgID)
+	if msgID == 0 {
+		slog.Error("telegram: invite notification not delivered", "invited_user_id", invitedUserID, "trip_id", trip.ID)
+		return
 	}
+	// Best-effort: store message_id for later deletion.
+	_ = s.store.UpdateInviteTgMessageID(context.Background(), invite.ID, msgID)
 }
 
 func (s *Service) handleInviteResponse(invite *models.TripInvite, responderID uuid.UUID, status string, comment *string, alternativeDate *string) {

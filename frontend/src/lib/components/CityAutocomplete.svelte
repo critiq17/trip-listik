@@ -106,16 +106,21 @@
 		}
 	});
 
+	// Sync query back to the bound value when user types
 	$effect(() => {
-		query;
 		if (value !== query) {
 			value = query;
 		}
+	});
+
+	// Trigger debounced search whenever query changes
+	$effect(() => {
+		const q = query;
 		if (suppressSearch) {
 			suppressSearch = false;
 			return;
 		}
-		debounceSearch(query.trim());
+		debounceSearch(q.trim());
 	});
 
 	onDestroy(() => {

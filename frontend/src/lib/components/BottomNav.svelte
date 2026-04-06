@@ -8,16 +8,15 @@
 
 	const tabs = [
 		{ id: 'feed',    href: '/',        icon: 'home',          label: 'Home'    },
-		{ id: 'trips',   href: '/trips',   icon: 'map',           label: 'Trips'   },
-		{ id: 'inbox',   href: '/inbox',   icon: 'notifications', label: 'Inbox', badge: true },
+		{ id: 'create',  href: '/create',  icon: 'add',           label: 'Create', isCreate: true },
+		{ id: 'inbox',   href: '/inbox',   icon: 'notifications', label: 'Inbox',  badge: true },
 		{ id: 'profile', href: '/profile', icon: 'person',        label: 'Profile' },
 	];
 
 	const isActive = (href: string) => {
 		const path = $page.url.pathname;
 		if (href === '/') return path === '/';
-		// Exclude create routes from matching the Trips tab
-		if (path.startsWith('/create') || path.startsWith('/trips/create')) return false;
+		if (href === '/create') return path.startsWith('/create');
 		return path.startsWith(href);
 	};
 
@@ -54,20 +53,27 @@
 			id="nav-{tab.id}"
 			class="nav-item"
 			class:active={isActive(tab.href)}
+			class:create={tab.isCreate}
 			onclick={() => navigate(tab.href)}
 			aria-label={tab.label}
 			aria-current={isActive(tab.href) ? 'page' : undefined}
 		>
-			<span class="icon-wrap">
-				<span
-					class="material-symbols-outlined"
-					class:fill-icon={isActive(tab.href)}
-				>{tab.icon}</span>
-				{#if tab.badge && $unreadCount > 0}
-					<span class="badge">{$unreadCount > 99 ? '99+' : $unreadCount}</span>
-				{/if}
-			</span>
-			<span class="nav-label">{tab.label}</span>
+			{#if tab.isCreate}
+				<span class="create-icon">
+					<span class="material-symbols-outlined">add</span>
+				</span>
+			{:else}
+				<span class="icon-wrap">
+					<span
+						class="material-symbols-outlined"
+						class:fill-icon={isActive(tab.href)}
+					>{tab.icon}</span>
+					{#if tab.badge && $unreadCount > 0}
+						<span class="badge">{$unreadCount > 99 ? '99+' : $unreadCount}</span>
+					{/if}
+				</span>
+				<span class="nav-label">{tab.label}</span>
+			{/if}
 		</button>
 	{/each}
 </nav>
@@ -145,5 +151,25 @@
 	font-weight: 600;
 	letter-spacing: 0.04em;
 	line-height: 1;
+}
+
+.nav-item.create {
+	color: white;
+}
+
+.create-icon {
+	width: 44px;
+	height: 44px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: #4d9d6d;
+	border-radius: 14px;
+	box-shadow: 0 4px 16px rgba(77, 157, 109, 0.4);
+}
+
+.create-icon .material-symbols-outlined {
+	font-size: 26px;
+	color: white;
 }
 </style>

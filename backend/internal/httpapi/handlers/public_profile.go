@@ -50,6 +50,11 @@ func (h *PublicProfileHandler) GetPublicProfile(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to load wishlist")
 	}
 
+	friends, err := h.Store.GetUserFriends(ctx, user.ID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "failed to load friends")
+	}
+
 	return c.JSON(fiber.Map{
 		"user":                   user,
 		"stats":                  stats,
@@ -57,5 +62,6 @@ func (h *PublicProfileHandler) GetPublicProfile(c *fiber.Ctx) error {
 		"public_trips":           trips,
 		"country_map":            visits,
 		"wishlist":               wishlist,
+		"friends":                friends,
 	})
 }
