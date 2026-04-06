@@ -26,9 +26,7 @@ func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 	feedHandler := &handlers.FeedHandler{Store: store}
 	tripsHandler := &handlers.TripsHandler{Service: tripsService}
 	membersHandler := &handlers.MembersHandler{Store: store, Bot: bot}
-	votesHandler := &handlers.VotesHandler{Store: store, Hub: hub}
 	voteItemsHandler := &handlers.VoteItemsHandler{Store: store, Hub: hub}
-	commentsHandler := &handlers.CommentsHandler{Store: store, Hub: hub}
 	storageClient := supabase.NewStorageClient(cfg.SupabaseURL, cfg.SupabaseServiceKey)
 	photosHandler := &handlers.PhotosHandler{Store: store, Storage: storageClient, Bucket: cfg.SupabaseStorageBucket, Hub: hub}
 	streamHandler := &handlers.StreamHandler{Hub: hub}
@@ -68,19 +66,11 @@ func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 	protected.Post("/trips/:id/join/reject", membersHandler.RejectJoin)
 	protected.Delete("/trips/:id/members/:userId", membersHandler.RemoveMember)
 
-	// Trip-level votes (legacy, keep for backward compat)
-	protected.Post("/trips/:id/votes", votesHandler.CastVote)
-	protected.Get("/trips/:id/votes", votesHandler.GetVotes)
-
 	// Vote items (per spec: item-level voting on hotels, airlines, activities)
 	protected.Get("/trips/:id/vote-items", voteItemsHandler.List)
 	protected.Post("/trips/:id/vote-items", voteItemsHandler.Create)
 	protected.Post("/trips/:id/vote-items/:itemId/vote", voteItemsHandler.Vote)
 	protected.Delete("/trips/:id/vote-items/:itemId/vote", voteItemsHandler.Unvote)
-
-	// Comments
-	protected.Get("/trips/:id/comments", commentsHandler.ListComments)
-	protected.Post("/trips/:id/comments", commentsHandler.CreateComment)
 
 	// Photos
 	protected.Get("/trips/:id/photos", photosHandler.ListPhotos)
