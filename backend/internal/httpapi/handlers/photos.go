@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/critiq17/tripListik/internal/httpapi/middleware"
@@ -189,9 +190,14 @@ func (h *PhotosHandler) PresignUpload(c *fiber.Ctx) error {
 		signedURL = h.Storage.BaseURL + signedURL
 	}
 
+	// Supabase may echo back the path with the bucket name prepended
+	// (e.g. "trip-photos/trip_photos/uuid/file.jpg"). Strip the bucket prefix
+	// so the frontend receives just the object path ("trip_photos/uuid/file.jpg").
+	storagePath := strings.TrimPrefix(upload.Path, h.Bucket+"/")
+
 	return c.JSON(fiber.Map{
 		"signed_url": signedURL,
 		"token":      upload.Token,
-		"path":       upload.Path,
+		"path":       storagePath,
 	})
 }

@@ -169,6 +169,16 @@ func (b *Bot) SendInviteNotification(
 		inviterName, tripName, locationLine,
 	)
 
+	// When miniAppBaseURL is not configured, send plain text so the notification
+	// always arrives. The WebApp button requires a valid HTTPS URL.
+	if miniAppBaseURL == "" {
+		return b.sendWithRetry(ctx, &sendMessageRequest{
+			ChatID:    telegramID,
+			Text:      text,
+			ParseMode: "HTML",
+		})
+	}
+
 	// Deep link: opens Mini App and navigates to Notifications tab
 	viewURL := miniAppBaseURL + "?startapp=notifications"
 
@@ -212,7 +222,7 @@ func (b *Bot) SendReferralNotification(ctx context.Context, telegramID int64, ne
 // It logs a structured error on each failed attempt.
 func (b *Bot) sendWithRetry(ctx context.Context, payload *sendMessageRequest) int64 {
 	delays := []time.Duration{1 * time.Second, 2 * time.Second}
-	for attempt := 0; attempt < maxRetries; attempt++ {
+	for attempt := range maxRetries {
 		msgID := b.send(ctx, payload)
 		if msgID != 0 {
 			return msgID
