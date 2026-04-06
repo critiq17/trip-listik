@@ -23,16 +23,16 @@ func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 
 	// ── Handlers ──────────────────────────────────────────────────────────────
 	authHandler := &handlers.AuthHandler{Store: store, Cfg: cfg, Bot: bot}
-	feedHandler := &handlers.FeedHandler{Store: store}
-	tripsHandler := &handlers.TripsHandler{Service: tripsService}
+	storageClient := supabase.NewStorageClient(cfg.SupabaseURL, cfg.SupabaseServiceKey)
+	feedHandler := &handlers.FeedHandler{Store: store, Storage: storageClient, Bucket: cfg.SupabaseStorageBucket}
+	tripsHandler := &handlers.TripsHandler{Service: tripsService, Storage: storageClient, Bucket: cfg.SupabaseStorageBucket}
 	membersHandler := &handlers.MembersHandler{Store: store, Bot: bot}
 	voteItemsHandler := &handlers.VoteItemsHandler{Store: store, Hub: hub}
-	storageClient := supabase.NewStorageClient(cfg.SupabaseURL, cfg.SupabaseServiceKey)
 	photosHandler := &handlers.PhotosHandler{Store: store, Storage: storageClient, Bucket: cfg.SupabaseStorageBucket, Hub: hub}
 	streamHandler := &handlers.StreamHandler{Hub: hub}
 	profileHandler := &handlers.ProfileHandler{Store: store}
 	inboxHandler := &handlers.InboxHandler{Store: store}
-	invitesHandler := &handlers.InvitesHandler{Service: invitesService, Store: store}
+	invitesHandler := &handlers.InvitesHandler{Service: invitesService, Store: store, Storage: storageClient, Bucket: cfg.SupabaseStorageBucket}
 	usersHandler := &handlers.UsersHandler{Store: store}
 	wishlistHandler := &handlers.WishlistHandler{Store: store}
 	publicProfileHandler := &handlers.PublicProfileHandler{Store: store}

@@ -7,12 +7,15 @@ import (
 	"github.com/critiq17/tripListik/internal/httpapi/middleware"
 	"github.com/critiq17/tripListik/internal/store"
 	"github.com/critiq17/tripListik/internal/store/models"
+	"github.com/critiq17/tripListik/internal/supabase"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
 
 type FeedHandler struct {
-	Store *store.Store
+	Store   *store.Store
+	Storage *supabase.StorageClient
+	Bucket  string
 }
 
 type TripFeedItem struct {
@@ -104,6 +107,7 @@ func (h *FeedHandler) Feed(c *fiber.Ctx) error {
 			VoteAverage:   vs.Average,
 		})
 	}
+	normalizeTripFeedItems(h.Storage, h.Bucket, items)
 
 	nextCursor := ""
 	if len(trips) == limit {
@@ -173,6 +177,7 @@ func (h *FeedHandler) Explore(c *fiber.Ctx) error {
 			VoteAverage:   vs.Average,
 		})
 	}
+	normalizeTripFeedItems(h.Storage, h.Bucket, items)
 
 	nextCursor := ""
 	if len(trips) == limit {

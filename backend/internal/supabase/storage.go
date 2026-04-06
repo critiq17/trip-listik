@@ -76,10 +76,100 @@ func (c *StorageClient) CreateSignedUploadURL(bucket, objectPath string, expires
 	return &out, nil
 }
 
+func (c *StorageClient) PublicObjectURL(bucket, objectPath string) string {
+	if c.BaseURL == "" || bucket == "" {
+		return ""
+	}
+
+	cleanPath := c.NormalizeObjectPath(bucket, objectPath)
+	if cleanPath == "" {
+		return ""
+	}
+
+	return fmt.Sprintf("%s/storage/v1/object/public/%s/%s", c.BaseURL, url.PathEscape(bucket), escapePath(cleanPath))
+}
+
+func (c *StorageClient) CanonicalPublicURL(bucket, raw string) string {
+	cleanPath := c.NormalizeObjectPath(bucket, raw)
+	if cleanPath != "" {
+		return c.PublicObjectURL(bucket, cleanPath)
+	}
+
+	cleanRaw := strings.TrimSpace(raw)
+	if isHTTPURL(cleanRaw) {
+		return cleanRaw
+	}
+
+	return cleanRaw
+}
+
+func (c *StorageClient) NormalizeObjectPath(bucket, raw string) string {
+	cleanRaw := strings.TrimSpace(raw)
+	if cleanRaw == "" {
+		return ""
+	}
+
+	if !isHTTPURL(cleanRaw) {
+		return trimBucketPrefix(bucket, strings.TrimPrefix(cleanRaw, "/"))
+	}
+
+	parsed, err := url.Parse(cleanRaw)
+	if err != nil {
+		return ""
+	}
+
+	candidates := []string{
+		strings.TrimPrefix(parsed.EscapedPath(), "/"),
+		trimBucketPrefix(bucket, strings.TrimPrefix(parsed.Path, "/")),
+	}
+	prefixes := []string{
+		"storage/v1/object/public/" + bucket + "/",
+		"storage/v1/object/sign/" + bucket + "/",
+		"storage/v1/object/authenticated/" + bucket + "/",
+		"storage/v1/object/upload/sign/" + bucket + "/",
+	}
+
+	for _, candidate := range candidates {
+		if candidate == "" {
+			continue
+		}
+		for _, prefix := range prefixes {
+			if strings.HasPrefix(candidate, prefix) {
+				return decodeStoragePath(strings.TrimPrefix(candidate, prefix))
+			}
+		}
+	}
+
+	return ""
+}
+
 func escapePath(p string) string {
 	parts := strings.Split(p, "/")
 	for i := range parts {
 		parts[i] = url.PathEscape(parts[i])
 	}
 	return path.Join(parts...)
+}
+
+func decodeStoragePath(p string) string {
+	parts := strings.Split(strings.TrimPrefix(p, "/"), "/")
+	for i := range parts {
+		decoded, err := url.PathUnescape(parts[i])
+		if err == nil {
+			parts[i] = decoded
+		}
+	}
+	return strings.TrimPrefix(path.Join(parts...), "/")
+}
+
+func trimBucketPrefix(bucket, p string) string {
+	clean := strings.TrimPrefix(strings.TrimSpace(p), "/")
+	if bucket == "" {
+		return clean
+	}
+	return strings.TrimPrefix(clean, bucket+"/")
+}
+
+func isHTTPURL(raw string) bool {
+	return strings.HasPrefix(raw, "http://") || strings.HasPrefix(raw, "https://")
 }
