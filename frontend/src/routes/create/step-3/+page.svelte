@@ -102,7 +102,9 @@
 				try {
 					const presign = await presignTripPhoto(trip.id, coverPhotoFile.name, coverPhotoFile.type);
 					await uploadSignedPhoto(presign.signed_url, presign.token, coverPhotoFile);
-					const publicUrl = getPublicPhotoURL(presign.path);
+					// Prefer the constructed public URL; fall back to raw storage path so
+					// the backend can serve it even if env vars are not set on this client.
+					const publicUrl = getPublicPhotoURL(presign.path) || presign.path;
 					await apiFetch(`/v1/trips/${trip.id}`, {
 						method: 'PATCH',
 						body: JSON.stringify({ cover_photo_url: publicUrl })

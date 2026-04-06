@@ -69,7 +69,12 @@
 				<p>{formatDateRange(trip.start_date, trip.end_date)}</p>
 			</div>
 
-			{#if !isCompact && (trip.vote_count ?? 0) > 0}
+			{#if (trip.member_count ?? 0) > 0}
+				<div class="like-pill">
+					<span class="material-symbols-outlined fill-icon">group</span>
+					{trip.member_count}
+				</div>
+			{:else if !isCompact && (trip.vote_count ?? 0) > 0}
 				<div class="like-pill">
 					<span class="material-symbols-outlined fill-icon">thumb_up</span>
 					{trip.vote_count ?? 0}
@@ -109,9 +114,9 @@
 	overflow: hidden;
 }
 
-/* ── Compact variant (Trips page) ──────────────────────── */
+/* ── Compact variant (Feed page) ───────────────────────── */
 .card.compact .media {
-	aspect-ratio: 16 / 10;
+	aspect-ratio: 16 / 9;
 	position: relative;
 	overflow: hidden;
 }

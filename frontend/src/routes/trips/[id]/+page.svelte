@@ -541,6 +541,10 @@
 
 					{#if isOwner()}
 						<div class="owner-actions">
+							<button class="owner-btn owner-btn--invite" onclick={() => (inviteOpen = true)}>
+								<span class="material-symbols-outlined">person_add</span>
+								Invite friends
+							</button>
 							<a class="owner-btn owner-btn--edit" href="/trips/{trip.id}/edit">
 								<span class="material-symbols-outlined">edit</span>
 								Edit trip
@@ -1115,6 +1119,11 @@
 	.owner-btn:disabled {
 		opacity: 0.5;
 		cursor: default;
+	}
+
+	.owner-btn--invite {
+		background: rgba(77, 157, 109, 0.2);
+		color: #4d9d6d;
 	}
 
 	.owner-btn--edit {
