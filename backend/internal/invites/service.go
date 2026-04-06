@@ -215,6 +215,9 @@ func (s *Service) sendInviteNotification(invite *models.TripInvite, trip *models
 	if s.cfg != nil {
 		miniAppURL = s.cfg.MiniAppURL
 	}
+	if miniAppURL == "" {
+		slog.Warn("telegram: MINI_APP_URL not set — invite notification will be plain text without WebApp button", "trip_id", trip.ID)
+	}
 
 	nctx, ncancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer ncancel()

@@ -606,4 +606,59 @@ h1 {
 	animation: spin 1s linear infinite;
 	font-size: 20px;
 }
+
+/* ── Search Dropdown ─────────────────────────────────── */
+.search-dropdown {
+	position: absolute;
+	top: calc(100% + 4px);
+	left: 0;
+	right: 0;
+	background: #1e2820;
+	border: 1px solid rgba(77, 157, 109, 0.2);
+	border-radius: 12px;
+	overflow: hidden;
+	z-index: 10;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.search-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	padding: 10px 14px;
+	background: none;
+	border: none;
+	color: white;
+	font-size: 14px;
+	cursor: pointer;
+	text-align: left;
+	transition: background 0.15s ease;
+}
+
+.search-item:hover {
+	background: rgba(77, 157, 109, 0.1);
+}
+
+.search-item img {
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	object-fit: cover;
+	flex-shrink: 0;
+}
+
+.fallback-avatar {
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	background: rgba(77, 157, 109, 0.2);
+	color: #4d9d6d;
+	font-size: 13px;
+	font-weight: 700;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
 </style>
