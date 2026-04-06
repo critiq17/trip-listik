@@ -33,7 +33,7 @@
 
 			if (meRes.status === 'fulfilled') {
 				user = meRes.value.user;
-				referralLink = `https://t.me/triplistik_bot?startapp=profile_${user?.id}`;
+				referralLink = `https://t.me/tripListikBot?startapp=profile_${user?.id}`;
 			}
 
 			if (statsRes.status === 'fulfilled') {
