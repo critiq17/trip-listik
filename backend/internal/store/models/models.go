@@ -66,24 +66,6 @@ type TripInvite struct {
 	UpdatedAt       time.Time `json:"updated_at"`
 }
 
-type TripVote struct {
-	ID        uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	TripID    uuid.UUID `gorm:"type:uuid;index" json:"trip_id"`
-	UserID    uuid.UUID `gorm:"type:uuid;index" json:"user_id"`
-	Vote      int16     `json:"vote"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-type TripComment struct {
-	ID        uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	TripID    uuid.UUID `gorm:"type:uuid;index" json:"trip_id"`
-	UserID    uuid.UUID `gorm:"type:uuid;index" json:"user_id"`
-	Body      string    `json:"body"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
 type TripPhoto struct {
 	ID          uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 	TripID      uuid.UUID `gorm:"type:uuid;index" json:"trip_id"`
