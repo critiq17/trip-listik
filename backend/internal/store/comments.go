@@ -12,23 +12,6 @@ func (s *Store) CreateComment(ctx context.Context, cmt *models.TripComment) erro
 	return s.DB.WithContext(ctx).Create(cmt).Error
 }
 
-func (s *Store) ListComments(ctx context.Context, tripID uuid.UUID, limit int, cursor time.Time) ([]models.TripComment, error) {
-	var comments []models.TripComment
-	q := s.DB.WithContext(ctx).
-		Where("trip_id = ?", tripID).
-		Order("created_at DESC").
-		Limit(limit)
-
-	if !cursor.IsZero() {
-		q = q.Where("created_at < ?", cursor)
-	}
-
-	if err := q.Find(&comments).Error; err != nil {
-		return nil, err
-	}
-	return comments, nil
-}
-
 type TripCommentView struct {
 	ID        uuid.UUID `json:"id"`
 	TripID    uuid.UUID `json:"trip_id"`

@@ -7,107 +7,76 @@
 	import { expandTelegram } from '$lib/telegram';
 	import type { TripCardData } from '$lib/types';
 
-	// ── Public trips ────────────────────────────────────────
-	let publicItems = $state<TripCardData[]>([]);
-	let publicLoading = $state(true);
-	let publicError = $state('');
-	let publicCursor = $state<string | null>(null);
-	let publicLoadingMore = $state(false);
-	let publicHasMore = $state(true);
-	let publicSentinel = $state<HTMLDivElement | null>(null);
+	type Tab = 'all' | 'mine';
 
-	// ── Trending trips ──────────────────────────────────────
-	let trendingItems = $state<TripCardData[]>([]);
-	let trendingLoading = $state(true);
-	let trendingError = $state('');
+	let activeTab = $state<Tab>('all');
 
-	// ── Friends' trips ──────────────────────────────────────
-	let friendItems = $state<TripCardData[]>([]);
-	let friendLoading = $state(true);
-	let friendError = $state('');
+	// ── All trips (public feed) ──────────────────────────────
+	let allItems = $state<TripCardData[]>([]);
+	let allLoading = $state(true);
+	let allError = $state('');
+	let allCursor = $state<string | null>(null);
+	let allLoadingMore = $state(false);
+	let allHasMore = $state(true);
+	let allSentinel = $state<HTMLDivElement | null>(null);
+
+	// ── My trips ─────────────────────────────────────────────
+	let myItems = $state<TripCardData[]>([]);
+	let myLoading = $state(true);
+	let myError = $state('');
 
 	let ready = $state(false);
 
-	const fetchPublicTrips = async (mode: 'reset' | 'append' = 'reset') => {
-		if (mode === 'append' && (publicLoadingMore || !publicHasMore)) return;
-		if (mode === 'append') publicLoadingMore = true;
-		else publicLoading = true;
-		publicError = '';
-		const queryArgs = ['filter=all', 'limit=20'];
-		if (mode === 'append' && publicCursor) {
-			queryArgs.push(`cursor=${publicCursor}`);
-		}
+	const fetchAllTrips = async (mode: 'reset' | 'append' = 'reset') => {
+		if (mode === 'append' && (allLoadingMore || !allHasMore)) return;
+		if (mode === 'append') allLoadingMore = true;
+		else allLoading = true;
+		allError = '';
+		const params = ['filter=all', 'limit=20'];
+		if (mode === 'append' && allCursor) params.push(`cursor=${allCursor}`);
 		try {
-			const data = await apiFetch<{ items: TripCardData[]; next_cursor?: string; cursor?: string }>(
-				`/v1/feed?${queryArgs.join('&')}`
-			);
-			const next = data.next_cursor ?? data.cursor ?? null;
-			if (mode === 'append') {
-				publicItems = [...publicItems, ...(data.items ?? [])];
-			} else {
-				publicItems = data.items ?? [];
-			}
-			publicCursor = next;
-			publicHasMore = Boolean(next);
+			const data = await apiFetch<{ items: TripCardData[]; next_cursor?: string }>(`/v1/feed?${params.join('&')}`);
+			const next = data.next_cursor ?? null;
+			allItems = mode === 'append' ? [...allItems, ...(data.items ?? [])] : (data.items ?? []);
+			allCursor = next;
+			allHasMore = Boolean(next);
 		} catch (err) {
-			publicError = err instanceof Error ? err.message : 'Failed to load trips';
+			allError = err instanceof Error ? err.message : 'Failed to load trips';
 		} finally {
-			publicLoading = false;
-			publicLoadingMore = false;
+			allLoading = false;
+			allLoadingMore = false;
 		}
 	};
 
-	const fetchTrending = async () => {
-		trendingLoading = true;
-		trendingError = '';
+	const fetchMyTrips = async () => {
+		myLoading = true;
+		myError = '';
 		try {
-			const data = await apiFetch<{ items: TripCardData[] }>(
-				'/v1/feed?filter=popular&limit=6'
-			);
-			trendingItems = data.items ?? [];
+			const data = await apiFetch<{ items: TripCardData[] }>('/v1/trips?scope=mine');
+			myItems = data.items ?? [];
 		} catch (err) {
-			trendingError = err instanceof Error ? err.message : 'Failed to load';
+			const msg = err instanceof Error ? err.message : 'Failed to load';
+			myError = msg.toLowerCase().includes('unauthorized') ? 'auth' : msg;
 		} finally {
-			trendingLoading = false;
+			myLoading = false;
 		}
 	};
 
-	const fetchFriendTrips = async () => {
-		friendLoading = true;
-		friendError = '';
-		try {
-			const data = await apiFetch<{ items: TripCardData[] }>(
-				'/v1/feed?filter=friends&limit=10'
-			);
-			friendItems = data.items ?? [];
-		} catch (err) {
-			const message = err instanceof Error ? err.message : 'Failed to load';
-			if (message.toLowerCase().includes('unauthorized')) {
-				friendError = 'connect';
-			} else {
-				friendError = message;
-			}
-		} finally {
-			friendLoading = false;
-		}
-	};
-
-	const observePublic = () => {
-		if (!publicSentinel) return;
+	const observeAll = () => {
+		if (!allSentinel) return;
 		const io = new IntersectionObserver((entries) => {
-			if (entries[0]?.isIntersecting) fetchPublicTrips('append');
+			if (entries[0]?.isIntersecting) fetchAllTrips('append');
 		});
-		io.observe(publicSentinel);
+		io.observe(allSentinel);
 		return () => io.disconnect();
 	};
 
 	onMount(() => {
 		expandTelegram();
 		ready = true;
-		fetchTrending();
-		fetchPublicTrips('reset');
-		fetchFriendTrips();
-		return observePublic();
+		fetchAllTrips('reset');
+		fetchMyTrips();
+		return observeAll();
 	});
 </script>
 
@@ -117,93 +86,74 @@
 </svelte:head>
 
 <div class="page">
-	<!-- Sticky Header -->
 	<header class="top-bar">
-		<button class="icon-btn" aria-label="Open menu">
-			<span class="material-symbols-outlined">menu</span>
-		</button>
 		<span class="logo">TripListik</span>
-		<button class="icon-btn" aria-label="Notifications">
-			<span class="material-symbols-outlined">notifications</span>
-		</button>
+		<a href="/create" class="create-btn" aria-label="Create trip">
+			<span class="material-symbols-outlined">add</span>
+		</a>
 	</header>
 
-	<main class="content">
-		<!-- Hero -->
-		<section class="hero">
-			<p class="eyebrow">Public Feed</p>
-			<h1 class="serif">Find trips worth joining.</h1>
-			<p class="subtitle">Curated journeys from the community.</p>
-		</section>
+	<div class="tabs-wrap">
+		<div class="tabs">
+			<button class="tab" class:active={activeTab === 'all'} onclick={() => (activeTab = 'all')}>
+				All Trips
+			</button>
+			<button class="tab" class:active={activeTab === 'mine'} onclick={() => (activeTab = 'mine')}>
+				My Trips
+			</button>
+		</div>
+	</div>
 
-		<!-- Trending -->
-		<section class="feed-section">
-			<p class="section-label">Trending</p>
-			<div class="trending-row">
-				{#if trendingLoading}
+	<main class="content">
+		{#if activeTab === 'all'}
+			<div class="cards">
+				{#if allLoading}
 					{#each Array(3) as _}
-						<div class="trending-skeleton"></div>
+						<SkeletonCard ratio="16 / 9" />
 					{/each}
-				{:else if trendingItems.length > 0}
-					{#each trendingItems as trip (trip.id)}
-						<div class="trending-card-wrap">
+				{:else if allError}
+					<div class="state error">{allError}</div>
+				{:else if allItems.length === 0}
+					<div class="state empty">No public trips yet — check back soon!</div>
+				{:else}
+					{#each allItems as trip, i (trip.id)}
+						<div in:fly={{ y: 30, duration: 250, delay: i < 6 ? i * 60 : 0 }}>
+							<TripCard {trip} variant="compact" />
+						</div>
+					{/each}
+				{/if}
+				<div bind:this={allSentinel} class="sentinel" aria-hidden="true"></div>
+				{#if allLoadingMore}
+					<SkeletonCard ratio="16 / 9" />
+				{/if}
+			</div>
+		{:else}
+			<div class="cards">
+				{#if myLoading}
+					{#each Array(3) as _}
+						<SkeletonCard ratio="16 / 9" />
+					{/each}
+				{:else if myError === 'auth'}
+					<div class="state connect">
+						<span class="material-symbols-outlined connect-icon">lock</span>
+						<p>Log in to see your trips</p>
+					</div>
+				{:else if myError}
+					<div class="state error">{myError}</div>
+				{:else if myItems.length === 0}
+					<div class="state empty">
+						<p>No trips yet.</p>
+						<a href="/create" class="empty-cta">Plan your first trip</a>
+					</div>
+				{:else}
+					{#each myItems as trip, i (trip.id)}
+						<div in:fly={{ y: 30, duration: 250, delay: i < 6 ? i * 60 : 0 }}>
 							<TripCard {trip} variant="compact" />
 						</div>
 					{/each}
 				{/if}
 			</div>
-		</section>
-
-		<!-- For You -->
-		<section class="feed-section">
-			<p class="section-label">For You</p>
-			<div class="cards">
-				{#if publicLoading}
-					{#each Array(2) as _}
-						<SkeletonCard ratio="3 / 4" />
-					{/each}
-				{:else if publicError}
-					<div class="state error">{publicError}</div>
-				{:else if publicItems.length === 0}
-					<div class="state empty">No public trips yet — check back soon!</div>
-				{:else}
-					{#each publicItems as trip, i (trip.id)}
-						<div in:fly={{ y: 40, duration: 300, delay: i * 80 }}>
-							<TripCard {trip} />
-						</div>
-					{/each}
-				{/if}
-				<div bind:this={publicSentinel} class="sentinel" aria-hidden="true"></div>
-				{#if publicLoadingMore}
-					<SkeletonCard ratio="3 / 4" />
-				{/if}
-			</div>
-		</section>
-
-		<!-- Friends' Trips -->
-		<section class="feed-section">
-			<p class="section-label">Friends' Trips</p>
-			<div class="cards">
-				{#if friendLoading}
-					{#each Array(1) as _}
-						<SkeletonCard ratio="3 / 4" />
-					{/each}
-				{:else if friendError === 'connect' || friendItems.length === 0}
-					<div class="state connect">
-						<span class="material-symbols-outlined connect-icon">group</span>
-						<p>Log in to see friends' trips</p>
-					</div>
-				{:else if friendError}
-					<div class="state error">{friendError}</div>
-				{:else}
-					{#each friendItems as trip, i (trip.id)}
-						<div in:fly={{ y: 40, duration: 300, delay: i * 80 }}>
-							<TripCard {trip} />
-						</div>
-					{/each}
-				{/if}
-			</div>
-		</section>
+		{/if}
 	</main>
 </div>
 
@@ -215,7 +165,7 @@
 	padding-bottom: 96px;
 }
 
-/* ── Sticky Header ─────────────────────────────────────── */
+/* ── Sticky Header ───────────────────────────────────────── */
 .top-bar {
 	position: sticky;
 	top: 0;
@@ -223,7 +173,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	height: 56px;
+	height: 52px;
 	padding: 0 16px;
 	background: #161c18;
 	border-bottom: 1px solid rgba(77, 157, 109, 0.1);
@@ -236,83 +186,75 @@
 	letter-spacing: -0.01em;
 }
 
-.icon-btn {
-	width: 48px;
-	height: 48px;
+.create-btn {
+	width: 36px;
+	height: 36px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: white;
+	background: rgba(77, 157, 109, 0.15);
+	border: 1px solid rgba(77, 157, 109, 0.3);
 	border-radius: 8px;
-	background: none;
-	border: none;
-	cursor: pointer;
+	color: #4d9d6d;
+	text-decoration: none;
 }
 
-.icon-btn .material-symbols-outlined {
-	font-size: 24px;
+.create-btn .material-symbols-outlined {
+	font-size: 22px;
 }
 
-/* ── Content ────────────────────────────────────────────── */
-.content {
+/* ── Tabs ────────────────────────────────────────────────── */
+.tabs-wrap {
+	position: sticky;
+	top: 52px;
+	z-index: 40;
+	background: #161c18;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tabs {
+	display: flex;
 	padding: 0 16px;
 	max-width: 480px;
 	margin: 0 auto;
+	gap: 24px;
 }
 
-/* ── Hero ────────────────────────────────────────────────── */
-.hero {
-	padding-top: 32px;
-	padding-bottom: 0;
-	margin-bottom: 0;
+.tab {
+	padding: 12px 0;
+	font-size: 14px;
+	font-weight: 600;
+	color: #64748b;
+	background: none;
+	border: none;
+	border-bottom: 2px solid transparent;
+	cursor: pointer;
+	transition: color 0.15s ease, border-color 0.15s ease;
+	-webkit-tap-highlight-color: transparent;
 }
 
-.eyebrow {
-	font-size: 11px;
+.tab.active {
 	color: #4d9d6d;
-	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: 0.15em;
-	margin-bottom: 8px;
+	border-bottom-color: #4d9d6d;
 }
 
-h1 {
-	font-size: 36px;
-	line-height: 1.1;
-	color: white;
-	margin-bottom: 8px;
-}
-
-.subtitle {
-	font-size: 15px;
-	color: #94a3b8;
-	font-weight: 400;
-}
-
-/* ── Feed sections ────────────────────────────────────────── */
-.feed-section {
-	margin-top: 32px;
-}
-
-.section-label {
-	font-size: 11px;
-	font-weight: 700;
-	color: #4d9d6d;
-	text-transform: uppercase;
-	letter-spacing: 0.12em;
-	margin-bottom: 16px;
+/* ── Content ─────────────────────────────────────────────── */
+.content {
+	padding: 12px 16px 0;
+	max-width: 480px;
+	margin: 0 auto;
 }
 
 /* ── Cards ───────────────────────────────────────────────── */
 .cards {
 	display: flex;
 	flex-direction: column;
-	gap: 32px;
+	gap: 12px;
 }
 
 .state {
 	text-align: center;
-	padding: 24px;
+	padding: 32px 24px;
 	border-radius: 12px;
 	background: rgba(255, 255, 255, 0.04);
 	color: #94a3b8;
@@ -329,7 +271,6 @@ h1 {
 	flex-direction: column;
 	align-items: center;
 	gap: 8px;
-	padding: 32px 24px;
 }
 
 .connect-icon {
@@ -338,37 +279,20 @@ h1 {
 	opacity: 0.6;
 }
 
+.empty-cta {
+	display: inline-block;
+	margin-top: 12px;
+	padding: 8px 20px;
+	background: rgba(77, 157, 109, 0.15);
+	border: 1px solid rgba(77, 157, 109, 0.3);
+	border-radius: 8px;
+	color: #4d9d6d;
+	font-size: 14px;
+	font-weight: 600;
+	text-decoration: none;
+}
+
 .sentinel {
 	height: 1px;
-}
-
-/* ── Trending row ────────────────────────────────────────── */
-.trending-row {
-	display: flex;
-	gap: 12px;
-	overflow-x: auto;
-	padding-bottom: 8px;
-	scrollbar-width: none;
-}
-
-.trending-row::-webkit-scrollbar {
-	display: none;
-}
-
-.trending-card-wrap {
-	flex: 0 0 160px;
-}
-
-.trending-skeleton {
-	flex: 0 0 160px;
-	aspect-ratio: 3 / 4;
-	border-radius: 12px;
-	background: rgba(255, 255, 255, 0.06);
-	animation: shimmer 1.5s infinite;
-}
-
-@keyframes shimmer {
-	0%, 100% { opacity: 0.6; }
-	50% { opacity: 1; }
 }
 </style>

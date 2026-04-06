@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -95,23 +95,25 @@ func (h *AuthHandler) TelegramAuth(c *fiber.Ctx) error {
 				if err := h.Store.RecordReferral(rCtx, referrerID.String(), stored.ID.String()); err != nil {
 					return // referral already recorded or error — skip notification
 				}
-				// Get referrer to find their telegram_id
 				referrer, err := h.Store.GetUserByID(rCtx, referrerID)
 				if err != nil || referrer == nil || h.Bot == nil {
 					return
 				}
-				// Get new referral count
-				var count int64
-				h.Store.DB.WithContext(rCtx).Table("referrals").Where("referrer_id = ?", referrerID).Count(&count)
-				// Build notification
+				if referrer.TelegramID == 0 {
+					slog.Warn("referral: referrer has no TelegramID", "referrer_id", referrerID)
+					return
+				}
+				count, err := h.Store.GetReferralCount(rCtx, referrerID)
+				if err != nil {
+					return
+				}
 				newUserName := stored.Username
 				if newUserName == "" {
 					newUserName = stored.FirstName
 				}
-				text := fmt.Sprintf("🎉 <b>@%s</b> just joined TripListik via your link! You now have <b>%d</b> referral(s).", newUserName, count)
 				nCtx, nCancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer nCancel()
-				h.Bot.SendMessage(nCtx, referrer.TelegramID, text)
+				h.Bot.SendReferralNotification(nCtx, referrer.TelegramID, newUserName, count)
 			}()
 		}
 	}

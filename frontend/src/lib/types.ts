@@ -63,18 +63,6 @@ export type JoinRequest = {
 	photo_url?: string;
 };
 
-export type Comment = {
-	id: string;
-	trip_id: string;
-	user_id: string;
-	body: string;
-	created_at: string;
-	username?: string;
-	first_name?: string;
-	last_name?: string;
-	photo_url?: string;
-};
-
 export type Photo = {
 	id: string;
 	trip_id: string;

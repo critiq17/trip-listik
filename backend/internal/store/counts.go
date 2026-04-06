@@ -17,11 +17,6 @@ type TripVoteStats struct {
 	Average float64
 }
 
-type TripCommentCount struct {
-	TripID uuid.UUID
-	Count  int64
-}
-
 type TripPhotoCount struct {
 	TripID uuid.UUID
 	Count  int64
@@ -71,26 +66,6 @@ func (s *Store) GetTripVoteStats(ctx context.Context, tripIDs []uuid.UUID) (map[
 	out := make(map[uuid.UUID]TripVoteStats, len(rows))
 	for _, r := range rows {
 		out[r.TripID] = r
-	}
-	return out, nil
-}
-
-func (s *Store) GetTripCommentCounts(ctx context.Context, tripIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
-	if len(tripIDs) == 0 {
-		return map[uuid.UUID]int64{}, nil
-	}
-	var rows []TripCommentCount
-	if err := s.DB.WithContext(ctx).
-		Table("trip_comments").
-		Select("trip_id, COUNT(*) as count").
-		Where("trip_id IN ?", tripIDs).
-		Group("trip_id").
-		Scan(&rows).Error; err != nil {
-		return nil, err
-	}
-	out := make(map[uuid.UUID]int64, len(rows))
-	for _, r := range rows {
-		out[r.TripID] = r.Count
 	}
 	return out, nil
 }

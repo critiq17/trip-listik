@@ -28,7 +28,6 @@
 	type TripDetailResponse = {
 		trip: TripCardData;
 		member_count: number;
-		comment_count: number;
 		photo_count: number;
 		viewer_is_member: boolean;
 	};
@@ -40,7 +39,6 @@
 	let members = $state<Member[]>([]);
 	let photos = $state<Photo[]>([]);
 	let memberCount = $state(0);
-	let commentCount = $state(0);
 	let photoCount = $state(0);
 	let uploading = $state(false);
 	let uploadError = $state('');
@@ -93,7 +91,6 @@
 			const data = await apiFetch<TripDetailResponse>(`/v1/trips/${id}`);
 			trip = data.trip;
 			memberCount = data.member_count ?? 0;
-			commentCount = data.comment_count ?? 0;
 			photoCount = data.photo_count ?? 0;
 			viewerIsMember = data.viewer_is_member ?? false;
 		} catch (err) {
@@ -541,6 +538,10 @@
 
 					{#if isOwner()}
 						<div class="owner-actions">
+							<button class="owner-btn owner-btn--invite" onclick={() => (inviteOpen = true)}>
+								<span class="material-symbols-outlined">person_add</span>
+								Invite friends
+							</button>
 							<a class="owner-btn owner-btn--edit" href="/trips/{trip.id}/edit">
 								<span class="material-symbols-outlined">edit</span>
 								Edit trip
@@ -956,18 +957,6 @@
 		margin-bottom: 0.35rem;
 	}
 
-	.invite-btn {
-		padding: 0.6rem 0.9rem;
-		border-radius: var(--radius-pill);
-		background: var(--accent-grad);
-		color: #06110b;
-		font-weight: 800;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		font-size: 0.65rem;
-		justify-self: start;
-	}
-
 	.detail-block p,
 	.map-card span {
 		color: var(--text-secondary);
@@ -1115,6 +1104,11 @@
 	.owner-btn:disabled {
 		opacity: 0.5;
 		cursor: default;
+	}
+
+	.owner-btn--invite {
+		background: rgba(77, 157, 109, 0.2);
+		color: #4d9d6d;
 	}
 
 	.owner-btn--edit {

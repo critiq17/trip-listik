@@ -154,26 +154,36 @@ func (h *ProfileHandler) Referrals(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 	defer cancel()
 
-	type ReferralEntry struct {
-		Username string    `json:"username"`
-		JoinedAt time.Time `json:"joined_at"`
-	}
-
-	var entries []ReferralEntry
-	err := h.Store.DB.WithContext(ctx).
-		Table("referrals r").
-		Select("COALESCE(u.username, u.first_name, 'User') as username, r.created_at as joined_at").
-		Joins("JOIN users u ON u.id::text = r.referred_id").
-		Where("r.referrer_id = ?", userID).
-		Order("r.created_at DESC").
-		Scan(&entries).Error
+	entries, err := h.Store.GetReferralEntries(ctx, userID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to load referrals")
 	}
+	count, err := h.Store.GetReferralCount(ctx, userID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "failed to count referrals")
+	}
 
 	return c.JSON(fiber.Map{
-		"referral_count": len(entries),
+		"referral_count": count,
 		"referrals":      entries,
 	})
+}
+
+// Friends returns the list of users who share at least one trip with the authenticated user.
+func (h *ProfileHandler) Friends(c *fiber.Ctx) error {
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		return fiber.NewError(fiber.StatusUnauthorized, "unauthorized")
+	}
+
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
+	defer cancel()
+
+	friends, err := h.Store.GetUserFriends(ctx, userID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "failed to load friends")
+	}
+
+	return c.JSON(fiber.Map{"items": friends})
 }
 
