@@ -15,6 +15,25 @@ type UserSummary struct {
 	PhotoURL  string    `json:"photo_url"`
 }
 
+// GetUserFriends returns distinct users who share at least one non-deleted trip with the given user.
+func (s *Store) GetUserFriends(ctx context.Context, userID uuid.UUID) ([]UserSummary, error) {
+	var friends []UserSummary
+	err := s.DB.WithContext(ctx).
+		Table("users u").
+		Select("DISTINCT u.id, u.username, u.first_name, u.last_name, u.photo_url").
+		Joins("JOIN trip_members tm1 ON tm1.user_id = u.id").
+		Joins("JOIN trip_members tm2 ON tm2.trip_id = tm1.trip_id AND tm2.user_id = ?", userID).
+		Joins("JOIN trips t ON t.id = tm1.trip_id AND t.deleted_at IS NULL").
+		Where("u.id != ?", userID).
+		Order("u.username ASC").
+		Limit(100).
+		Scan(&friends).Error
+	if err != nil {
+		return nil, err
+	}
+	return friends, nil
+}
+
 func (s *Store) SearchUsers(ctx context.Context, query string, limit int) ([]UserSummary, error) {
 	var users []UserSummary
 	trimmed := strings.TrimSpace(query)

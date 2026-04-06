@@ -3,6 +3,8 @@ package store
 import (
 	"context"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // ── Pending Invites ───────────────────────────────────────────────────────────
@@ -75,4 +77,36 @@ func (s *Store) RecordReferral(ctx context.Context, referrerUserID, referredUser
 	return s.DB.WithContext(ctx).
 		Exec("INSERT INTO referrals (referrer_id, referred_id, created_at) VALUES (?, ?, NOW()) ON CONFLICT DO NOTHING",
 			referrerUserID, referredUserID).Error
+}
+
+// ReferralEntry is a user who joined via a referral link.
+type ReferralEntry struct {
+	Username string    `json:"username"`
+	JoinedAt time.Time `json:"joined_at"`
+}
+
+// GetReferralEntries returns users who joined via the given referrer's link.
+func (s *Store) GetReferralEntries(ctx context.Context, referrerID uuid.UUID) ([]ReferralEntry, error) {
+	var entries []ReferralEntry
+	err := s.DB.WithContext(ctx).
+		Table("referrals r").
+		Select("COALESCE(NULLIF(u.username, ''), u.first_name, 'User') AS username, r.created_at AS joined_at").
+		Joins("JOIN users u ON u.id = r.referred_id").
+		Where("r.referrer_id = ?", referrerID).
+		Order("r.created_at DESC").
+		Scan(&entries).Error
+	if err != nil {
+		return nil, err
+	}
+	return entries, nil
+}
+
+// GetReferralCount returns the total number of users referred by the given user.
+func (s *Store) GetReferralCount(ctx context.Context, referrerID uuid.UUID) (int64, error) {
+	var count int64
+	err := s.DB.WithContext(ctx).
+		Table("referrals").
+		Where("referrer_id = ?", referrerID).
+		Count(&count).Error
+	return count, err
 }
