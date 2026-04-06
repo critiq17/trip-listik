@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { apiFetch } from '$lib/api';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, untrack } from 'svelte';
 
 	let {
 		value = $bindable(''),
@@ -32,11 +32,17 @@
 	let wrapper: HTMLElement | null = null;
 	let suppressSearch = false;
 
-	// Sync external value changes (e.g. form reset)
+	// Sync external value changes (e.g. form reset from parent).
+	// Use untrack on query so this effect only re-runs when `value` (the prop) changes,
+	// NOT when the user types (which mutates query directly). Without untrack, every
+	// keystroke triggers this effect, which reads the stale `value` and resets query.
 	$effect(() => {
-		if (value !== query && !isOpen) {
-			query = value;
-		}
+		const v = value;
+		untrack(() => {
+			if (v !== query && !isOpen) {
+				query = v;
+			}
+		});
 	});
 
 	const search = async (q: string) => {
