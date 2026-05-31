@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// User summary
 type UserSummary struct {
 	ID        uuid.UUID `json:"id"`
 	Username  string    `json:"username"`
