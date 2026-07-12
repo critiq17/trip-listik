@@ -18,9 +18,10 @@
 </script>
 
 <section class="auth">
-	<div class="orb"></div>
+	<div class="mark">
+		<span class="material-symbols-outlined">travel_explore</span>
+	</div>
 	<div class="logo">TripListik</div>
-	<p class="tag">Telegram Mini App</p>
 	<p class="muted">{status}</p>
 	{#if error}
 		<p class="error">{error}</p>
@@ -32,37 +33,41 @@
 		min-height: 100dvh;
 		display: grid;
 		place-content: center;
-		gap: 0.75rem;
+		gap: 8px;
 		text-align: center;
-		padding: 1.5rem;
+		padding: 16px;
+		background: var(--bg);
+		color: var(--text);
 	}
 
-	.orb {
-		width: 90px;
-		height: 90px;
-		border-radius: 50%;
-		margin: 0 auto 0.2rem;
-		background:
-			radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.9), transparent 25%),
-			var(--primary);
-		box-shadow: 0 12px 30px rgba(77, 157, 109, 0.45);
+	.mark {
+		width: 64px;
+		height: 64px;
+		border-radius: 16px;
+		margin: 0 auto 8px;
+		background: var(--green-soft);
+		color: var(--green);
+		display: grid;
+		place-items: center;
+	}
+
+	.mark .material-symbols-outlined {
+		font-size: 32px;
 	}
 
 	.logo {
-		font-size: 2.6rem;
-		font-weight: 800;
-		letter-spacing: -0.05em;
+		font-size: 28px;
+		font-weight: 700;
+		letter-spacing: -0.02em;
 	}
 
-	.tag {
-		color: var(--primary);
-		font-size: 0.78rem;
-		font-weight: 700;
-		letter-spacing: 0.12em;
-		text-transform: uppercase;
+	.muted {
+		color: var(--text-sub);
+		font-size: 14px;
 	}
 
 	.error {
-		color: #e11d48;
+		color: var(--danger);
+		font-size: 14px;
 	}
 </style>

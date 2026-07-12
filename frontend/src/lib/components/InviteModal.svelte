@@ -18,45 +18,12 @@
 	let error = $state('');
 	let inviteLoading = $state<string | null>(null);
 
-	import { animate } from 'motion';
-
-	let sheetEl: HTMLElement | null = null;
-	let backdropEl: HTMLButtonElement | null = null;
-
 	const close = () => {
-		if (sheetEl && backdropEl) {
-			animate(backdropEl, { opacity: [1, 0] }, { duration: 0.2 });
-			animate(
-				sheetEl,
-				// @ts-ignore
-				{ transform: ['translateY(0%)', 'translateY(100%)'], opacity: [1, 0] },
-				{ duration: 0.3 }
-			);
-			setTimeout(() => {
-				open = false;
-				query = '';
-				results = [];
-				error = '';
-			}, 300);
-		} else {
-			open = false;
-			query = '';
-			results = [];
-			error = '';
-		}
+		open = false;
+		query = '';
+		results = [];
+		error = '';
 	};
-
-	$effect(() => {
-		if (open && sheetEl && backdropEl) {
-			animate(backdropEl, { opacity: [0, 1] }, { duration: 0.2 });
-			animate(
-				sheetEl,
-				// @ts-ignore
-				{ transform: ['translateY(100%)', 'translateY(0%)'], opacity: [0.5, 1] },
-				{ duration: 0.35, easing: [0.16, 1, 0.3, 1] }
-			);
-		}
-	});
 
 	const loadInvites = async () => {
 		if (!tripId) return;
@@ -180,8 +147,7 @@
 	.backdrop {
 		position: fixed;
 		inset: 0;
-		background: rgba(5, 8, 7, 0.6);
-		backdrop-filter: blur(4px);
+		background: rgba(17, 20, 24, 0.4);
 		z-index: 20;
 		border: none;
 		padding: 0;
@@ -192,86 +158,104 @@
 		left: 0;
 		right: 0;
 		bottom: 0;
-		background: #0f1512;
-		border-radius: var(--radius-3xl) var(--radius-3xl) 0 0;
-		border-top: 1px solid rgba(255, 255, 255, 0.06);
-		padding: 1.2rem 1.2rem 2rem;
+		background: var(--bg-card);
+		border-radius: 16px 16px 0 0;
+		border-top: 1px solid var(--border);
+		padding: 16px 16px 32px;
 		z-index: 21;
-		box-shadow: 0 -24px 40px rgba(0, 0, 0, 0.35);
 		max-height: 80vh;
 		overflow-y: auto;
+		max-width: 480px;
+		margin: 0 auto;
+		animation: sheet-in 0.2s ease-out;
+	}
+
+	@keyframes sheet-in {
+		from { transform: translateY(24px); opacity: 0; }
+		to   { transform: translateY(0); opacity: 1; }
 	}
 
 	header {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		margin-bottom: 1rem;
+		margin-bottom: 12px;
 	}
 
 	h3 {
-		font-size: 1.1rem;
+		font-size: 16px;
+		font-weight: 700;
+		color: var(--text);
 	}
 
 	.close {
 		width: 32px;
 		height: 32px;
-		border-radius: 999px;
-		background: rgba(255, 255, 255, 0.08);
-		color: white;
+		border-radius: 50%;
+		background: var(--bg-subtle);
+		color: var(--text);
 		font-size: 1.2rem;
+		display: grid;
+		place-items: center;
 	}
 
 	.search input {
 		width: 100%;
-		padding: 0.75rem 0.9rem;
-		border-radius: var(--radius-xl);
-		background: rgba(255, 255, 255, 0.06);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		color: white;
+		padding: 12px 14px;
+		border-radius: var(--radius-input);
+		background: var(--bg-input);
+		border: 1px solid var(--border);
+		color: var(--text);
+		outline: none;
+		transition: border-color 0.15s ease;
+	}
+
+	.search input:focus {
+		border-color: var(--green);
 	}
 
 	.hint {
 		display: block;
-		margin-top: 0.4rem;
-		color: var(--text-secondary);
-		font-size: 0.75rem;
+		margin-top: 6px;
+		color: var(--text-sub);
+		font-size: 12px;
 	}
 
 	.error {
 		display: block;
-		margin-top: 0.4rem;
-		color: var(--error);
-		font-size: 0.75rem;
+		margin-top: 6px;
+		color: var(--danger);
+		font-size: 12px;
 	}
 
 	.results {
-		margin-top: 1rem;
+		margin-top: 12px;
 		display: flex;
 		flex-direction: column;
-		gap: 0.8rem;
+		gap: 8px;
 	}
 
 	.row {
 		display: grid;
 		grid-template-columns: 40px 1fr auto;
-		gap: 0.8rem;
+		gap: 10px;
 		align-items: center;
-		background: rgba(255, 255, 255, 0.04);
-		padding: 0.6rem 0.8rem;
-		border-radius: var(--radius-xl);
+		background: var(--bg-subtle);
+		padding: 10px 12px;
+		border-radius: var(--radius-input);
 	}
 
 	.avatar {
 		width: 40px;
 		height: 40px;
-		border-radius: 999px;
+		border-radius: 50%;
 		overflow: hidden;
-		background: rgba(255, 255, 255, 0.08);
+		background: var(--green-soft);
 		display: grid;
 		place-items: center;
-		color: white;
-		font-weight: 700;
+		color: var(--green);
+		font-weight: 600;
+		font-size: 13px;
 	}
 
 	.avatar img {
@@ -282,64 +266,81 @@
 
 	.meta strong {
 		display: block;
+		font-size: 14px;
+		font-weight: 600;
+		color: var(--text);
 	}
 
 	.meta small {
-		color: var(--text-secondary);
+		color: var(--text-sub);
+		font-size: 12px;
 	}
 
 	.invite-btn {
-		padding: 0.4rem 0.8rem;
+		padding: 7px 14px;
 		border-radius: var(--radius-pill);
-		background: var(--primary);
-		color: #0b120f;
-		font-weight: 700;
-		font-size: 0.75rem;
+		background: var(--green);
+		color: #fff;
+		font-weight: 600;
+		font-size: 13px;
+	}
+
+	.invite-btn:disabled {
+		opacity: 0.5;
 	}
 
 	.pending {
-		margin-top: 1.2rem;
+		margin-top: 16px;
 	}
 
 	.pending-head {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		margin-bottom: 0.6rem;
+		margin-bottom: 8px;
 	}
 
 	.pending-head h4 {
-		font-size: 0.65rem;
-		letter-spacing: 0.2em;
-		text-transform: uppercase;
-		color: var(--text-secondary);
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--text-sub);
+	}
+
+	.pending-head span {
+		font-size: 12px;
+		color: var(--text-sub);
 	}
 
 	.pending-row {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 0.6rem 0.8rem;
-		border-radius: var(--radius-xl);
-		background: rgba(255, 255, 255, 0.04);
-		margin-bottom: 0.6rem;
+		padding: 10px 12px;
+		border-radius: var(--radius-input);
+		background: var(--bg-subtle);
+		margin-bottom: 8px;
+	}
+
+	.pending-row strong {
+		display: block;
+		font-size: 14px;
+		font-weight: 600;
+		color: var(--text);
 	}
 
 	.pending-row small {
-		color: var(--text-secondary);
-		font-size: 0.7rem;
+		color: var(--text-sub);
+		font-size: 12px;
 	}
 
 	.status {
-		font-size: 0.7rem;
-		color: var(--text-secondary);
-		text-transform: uppercase;
-		letter-spacing: 0.12em;
+		font-size: 12px;
+		color: var(--text-sub);
 	}
 
 	.empty {
-		margin-top: 0.8rem;
-		color: var(--text-secondary);
-		font-size: 0.85rem;
+		margin-top: 8px;
+		color: var(--text-sub);
+		font-size: 13px;
 	}
 </style>

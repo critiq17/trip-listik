@@ -3,7 +3,6 @@
 	import { page } from '$app/stores';
 	import { apiFetch } from '$lib/api';
 	import TripCard from '$lib/components/TripCard.svelte';
-	import { countUp } from '$lib/transitions';
 	import { getUserInitials, getUserName } from '$lib/format';
 	import type { TripCardData, User, UserStats } from '$lib/types';
 
@@ -17,8 +16,6 @@
 
 	let data = $state<PublicProfileResponse | null>(null);
 	let error = $state('');
-	let statEls = $state<Array<HTMLElement | null>>([]);
-	let worldEl = $state<HTMLElement | null>(null);
 	let ringEl = $state<SVGCircleElement | null>(null);
 
 	onMount(async () => {
@@ -29,16 +26,6 @@
 		}
 		try {
 			data = await apiFetch<PublicProfileResponse>(`/v1/users/${id}/profile`);
-			if (data?.stats && statEls.length) {
-				const values = [
-					data.stats.total_trips,
-					data.stats.countries_visited,
-					data.stats.cities_visited,
-					data.stats.trips_with_friends
-				];
-				statEls.forEach((el, idx) => el && countUp(el, values[idx] ?? 0));
-			}
-			if (worldEl) countUp(worldEl, data?.world_explored_percent ?? 0, 1.1);
 			if (ringEl) {
 				const circumference = 2 * Math.PI * 44;
 				const percent = data?.world_explored_percent ?? 0;
@@ -77,19 +64,19 @@
 
 		<section class="stats">
 			<div class="stat">
-				<p bind:this={statEls[0]}>0</p>
+				<p>{data.stats.total_trips}</p>
 				<span>Trips</span>
 			</div>
 			<div class="stat">
-				<p bind:this={statEls[1]}>0</p>
+				<p>{data.stats.countries_visited}</p>
 				<span>Countries</span>
 			</div>
 			<div class="stat">
-				<p bind:this={statEls[2]}>0</p>
+				<p>{data.stats.cities_visited}</p>
 				<span>Cities</span>
 			</div>
 			<div class="stat">
-				<p bind:this={statEls[3]}>0</p>
+				<p>{data.stats.trips_with_friends}</p>
 				<span>Friends</span>
 			</div>
 		</section>
@@ -97,7 +84,7 @@
 		<section class="map">
 			<div class="map-head">
 				<span>World explored</span>
-				<strong bind:this={worldEl}>0%</strong>
+				<strong>{data.world_explored_percent ?? 0}%</strong>
 			</div>
 			<div class="ring">
 				<svg viewBox="0 0 100 100">
@@ -127,7 +114,7 @@
 					<div class="state">No wishlist items</div>
 				{:else}
 					{#each data.wishlist as item}
-						<div class="wish glass">
+						<div class="wish">
 							<strong>{item.country_code}</strong>
 							{#if item.city}<span>{item.city}</span>{/if}
 							{#if item.note}<p>{item.note}</p>{/if}
@@ -142,57 +129,69 @@
 <style>
 	.public-profile {
 		min-height: 100dvh;
-		padding: 2rem 1.5rem 5.5rem;
+		padding: 24px 16px 96px;
 		background: var(--bg);
 		color: var(--text);
-		max-width: 560px;
+		max-width: 480px;
 		margin: 0 auto;
 	}
 
 	.hero {
 		display: grid;
-		grid-template-columns: 88px 1fr;
-		gap: 1.2rem;
+		grid-template-columns: 72px 1fr;
+		gap: 16px;
 		align-items: center;
-		margin-bottom: 2rem;
+		margin-bottom: 20px;
 	}
 
 	.avatar-wrap {
-		border: 1px solid rgba(77, 157, 109, 0.4);
-		border-radius: 999px;
-		padding: 2px;
+		border: 1px solid var(--border);
+		border-radius: 50%;
+		overflow: hidden;
+		width: 72px;
+		height: 72px;
 	}
 
 	.avatar {
-		width: 84px;
-		height: 84px;
-		border-radius: 999px;
+		width: 100%;
+		height: 100%;
+		border-radius: 50%;
 		background-size: cover;
 		background-position: center;
-		border: 2px solid var(--bg);
 	}
 
 	.avatar.fallback {
 		display: grid;
 		place-items: center;
-		background: rgba(255, 255, 255, 0.08);
+		background: var(--green-soft);
+		color: var(--green);
+		font-weight: 600;
+		font-size: 20px;
+	}
+
+	h1 {
+		font-size: 18px;
 		font-weight: 700;
 	}
 
 	.handle {
-		color: var(--text-secondary);
+		color: var(--text-sub);
+		font-size: 14px;
 	}
 
 	.bio {
-		margin-top: 0.4rem;
-		color: var(--text-secondary);
+		margin-top: 4px;
+		color: var(--text-sub);
+		font-size: 13px;
 	}
 
 	.stats {
 		display: grid;
 		grid-template-columns: repeat(4, 1fr);
-		gap: 0.6rem;
-		margin-bottom: 2rem;
+		padding: 12px 0;
+		border-top: 1px solid var(--border);
+		border-bottom: 1px solid var(--border);
+		margin-bottom: 20px;
 	}
 
 	.stat {
@@ -200,67 +199,107 @@
 	}
 
 	.stat p {
-		font-size: 1.1rem;
-		font-weight: 800;
+		font-size: 17px;
+		font-weight: 700;
+		color: var(--text);
 	}
 
 	.stat span {
-		font-size: 0.6rem;
-		text-transform: uppercase;
-		letter-spacing: 0.2em;
-		color: var(--text-secondary);
+		font-size: 12px;
+		color: var(--text-sub);
 	}
 
 	.map {
-		display: grid;
-		gap: 0.6rem;
-		margin-bottom: 2rem;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		margin-bottom: 20px;
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-card);
+		padding: 14px 16px;
 	}
 
 	.map-head {
 		display: flex;
-		justify-content: space-between;
-		align-items: baseline;
-		color: var(--text-secondary);
-		font-size: 0.7rem;
-		letter-spacing: 0.2em;
-		text-transform: uppercase;
+		flex-direction: column;
+		gap: 2px;
+		color: var(--text-sub);
+		font-size: 13px;
 	}
 
 	.map-head strong {
 		color: var(--green);
-		font-size: 1.3rem;
-		letter-spacing: 0;
+		font-size: 20px;
+		font-weight: 700;
 	}
 
 	.ring svg {
-		width: 70px;
-		height: 70px;
+		width: 56px;
+		height: 56px;
+		transform: rotate(-90deg);
+	}
+
+	.ring-bg {
+		fill: none;
+		stroke: var(--border);
+		stroke-width: 8;
+	}
+
+	.ring-fill {
+		fill: none;
+		stroke: var(--green);
+		stroke-width: 8;
+		stroke-linecap: round;
+	}
+
+	.section {
+		margin-bottom: 20px;
 	}
 
 	.section h3 {
-		font-size: 0.7rem;
-		letter-spacing: 0.2em;
-		text-transform: uppercase;
-		color: var(--text-secondary);
-		margin-bottom: 0.8rem;
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--text-sub);
+		margin-bottom: 10px;
 	}
 
 	.list {
 		display: grid;
-		gap: 0.8rem;
+		gap: 10px;
 	}
 
 	.wish {
-		padding: 0.8rem 1rem;
-		border-radius: var(--radius-xl);
+		padding: 12px 14px;
+		border-radius: var(--radius-card);
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+	}
+
+	.wish strong {
+		font-size: 14px;
+		color: var(--text);
+	}
+
+	.wish span {
+		margin-left: 6px;
+		font-size: 13px;
+		color: var(--text-sub);
+	}
+
+	.wish p {
+		margin-top: 4px;
+		font-size: 13px;
+		color: var(--text-sub);
 	}
 
 	.state {
-		padding: 1rem;
+		padding: 16px;
 		text-align: center;
-		border-radius: var(--radius-xl);
-		background: rgba(255, 255, 255, 0.04);
-		color: var(--text-secondary);
+		border-radius: var(--radius-card);
+		background: var(--bg-subtle);
+		color: var(--text-sub);
+		font-size: 14px;
 	}
 </style>

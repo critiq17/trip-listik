@@ -3,8 +3,6 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { apiFetch } from '$lib/api';
-	import { expandTelegram } from '$lib/telegram';
-	import { scalePress } from '$lib/actions/animate';
 	import { resolvePhotoUrl } from '$lib/photos';
 	import type { InviteItem } from '$lib/types';
 
@@ -69,7 +67,7 @@
 	<title>Trip Invite</title>
 </svelte:head>
 
-<main class="invite-page container">
+<main class="invite-page">
 	{#if loading}
 		<div class="center-content">
 			<div class="loader">Loading...</div>
@@ -105,13 +103,11 @@
 						<span class="material-symbols-outlined">landscape</span>
 					</div>
 				{/if}
-				<div class="trip-info">
-					<h1>{invite.trip_title}</h1>
-				</div>
 			</div>
+			<h1 class="trip-title">{invite.trip_title}</h1>
 
 			<div class="actions">
-				<button class="accept-btn" onclick={acceptInvite} disabled={processing} use:scalePress>
+				<button class="accept-btn" onclick={acceptInvite} disabled={processing}>
 					{processing ? 'Processing...' : 'Accept Invite'}
 				</button>
 				<button class="decline-btn" onclick={declineInvite} disabled={processing}>
@@ -128,8 +124,11 @@
 		display: flex;
 		flex-direction: column;
 		justify-content: center;
-		padding: 1.5rem;
-		background: var(--background-dark);
+		padding: 16px;
+		background: var(--bg);
+		color: var(--text);
+		max-width: 480px;
+		margin: 0 auto;
 	}
 
 	.center-content {
@@ -138,78 +137,89 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		gap: 1rem;
+		gap: 8px;
 		height: 50vh;
 	}
 
 	.loader {
-		color: var(--primary);
+		color: var(--text-sub);
 	}
 
 	.error-state .icon {
-		font-size: 3rem;
-		color: var(--error);
-		margin-bottom: 1rem;
+		font-size: 40px;
+		color: var(--danger);
+		margin-bottom: 8px;
+	}
+
+	.error-state h2 {
+		font-size: 18px;
+		font-weight: 700;
+	}
+
+	.error-state p {
+		color: var(--text-sub);
+		font-size: 14px;
 	}
 
 	.primary-btn {
-		margin-top: 1rem;
-		padding: 0.8rem 1.5rem;
-		border-radius: var(--radius-pill);
-		background: var(--primary);
-		color: #000;
-		font-weight: 700;
+		margin-top: 12px;
+		padding: 12px 24px;
+		border-radius: var(--radius-input);
+		background: var(--green);
+		color: #fff;
+		font-weight: 600;
 		border: none;
 	}
 
 	.invite-card {
-		background: rgba(255, 255, 255, 0.04);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: var(--radius-2xl);
-		padding: 1.5rem;
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-card);
+		padding: 20px;
 		display: flex;
 		flex-direction: column;
-		gap: 1.5rem;
+		gap: 16px;
 	}
 
 	.header {
 		display: flex;
 		align-items: center;
-		gap: 1rem;
+		gap: 12px;
 	}
 
 	.avatar {
-		width: 48px;
-		height: 48px;
-		border-radius: 999px;
+		width: 44px;
+		height: 44px;
+		border-radius: 50%;
 		object-fit: cover;
 	}
 
 	.avatar.fallback {
-		background: rgba(77, 157, 109, 0.2);
-		color: var(--primary);
+		background: var(--green-soft);
+		color: var(--green);
 		display: grid;
 		place-items: center;
-		font-weight: 700;
-		font-size: 1.2rem;
+		font-weight: 600;
+		font-size: 17px;
 	}
 
 	.text strong {
 		display: block;
-		font-size: 1.1rem;
+		font-size: 15px;
+		font-weight: 600;
 	}
 
 	.text p {
-		color: var(--text-secondary);
-		font-size: 0.85rem;
-		margin-top: 0.2rem;
+		color: var(--text-sub);
+		font-size: 13px;
+		margin-top: 2px;
 	}
 
 	.trip-preview {
-		border-radius: var(--radius-xl);
+		border-radius: var(--radius-input);
 		overflow: hidden;
-		position: relative;
-		height: 200px;
+		height: 180px;
+		background: var(--bg-subtle);
 	}
 
 	.cover-image {
@@ -221,54 +231,44 @@
 	.cover-placeholder {
 		width: 100%;
 		height: 100%;
-		background: rgba(0, 0, 0, 0.3);
 		display: grid;
 		place-items: center;
-		color: rgba(255, 255, 255, 0.2);
+		color: var(--text-muted);
 	}
 
 	.cover-placeholder span {
-		font-size: 3rem;
+		font-size: 40px;
 	}
 
-	.trip-info {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		padding: 2rem 1rem 1rem;
-		background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
-	}
-
-	.trip-info h1 {
-		font-size: 1.4rem;
-		font-weight: 800;
-		text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+	.trip-title {
+		font-size: 20px;
+		font-weight: 700;
+		line-height: 1.2;
 	}
 
 	.actions {
 		display: flex;
 		flex-direction: column;
-		gap: 0.8rem;
-		margin-top: 0.5rem;
+		gap: 8px;
 	}
 
 	.accept-btn {
-		padding: 1rem;
-		border-radius: var(--radius-xl);
-		background: var(--primary);
-		color: #000;
-		font-weight: 700;
-		font-size: 1rem;
+		padding: 13px;
+		border-radius: var(--radius-input);
+		background: var(--green);
+		color: #fff;
+		font-weight: 600;
+		font-size: 15px;
 		border: none;
 	}
 
 	.decline-btn {
-		padding: 1rem;
-		border-radius: var(--radius-xl);
-		background: transparent;
-		color: var(--text-secondary);
+		padding: 13px;
+		border-radius: var(--radius-input);
+		background: var(--bg-subtle);
+		color: var(--text-sub);
 		font-weight: 600;
+		font-size: 15px;
 		border: none;
 	}
 

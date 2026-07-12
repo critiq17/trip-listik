@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { fly } from 'svelte/transition';
 	import { goto } from '$app/navigation';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import TripCard from '$lib/components/TripCard.svelte';
@@ -49,13 +48,11 @@
 </svelte:head>
 
 <div class="page">
-	<!-- Header -->
-	<header class="header">
-		<div class="header-copy">
-			<p class="eyebrow">My Trips</p>
-			<h1>Your travel board.</h1>
-			<p class="subtitle">Manage your upcoming and past adventures.</p>
-		</div>
+	<header class="top-bar">
+		<span class="page-title">My Trips</span>
+		<a href="/create" class="create-btn" aria-label="Create trip">
+			<span class="material-symbols-outlined">add</span>
+		</a>
 	</header>
 
 	<!-- Tab Bar -->
@@ -73,23 +70,14 @@
 
 	<!-- Content -->
 	<main class="content">
-		{#if !loading && !error}
-			<div class="stats-badge">
-				{items.length} visible · {active}
-			</div>
-		{/if}
-
 		<div class="cards">
 			{#if loading}
 				<SkeletonCard ratio="16 / 10" />
 			{:else if error}
 				<div class="state">{error}</div>
 			{:else if items.length === 0 && active === 'Upcoming'}
-				<!-- Empty upcoming: show empty state -->
 				<div class="empty-state">
-					<div class="empty-icon">
-						<span class="material-symbols-outlined">luggage</span>
-					</div>
+					<span class="material-symbols-outlined empty-icon">luggage</span>
 					<p class="empty-title">No upcoming trips</p>
 					<span class="empty-sub">Plan your next adventure and it'll appear here.</span>
 					<button class="empty-action" onclick={() => goto('/create')}>
@@ -100,88 +88,68 @@
 			{:else if items.length === 0}
 				<div class="empty-minimal">No {active.toLowerCase()} trips found.</div>
 			{:else}
-				{#each items as trip, i (trip.id)}
-					<div in:fly={{ y: 24, duration: 250, delay: i * 60 }}>
-						<TripCard {trip} variant="compact" />
-					</div>
+				{#each items as trip (trip.id)}
+					<TripCard {trip} variant="compact" />
 				{/each}
 			{/if}
 		</div>
-
-		<!-- Quick Drafts Section -->
-		{#if active === 'Upcoming' && !loading}
-			<div class="drafts-section">
-				<p class="section-label">Quick Drafts</p>
-				<div class="draft-empty">
-					<div class="draft-icon-wrap">
-						<span class="material-symbols-outlined">edit_note</span>
-					</div>
-					<p class="draft-title">No active drafts</p>
-					<span class="draft-sub">Start planning your next escape today.</span>
-					<button class="draft-action" onclick={() => goto('/create')}>
-						<span class="material-symbols-outlined">add</span>
-						Create new trip
-					</button>
-				</div>
-			</div>
-		{/if}
 	</main>
 </div>
-
-<!-- FAB: Create new trip -->
-<button class="fab" onclick={() => goto('/create')} aria-label="Create new trip">
-	<span class="material-symbols-outlined">add</span>
-</button>
 
 <style>
 .page {
 	min-height: 100dvh;
-	background: #161c18;
-	color: #f1f5f9;
+	background: var(--bg);
+	color: var(--text);
 	padding-bottom: 96px;
 }
 
 /* ── Header ─────────────────────────────────────────────── */
-.header {
-	padding: 24px 16px 0;
+.top-bar {
+	position: sticky;
+	top: 0;
+	z-index: 50;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	height: 52px;
+	padding: 0 16px;
+	background: var(--bg);
+	border-bottom: 1px solid var(--border);
 	max-width: 480px;
 	margin: 0 auto;
 }
 
-.header-copy {
-	margin-top: 0;
-}
-
-.eyebrow {
-	font-size: 10px;
-	color: #4d9d6d;
+.page-title {
+	font-size: 18px;
 	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: 0.12em;
-	margin-bottom: 6px;
+	color: var(--text);
 }
 
-h1 {
-	font-size: 30px;
-	font-weight: 700;
-	color: white;
-	line-height: 1.15;
-	margin-bottom: 6px;
+.create-btn {
+	width: 36px;
+	height: 36px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--green-soft);
+	border-radius: 8px;
+	color: var(--green);
+	text-decoration: none;
 }
 
-.subtitle {
-	font-size: 14px;
-	color: #94a3b8;
+.create-btn .material-symbols-outlined {
+	font-size: 22px;
 }
 
 /* ── Tab Bar ─────────────────────────────────────────────── */
 .tab-bar {
 	display: flex;
-	gap: 32px;
+	gap: 24px;
 	padding: 0 16px;
 	max-width: 480px;
-	margin: 16px auto 0;
-	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+	margin: 0 auto;
+	border-bottom: 1px solid var(--border);
 }
 
 .tab {
@@ -189,41 +157,30 @@ h1 {
 	background: none;
 	border: none;
 	border-bottom: 2px solid transparent;
-	color: #64748b;
+	color: var(--text-sub);
 	font-size: 14px;
 	font-weight: 600;
 	cursor: pointer;
-	transition: color 0.2s ease, border-color 0.2s ease;
+	transition: color 0.15s ease, border-color 0.15s ease;
 	-webkit-tap-highlight-color: transparent;
 }
 
 .tab.active {
-	color: #4d9d6d;
-	border-bottom-color: #4d9d6d;
+	color: var(--green);
+	border-bottom-color: var(--green);
 }
 
 /* ── Content ─────────────────────────────────────────────── */
 .content {
-	padding: 16px 16px 0;
+	padding: 12px 16px 0;
 	max-width: 480px;
 	margin: 0 auto;
-}
-
-.stats-badge {
-	display: inline-block;
-	padding: 4px 12px;
-	border-radius: 9999px;
-	background: rgba(77, 157, 109, 0.1);
-	color: #4d9d6d;
-	font-size: 12px;
-	font-weight: 500;
-	margin-bottom: 16px;
 }
 
 .cards {
 	display: flex;
 	flex-direction: column;
-	gap: 16px;
+	gap: 12px;
 }
 
 /* ── Empty States ────────────────────────────────────────── */
@@ -232,44 +189,38 @@ h1 {
 	flex-direction: column;
 	align-items: center;
 	text-align: center;
-	gap: 12px;
-	padding: 32px 16px;
+	gap: 8px;
+	padding: 40px 16px;
 }
 
 .empty-icon {
-	width: 56px;
-	height: 56px;
-	border-radius: 9999px;
-	background: rgba(77, 157, 109, 0.1);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	color: #64748b;
-}
-
-.empty-icon .material-symbols-outlined {
-	font-size: 28px;
+	font-size: 32px;
+	color: var(--text-muted);
+	margin-bottom: 4px;
 }
 
 .empty-title {
 	font-size: 16px;
 	font-weight: 600;
-	color: white;
+	color: var(--text);
 }
 
 .empty-sub {
 	font-size: 13px;
-	color: #94a3b8;
+	color: var(--text-sub);
 }
 
 .empty-action {
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	color: #4d9d6d;
+	margin-top: 8px;
+	padding: 8px 20px;
+	background: var(--green-soft);
+	border-radius: 8px;
+	color: var(--green);
 	font-size: 14px;
-	font-weight: 700;
-	background: none;
+	font-weight: 600;
 	border: none;
 	cursor: pointer;
 }
@@ -281,113 +232,16 @@ h1 {
 .empty-minimal {
 	text-align: center;
 	padding: 32px;
-	color: #64748b;
+	color: var(--text-sub);
 	font-size: 14px;
 }
 
 .state {
 	padding: 20px;
 	text-align: center;
-	border-radius: 12px;
-	background: rgba(255, 255, 255, 0.04);
-	color: #94a3b8;
+	border-radius: var(--radius-card);
+	background: var(--danger-soft);
+	color: var(--danger);
 	font-size: 14px;
-}
-
-/* ── Drafts section ──────────────────────────────────────── */
-.drafts-section {
-	margin-top: 24px;
-}
-
-.section-label {
-	font-size: 12px;
-	color: #64748b;
-	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: 0.12em;
-	margin-bottom: 16px;
-}
-
-.draft-empty {
-	border: 2px dashed rgba(255, 255, 255, 0.1);
-	border-radius: 12px;
-	padding: 32px;
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	text-align: center;
-	gap: 12px;
-}
-
-.draft-icon-wrap {
-	width: 48px;
-	height: 48px;
-	border-radius: 9999px;
-	background: rgba(77, 157, 109, 0.1);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	color: #64748b;
-}
-
-.draft-icon-wrap .material-symbols-outlined {
-	font-size: 24px;
-}
-
-.draft-title {
-	font-size: 14px;
-	font-weight: 600;
-	color: white;
-}
-
-.draft-sub {
-	font-size: 13px;
-	color: #94a3b8;
-}
-
-.draft-action {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	color: #4d9d6d;
-	font-size: 14px;
-	font-weight: 700;
-	background: none;
-	border: none;
-	cursor: pointer;
-}
-
-.draft-action .material-symbols-outlined {
-	font-size: 18px;
-}
-
-/* ── FAB ─────────────────────────────────────────────────── */
-.fab {
-	position: fixed;
-	bottom: calc(72px + env(safe-area-inset-bottom, 0px) + 16px);
-	right: 20px;
-	width: 56px;
-	height: 56px;
-	border-radius: 9999px;
-	background: #4d9d6d;
-	color: white;
-	border: none;
-	cursor: pointer;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	box-shadow: 0 4px 20px rgba(77, 157, 109, 0.45);
-	z-index: 40;
-	transition: transform 0.15s ease, box-shadow 0.15s ease;
-	-webkit-tap-highlight-color: transparent;
-}
-
-.fab:active {
-	transform: scale(0.93);
-	box-shadow: 0 2px 10px rgba(77, 157, 109, 0.3);
-}
-
-.fab .material-symbols-outlined {
-	font-size: 28px;
 }
 </style>

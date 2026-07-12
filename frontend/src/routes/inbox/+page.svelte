@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { apiFetch } from '$lib/api';
-	import { staggerList } from '$lib/actions/animate';
 	import { formatRelativeDate, parseNotificationPayload } from '$lib/format';
 	import type { InviteItem, NotificationItem } from '$lib/types';
 	import { unreadCount } from '$lib/stores/notifications';
@@ -105,17 +104,16 @@
 	<meta name="description" content="Your pending trip invites and travel notifications." />
 </svelte:head>
 
-<section class="inbox-page">
-	<header class="header">
-		<h1 class="serif-text">Notifications</h1>
-		<p class="subtle">Invites, approvals, and trip updates.</p>
+<div class="page">
+	<header class="top-bar">
+		<span class="page-title">Notifications</span>
 	</header>
 
-	<div class="list" use:staggerList>
+	<main class="list">
 		{#if loading}
-			<div class="skeleton-card"></div>
-			<div class="skeleton-card"></div>
-			<div class="skeleton-card"></div>
+			<div class="skeleton-card skeleton"></div>
+			<div class="skeleton-card skeleton"></div>
+			<div class="skeleton-card skeleton"></div>
 		{:else if error}
 			<div class="card error-card">{error}</div>
 		{:else}
@@ -123,19 +121,19 @@
 				<div class="card error-card">{actionError}</div>
 			{/if}
 			{#if invites.length > 0}
-				<h3 class="section-title">Pending Invites</h3>
+				<h3 class="section-title">Pending invites</h3>
 				{#each invites as inv (inv.id)}
-					<div class="card invite-card" data-item>
+					<div class="card">
 						<div class="row">
 							<div class="invite-info">
 								<span class="material-symbols-outlined icon">mail</span>
-								<strong>Trip Invitation</strong>
+								<strong>Trip invitation</strong>
 							</div>
 							<span class="pill pending">Pending</span>
 						</div>
 						<p class="message">
-							<strong>{inv.inviter_username ? `@${inv.inviter_username}` : 'Someone'}</strong> 
-							invited you to 
+							<strong>{inv.inviter_username ? `@${inv.inviter_username}` : 'Someone'}</strong>
+							invited you to
 							<strong>{inv.trip_title || 'a trip'}</strong>.
 						</p>
 						<div class="actions">
@@ -147,9 +145,9 @@
 			{/if}
 
 			{#if items.length > 0}
-				<h3 class="section-title" style="margin-top: 1rem;">Recent Updates</h3>
+				<h3 class="section-title">Recent updates</h3>
 				{#each items as item (item.id)}
-					<div class="card notification-card" class:unread={!item.read_at} data-item>
+					<div class="card" class:unread={!item.read_at}>
 						<div class="row">
 							<strong>{typeLabels[item.type] ?? 'Update'}</strong>
 							<span class="date">{formatRelativeDate(item.created_at)}</span>
@@ -161,16 +159,14 @@
 
 			{#if items.length === 0 && invites.length === 0}
 				<div class="empty-state">
-					<div class="circle">
-						<span class="material-symbols-outlined">notifications_off</span>
-					</div>
+					<span class="material-symbols-outlined empty-icon">notifications_off</span>
 					<h3>All caught up</h3>
 					<p>You have no new notifications.</p>
 				</div>
 			{/if}
 		{/if}
-	</div>
-</section>
+	</main>
+</div>
 
 <!-- Decline bottom sheet -->
 {#if declineSheetOpen}
@@ -181,7 +177,7 @@
 	></div>
 	<div class="decline-sheet" role="dialog" aria-label="Decline invite">
 		<div class="sheet-handle"></div>
-		<h3 class="sheet-title">Decline Invite</h3>
+		<h3 class="sheet-title">Decline invite</h3>
 
 		<div class="sheet-field">
 			<label class="sheet-label" for="decline-reason">Reason (optional)</label>
@@ -209,96 +205,120 @@
 			onclick={confirmDecline}
 			disabled={declineSubmitting}
 		>
-			{declineSubmitting ? 'Declining...' : 'Decline Invite'}
+			{declineSubmitting ? 'Declining...' : 'Decline invite'}
 		</button>
 	</div>
 {/if}
 
 <style>
-	.inbox-page {
-		padding: 1.5rem;
-		padding-bottom: 6rem; /* space for bottom nav */
+	.page {
 		min-height: 100dvh;
 		background: var(--bg);
 		color: var(--text);
+		padding-bottom: 96px;
 	}
 
-	.header {
-		margin-bottom: 2rem;
+	/* ── Header ─────────────────────────────────────────────── */
+	.top-bar {
+		position: sticky;
+		top: 0;
+		z-index: 50;
+		display: flex;
+		align-items: center;
+		height: 52px;
+		padding: 0 16px;
+		background: var(--bg);
+		border-bottom: 1px solid var(--border);
+		max-width: 480px;
+		margin: 0 auto;
 	}
 
-	.header h1 {
-		font-size: 2.2rem;
-		margin-bottom: 0.4rem;
-	}
-
-	.subtle {
-		color: var(--text-sub);
-		font-size: 0.9rem;
+	.page-title {
+		font-size: 18px;
+		font-weight: 700;
+		color: var(--text);
 	}
 
 	.section-title {
-		font-size: 0.85rem;
-		text-transform: uppercase;
-		letter-spacing: 0.1em;
-		color: var(--text-muted);
-		margin-bottom: 0.8rem;
-		font-weight: 700;
+		font-size: 13px;
+		color: var(--text-sub);
+		margin: 8px 0;
+		font-weight: 600;
 	}
 
 	.list {
 		display: flex;
 		flex-direction: column;
-		gap: 0.8rem;
+		gap: 10px;
+		padding: 12px 16px 0;
+		max-width: 480px;
+		margin: 0 auto;
 	}
 
 	.card {
 		background: var(--bg-card);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-card);
-		padding: 1rem 1.25rem;
+		padding: 14px 16px;
+	}
+
+	.card.unread {
+		border-left: 3px solid var(--green);
+	}
+
+	.error-card {
+		background: var(--danger-soft);
+		border-color: transparent;
+		color: var(--danger);
+		text-align: center;
+		font-size: 14px;
 	}
 
 	.row {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		margin-bottom: 0.6rem;
+		margin-bottom: 6px;
+	}
+
+	.row strong {
+		font-size: 14px;
+		color: var(--text);
 	}
 
 	.invite-info {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: 8px;
 	}
 
 	.icon {
 		color: var(--green);
-		font-size: 1.2rem;
+		font-size: 18px;
 	}
 
 	.message {
-		font-size: 0.95rem;
+		font-size: 14px;
 		line-height: 1.4;
-		color: var(--text);
+		color: var(--text-sub);
 	}
 
 	.message strong {
-		color: white;
+		color: var(--text);
 	}
 
 	.actions {
 		display: flex;
-		gap: 0.6rem;
-		margin-top: 1rem;
+		gap: 8px;
+		margin-top: 12px;
 	}
 
 	.btn {
 		flex: 1;
-		padding: 0.6rem;
+		padding: 10px;
 		border-radius: var(--radius-input);
-		font-weight: 700;
-		font-size: 0.9rem;
+		font-weight: 600;
+		font-size: 14px;
 		border: none;
 		cursor: pointer;
 		-webkit-tap-highlight-color: transparent;
@@ -306,91 +326,62 @@
 
 	.accept {
 		background: var(--green);
-		color: var(--bg);
-	}
-
-	.accept:active {
-		background: var(--green-light);
+		color: #fff;
 	}
 
 	.decline {
-		background: var(--bg-elevated);
+		background: var(--bg-subtle);
 		color: var(--text-sub);
-		border: 1px solid var(--border);
-	}
-
-	.decline:active {
-		background: rgba(255, 255, 255, 0.05);
 	}
 
 	.pill {
-		padding: 0.25rem 0.6rem;
+		padding: 3px 8px;
 		border-radius: var(--radius-pill);
-		font-size: 0.65rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.1em;
+		font-size: 11px;
+		font-weight: 600;
 	}
 
 	.pill.pending {
-		background: rgba(249, 115, 22, 0.15); /* Warning orange */
+		background: var(--warning-soft);
 		color: var(--warning);
 	}
 
-	.notification-card.unread {
-		border-left: 3px solid var(--green);
-		background: rgba(61, 158, 95, 0.05);
-	}
-
 	.date {
-		font-size: 0.75rem;
+		font-size: 12px;
 		color: var(--text-muted);
 	}
 
 	.empty-state {
 		text-align: center;
-		padding: 4rem 1rem;
+		padding: 48px 16px;
 		color: var(--text-sub);
 	}
 
-	.circle {
-		width: 4rem;
-		height: 4rem;
-		border-radius: 50%;
-		background: var(--bg-elevated);
-		display: grid;
-		place-items: center;
-		margin: 0 auto 1.5rem;
+	.empty-icon {
+		font-size: 32px;
 		color: var(--text-muted);
-	}
-
-	.circle .material-symbols-outlined {
-		font-size: 2rem;
+		margin-bottom: 12px;
 	}
 
 	.empty-state h3 {
-		font-size: 1.1rem;
+		font-size: 16px;
 		color: var(--text);
-		margin-bottom: 0.4rem;
+		margin-bottom: 4px;
+	}
+
+	.empty-state p {
+		font-size: 14px;
 	}
 
 	.skeleton-card {
 		height: 80px;
-		background: var(--bg-elevated);
-		border-radius: var(--radius-card);
-		animation: pulse 1.5s infinite;
 	}
 
-	@keyframes pulse {
-		0% { opacity: 0.6; }
-		50% { opacity: 0.3; }
-		100% { opacity: 0.6; }
-	}
-
+	/* ── Decline sheet ──────────────────────────────────────── */
 	.sheet-backdrop {
 		position: fixed;
 		inset: 0;
-		background: rgba(0,0,0,0.5);
+		background: rgba(17, 20, 24, 0.4);
 		z-index: 100;
 	}
 
@@ -400,8 +391,8 @@
 		left: 0;
 		right: 0;
 		z-index: 101;
-		background: #1e2a22;
-		border-radius: 20px 20px 0 0;
+		background: var(--bg-card);
+		border-radius: 16px 16px 0 0;
 		padding: 12px 20px 32px;
 		max-width: 480px;
 		margin: 0 auto;
@@ -410,26 +401,26 @@
 	.sheet-handle {
 		width: 40px;
 		height: 4px;
-		background: rgba(255,255,255,0.2);
+		background: var(--border);
 		border-radius: 2px;
 		margin: 0 auto 16px;
 	}
 
 	.sheet-title {
-		font-size: 17px;
+		font-size: 16px;
 		font-weight: 700;
-		color: #f1f5f9;
-		margin-bottom: 20px;
+		color: var(--text);
+		margin-bottom: 16px;
 	}
 
 	.sheet-field {
-		margin-bottom: 16px;
+		margin-bottom: 14px;
 	}
 
 	.sheet-label {
 		display: block;
-		font-size: 12px;
-		color: #94a3b8;
+		font-size: 13px;
+		color: var(--text-sub);
 		font-weight: 500;
 		margin-bottom: 6px;
 	}
@@ -437,28 +428,33 @@
 	.sheet-textarea,
 	.sheet-input {
 		width: 100%;
-		background: rgba(255,255,255,0.06);
-		border: 1px solid rgba(255,255,255,0.1);
-		border-radius: 8px;
+		background: var(--bg-input);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-input);
 		padding: 10px 12px;
 		font-size: 15px;
-		color: #f1f5f9;
+		color: var(--text);
 		outline: none;
 		box-sizing: border-box;
 		resize: none;
 	}
 
+	.sheet-textarea:focus,
+	.sheet-input:focus {
+		border-color: var(--green);
+	}
+
 	.decline-confirm-btn {
 		width: 100%;
-		padding: 14px;
-		background: #ef4444;
+		padding: 13px;
+		background: var(--danger);
 		border: none;
-		border-radius: 10px;
-		color: white;
+		border-radius: var(--radius-input);
+		color: #fff;
 		font-size: 15px;
-		font-weight: 700;
+		font-weight: 600;
 		cursor: pointer;
-		margin-top: 8px;
+		margin-top: 4px;
 	}
 
 	.decline-confirm-btn:disabled {

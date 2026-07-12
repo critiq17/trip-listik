@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { fly } from 'svelte/transition';
 	import { apiFetch } from '$lib/api';
 	import { resolvePhotoUrl } from '$lib/photos';
 
@@ -78,77 +77,54 @@
 </svelte:head>
 
 <div class="page">
-	<!-- Header -->
-	<header class="header">
-		<div class="header-top">
-			<p class="eyebrow">Explore</p>
-			<button class="icon-btn" aria-label="Menu">
-				<span class="material-symbols-outlined">menu</span>
-			</button>
-		</div>
-		<h1>Find the next route.</h1>
-		<p class="subtitle">Search for destinations and itineraries.</p>
+	<header class="top-bar">
+		<span class="page-title">Explore</span>
 	</header>
 
 	<main class="content">
 		<!-- Search Form -->
 		<div class="form">
-			<!-- Destination -->
-			<div class="field">
-				<label class="field-label" for="explore-dest">Destination</label>
+			<div class="search-wrap">
+				<span class="material-symbols-outlined search-icon">search</span>
 				<input
 					id="explore-dest"
 					type="text"
-					class="underline-input"
+					class="search-input"
 					placeholder="Where to?"
 					bind:value={query}
 					autocomplete="off"
 				/>
 			</div>
 
-			<!-- Country Filter -->
-			<div class="field">
-				<label class="field-label" for="explore-country">Country Filter</label>
-				<div class="select-wrap">
-					<select
-						id="explore-country"
-						class="underline-input"
-						bind:value={country}
-					>
-						{#each countries as c}
-							<option value={c.code}>{c.label}</option>
-						{/each}
-					</select>
-					<span class="material-symbols-outlined select-chevron">expand_more</span>
-				</div>
+			<div class="select-wrap">
+				<select
+					id="explore-country"
+					class="country-select"
+					bind:value={country}
+					aria-label="Country filter"
+				>
+					{#each countries as c}
+						<option value={c.code}>{c.label}</option>
+					{/each}
+				</select>
+				<span class="material-symbols-outlined select-chevron">expand_more</span>
 			</div>
-
-			<!-- Search Button -->
-			<button
-				class="search-btn"
-				onclick={(e) => { e.preventDefault(); search(); }}
-			>
-				Search Destinations
-			</button>
 		</div>
 
 		<!-- Recommended Routes -->
 		<section class="results">
-			<p class="section-label">Recommended Routes</p>
+			<p class="section-label">Recommended routes</p>
 
 			{#if loading}
 				<div class="state">Searching…</div>
 			{:else if error}
-				<div class="state">{error}</div>
+				<div class="state error">{error}</div>
 			{:else if items.length === 0}
 				<div class="state">No routes found. Try a different search.</div>
 			{:else}
 				<div class="route-list">
-					{#each items as item, i (item.id ?? item.title)}
-						<article
-							class="route-card"
-							in:fly={{ y: 24, duration: 250, delay: i * 60 }}
-						>
+					{#each items as item (item.id ?? item.title)}
+						<article class="route-card">
 							<div class="route-img-wrap">
 								{#if item.cover_photo_url || item.image}
 									<div class="img-skeleton skeleton"></div>
@@ -206,200 +182,159 @@
 <style>
 .page {
 	min-height: 100dvh;
-	background: #161c18;
-	color: #f1f5f9;
+	background: var(--bg);
+	color: var(--text);
 	padding-bottom: 96px;
 }
 
 /* ── Header ─────────────────────────────────────────────── */
-.header {
-	padding: 32px 24px 0;
+.top-bar {
+	position: sticky;
+	top: 0;
+	z-index: 50;
+	display: flex;
+	align-items: center;
+	height: 52px;
+	padding: 0 16px;
+	background: var(--bg);
+	border-bottom: 1px solid var(--border);
 	max-width: 480px;
 	margin: 0 auto;
 }
 
-.header-top {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	margin-bottom: 12px;
-}
-
-.eyebrow {
-	font-size: 10px;
-	color: #4d9d6d;
+.page-title {
+	font-size: 18px;
 	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: 0.12em;
-}
-
-.icon-btn {
-	width: 40px;
-	height: 40px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	color: white;
-	background: none;
-	border: none;
-	cursor: pointer;
-}
-
-h1 {
-	font-size: 30px;
-	font-weight: 700;
-	color: white;
-	margin-bottom: 8px;
-	line-height: 1.15;
-}
-
-.subtitle {
-	font-size: 14px;
-	color: #94a3b8;
-	margin-bottom: 0;
+	color: var(--text);
 }
 
 /* ── Content ─────────────────────────────────────────────── */
 .content {
-	padding: 0 24px;
+	padding: 16px;
 	max-width: 480px;
 	margin: 0 auto;
 	display: flex;
 	flex-direction: column;
-	gap: 24px;
+	gap: 20px;
 }
 
 /* ── Form ───────────────────────────────────────────────── */
 .form {
 	display: flex;
 	flex-direction: column;
-	gap: 24px;
-	padding-top: 24px;
+	gap: 10px;
 }
 
-.field {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
+.search-wrap {
+	position: relative;
 }
 
-.field-label {
-	font-size: 10px;
-	color: #94a3b8;
-	font-weight: 500;
-	text-transform: uppercase;
-	letter-spacing: 0.1em;
+.search-icon {
+	position: absolute;
+	left: 12px;
+	top: 50%;
+	transform: translateY(-50%);
+	font-size: 20px;
+	color: var(--text-muted);
+	pointer-events: none;
 }
 
-.underline-input {
+.search-input {
 	width: 100%;
-	background: transparent;
-	border: none;
-	border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-	border-radius: 0;
-	font-size: 18px;
-	color: white;
-	padding: 8px 0;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-input);
+	font-size: 15px;
+	color: var(--text);
+	padding: 12px 14px 12px 40px;
 	outline: none;
-	transition: border-bottom-color 0.2s ease;
-	appearance: none;
-	-webkit-appearance: none;
+	transition: border-color 0.15s ease;
 }
 
-.underline-input::placeholder {
-	color: #4a5568;
+.search-input:focus {
+	border-color: var(--green);
 }
 
-.underline-input:focus {
-	border-bottom-color: #4d9d6d;
-}
-
-/* Select wrapper */
+/* Select */
 .select-wrap {
 	position: relative;
 }
 
+.country-select {
+	width: 100%;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-input);
+	font-size: 15px;
+	color: var(--text);
+	padding: 12px 40px 12px 14px;
+	outline: none;
+	appearance: none;
+	-webkit-appearance: none;
+	transition: border-color 0.15s ease;
+}
+
+.country-select:focus {
+	border-color: var(--green);
+}
+
 .select-chevron {
 	position: absolute;
-	right: 0;
+	right: 12px;
 	top: 50%;
 	transform: translateY(-50%);
 	font-size: 20px;
-	color: #64748b;
+	color: var(--text-muted);
 	pointer-events: none;
 }
 
-/* Search Button */
-.search-btn {
-	width: 100%;
-	padding: 16px;
-	border-radius: 8px;
-	background: #4d9d6d;
-	color: white;
-	font-size: 18px;
-	font-weight: 400;
-	border: none;
-	cursor: pointer;
-	box-shadow: 0 8px 20px rgba(77, 157, 109, 0.25);
-	transition: opacity 0.15s ease;
-}
-
-.search-btn:hover {
-	opacity: 0.9;
-}
-
 /* ── Results ─────────────────────────────────────────────── */
-.results {
-	padding-bottom: 8px;
-}
-
 .section-label {
-	font-size: 12px;
-	color: #64748b;
-	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: 0.12em;
-	margin-bottom: 16px;
+	font-size: 13px;
+	color: var(--text-sub);
+	font-weight: 600;
+	margin-bottom: 12px;
 }
 
 .state {
 	text-align: center;
 	padding: 24px;
-	border-radius: 12px;
-	background: rgba(255, 255, 255, 0.04);
-	color: #94a3b8;
+	border-radius: var(--radius-card);
+	background: var(--bg-subtle);
+	color: var(--text-sub);
 	font-size: 14px;
+}
+
+.state.error {
+	background: var(--danger-soft);
+	color: var(--danger);
 }
 
 .route-list {
 	display: flex;
 	flex-direction: column;
-	gap: 16px;
+	gap: 12px;
 }
 
 /* ── Route Card ──────────────────────────────────────────── */
 .route-card {
 	position: relative;
-	border-radius: 12px;
+	border-radius: var(--radius-card);
 	overflow: hidden;
-	background: rgba(255, 255, 255, 0.04);
-	border: 1px solid rgba(255, 255, 255, 0.06);
-	transition: transform 0.2s ease;
-}
-
-.route-card:hover {
-	transform: scale(1.01);
+	background: var(--bg-card);
+	border: 1px solid var(--border);
 }
 
 .route-img-wrap {
 	position: relative;
-	height: 192px;
+	height: 180px;
 	overflow: hidden;
 }
 
 .img-skeleton {
 	position: absolute;
 	inset: 0;
+	border-radius: 0;
 }
 
 .route-img {
@@ -422,26 +357,27 @@ h1 {
 .route-img-placeholder {
 	width: 100%;
 	height: 100%;
-	background: rgba(255, 255, 255, 0.06);
+	background: var(--bg-subtle);
 }
 
 .fav-btn {
 	position: absolute;
-	top: 16px;
-	right: 16px;
+	top: 12px;
+	right: 12px;
 	width: 36px;
 	height: 36px;
-	border-radius: 9999px;
-	background: rgba(255, 255, 255, 0.15);
-	backdrop-filter: blur(8px);
-	-webkit-backdrop-filter: blur(8px);
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.92);
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: white;
+	color: var(--text);
 	border: none;
 	cursor: pointer;
-	transition: background 0.2s ease;
+}
+
+.fav-btn .fill-icon {
+	color: var(--danger);
 }
 
 .fav-btn .material-symbols-outlined {
@@ -449,26 +385,27 @@ h1 {
 }
 
 .route-body {
-	padding: 16px;
+	padding: 12px 14px;
 }
 
 .route-top {
 	display: flex;
 	justify-content: space-between;
 	align-items: flex-start;
-	margin-bottom: 8px;
+	gap: 8px;
+	margin-bottom: 4px;
 }
 
 .route-top h4 {
-	font-size: 18px;
-	font-weight: 700;
-	color: white;
+	font-size: 16px;
+	font-weight: 600;
+	color: var(--text);
 }
 
 .price {
-	font-size: 18px;
+	font-size: 15px;
 	font-weight: 700;
-	color: #4d9d6d;
+	color: var(--green);
 	flex-shrink: 0;
 }
 
@@ -476,16 +413,16 @@ h1 {
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	color: #94a3b8;
-	font-size: 12px;
+	color: var(--text-sub);
+	font-size: 13px;
 }
 
 .meta-icon {
-	font-size: 14px;
-	color: #94a3b8;
+	font-size: 15px;
+	color: var(--text-sub);
 }
 
 .dot {
-	color: #94a3b8;
+	color: var(--text-muted);
 }
 </style>

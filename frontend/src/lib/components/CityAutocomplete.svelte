@@ -225,7 +225,7 @@
 		margin: 0;
 		padding: 0.4rem;
 		z-index: 50;
-		box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+		box-shadow: 0 4px 16px rgba(17, 20, 24, 0.08);
 		max-height: 250px;
 		overflow-y: auto;
 		animation: dropIn 0.15s ease-out;
@@ -258,7 +258,7 @@
 
 	.dropdown button:hover,
 	.dropdown button:focus {
-		background: rgba(61, 158, 95, 0.08);
+		background: var(--bg-subtle);
 		outline: none;
 	}
 
