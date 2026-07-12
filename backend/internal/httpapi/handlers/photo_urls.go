@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log/slog"
 	"strings"
 
 	"github.com/critiq17/tripListik/internal/store"
@@ -27,6 +28,9 @@ func normalizeStoredPhotoURL(storage *supabase.StorageClient, bucket, raw string
 	signedURL, err := storage.CreateSignedObjectURL(bucket, cleanPath, photoURLExpirySeconds)
 	if err == nil && signedURL != "" {
 		return signedURL
+	}
+	if err != nil {
+		slog.Warn("photos: failed to sign object URL, falling back to public URL", "path", cleanPath, "err", err)
 	}
 
 	publicURL := storage.PublicObjectURL(bucket, cleanPath)
@@ -122,6 +126,14 @@ func normalizeStoredPhotoURLWithMap(storage *supabase.StorageClient, bucket, raw
 		if signedURL := strings.TrimSpace(signedURLs[cleanPath]); signedURL != "" {
 			return signedURL
 		}
+		// The bulk sign call already failed or skipped this path — a per-item
+		// sign call would fail the same way and turn a list into N extra HTTP
+		// round-trips. Fall back to the public URL directly.
+		if signedURLs == nil {
+			if publicURL := storage.PublicObjectURL(bucket, cleanPath); publicURL != "" {
+				return publicURL
+			}
+		}
 	}
 
 	return normalizeStoredPhotoURL(storage, bucket, cleanRaw)
@@ -134,6 +146,7 @@ func signedPhotoURLMap(storage *supabase.StorageClient, bucket string, paths []s
 
 	signedURLs, err := storage.CreateSignedObjectURLs(bucket, paths, photoURLExpirySeconds)
 	if err != nil {
+		slog.Warn("photos: bulk sign failed, falling back to public URLs", "count", len(paths), "err", err)
 		return nil
 	}
 

@@ -79,18 +79,28 @@ func (s *Service) InviteUser(ctx context.Context, requesterID, tripID uuid.UUID,
 		invitedUserID = users[0].ID
 	}
 
-	// Guard against duplicates.
+	// Guard against duplicates. A pending or accepted invite blocks a new one;
+	// a declined or cancelled invite is reopened so the user can be re-invited
+	// (the table has UNIQUE(trip_id, invited_user_id), so we reuse the row).
 	existing, err := s.store.GetInviteByTripAndUser(ctx, tripID, invitedUserID)
 	if err != nil {
 		return nil, fmt.Errorf("invites.InviteUser check dup: %w", err)
 	}
-	if existing != nil {
-		return existing, ErrDuplicate
-	}
 
-	invite, err := s.store.CreateInvite(ctx, tripID, invitedUserID, requesterID)
-	if err != nil {
-		return nil, fmt.Errorf("invites.InviteUser create: %w", err)
+	var invite *models.TripInvite
+	switch {
+	case existing == nil:
+		invite, err = s.store.CreateInvite(ctx, tripID, invitedUserID, requesterID)
+		if err != nil {
+			return nil, fmt.Errorf("invites.InviteUser create: %w", err)
+		}
+	case existing.Status == "declined" || existing.Status == "cancelled":
+		invite, err = s.store.ReopenInvite(ctx, existing.ID, requesterID)
+		if err != nil {
+			return nil, fmt.Errorf("invites.InviteUser reopen: %w", err)
+		}
+	default:
+		return existing, ErrDuplicate
 	}
 
 	// Fire-and-forget TG notification.
@@ -115,6 +125,11 @@ func (s *Service) RespondInvite(ctx context.Context, userID, inviteID uuid.UUID,
 	}
 	if invite.InvitedUserID != userID {
 		return ErrForbidden
+	}
+	// Only pending invites can be answered — a cancelled or already answered
+	// invite must not add members or spam the owner again.
+	if invite.Status != "pending" {
+		return ErrNotFound
 	}
 
 	status := map[string]string{"accept": "accepted", "decline": "declined"}[action]
@@ -267,20 +282,19 @@ func (s *Service) handleInviteResponse(invite *models.TripInvite, responderID uu
 		responderName = "@" + responder.Username
 	}
 
-	var text string
-	if status == "accepted" {
-		text = fmt.Sprintf("✅ <b>%s</b> accepted your invite to <b>%s</b>!", responderName, trip.Title)
-	} else {
-		text = fmt.Sprintf("❌ <b>%s</b> declined your invite to <b>%s</b>.", responderName, trip.Title)
-		if comment != nil && *comment != "" {
-			text += fmt.Sprintf("\nReason: %s", *comment)
-		}
-		if alternativeDate != nil && *alternativeDate != "" {
-			text += fmt.Sprintf("\nSuggested date: %s", *alternativeDate)
-		}
-	}
-
 	nctx, ncancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer ncancel()
-	s.bot.SendMessage(nctx, owner.TelegramID, text)
+
+	if status == "accepted" {
+		s.bot.SendInviteAccepted(nctx, owner.TelegramID, responderName, trip.Title)
+		return
+	}
+	s.bot.SendInviteDeclined(nctx, owner.TelegramID, responderName, trip.Title, deref(comment), deref(alternativeDate))
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

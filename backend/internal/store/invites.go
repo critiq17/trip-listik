@@ -103,6 +103,27 @@ func (s *Store) ListUserInvites(ctx context.Context, userID uuid.UUID, limit int
 	return items, nil
 }
 
+// ReopenInvite resets a declined or cancelled invite back to pending so the
+// user can be invited again. The row is reused because of the
+// UNIQUE(trip_id, invited_user_id) constraint.
+func (s *Store) ReopenInvite(ctx context.Context, inviteID, invitedByUserID uuid.UUID) (*models.TripInvite, error) {
+	err := s.DB.WithContext(ctx).
+		Model(&models.TripInvite{}).
+		Where("id = ?", inviteID).
+		Updates(map[string]any{
+			"status":             "pending",
+			"invited_by_user_id": invitedByUserID,
+			"comment":            nil,
+			"alternative_date":   nil,
+			"tg_message_id":      0,
+			"updated_at":         time.Now().UTC(),
+		}).Error
+	if err != nil {
+		return nil, err
+	}
+	return s.GetInviteByID(ctx, inviteID)
+}
+
 func (s *Store) UpdateInviteTgMessageID(ctx context.Context, inviteID uuid.UUID, msgID int64) error {
 	return s.DB.WithContext(ctx).
 		Model(&models.TripInvite{}).

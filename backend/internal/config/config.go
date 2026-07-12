@@ -15,6 +15,7 @@ type Config struct {
 	Env                   string
 	JWTSecret             string
 	TelegramWebAppSecret  string
+	TelegramWebhookSecret string
 	BotToken              string
 	MiniAppURL            string
 	SupabaseURL           string
@@ -38,6 +39,7 @@ func LoadConfig() *Config {
 		Env:                   getEnv("APP_ENV", "dev"),
 		JWTSecret:             os.Getenv("JWT_SECRET"),
 		TelegramWebAppSecret:  os.Getenv("TELEGRAM_WEBAPP_SECRET"),
+		TelegramWebhookSecret: os.Getenv("TELEGRAM_WEBHOOK_SECRET"),
 		BotToken:              os.Getenv("BOT_TOKEN"),
 		MiniAppURL:            os.Getenv("MINI_APP_URL"),
 		SupabaseURL:           os.Getenv("SUPABASE_URL"),

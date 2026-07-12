@@ -186,4 +186,3 @@ func (h *ProfileHandler) Friends(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"items": friends})
 }
-

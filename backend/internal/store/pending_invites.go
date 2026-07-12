@@ -11,11 +11,11 @@ import (
 // For users who haven't started the bot yet — delivered on first /start
 
 type PendingInvite struct {
-	ID          string    `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	TripID      string    `gorm:"type:uuid" json:"trip_id"`
-	TelegramID  int64     `json:"telegram_id"`
-	InvitedBy   string    `gorm:"type:uuid" json:"invited_by"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID         string    `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	TripID     string    `gorm:"type:uuid" json:"trip_id"`
+	TelegramID int64     `json:"telegram_id"`
+	InvitedBy  string    `gorm:"type:uuid" json:"invited_by"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 func (PendingInvite) TableName() string { return "pending_invites" }
@@ -30,12 +30,12 @@ func (s *Store) CreatePendingInvite(ctx context.Context, tripID string, invitedB
 }
 
 type PendingInviteWithTrip struct {
-	ID        string    `json:"id"`
-	TripID    string    `json:"trip_id"`
-	TripTitle string    `json:"trip_title"`
-	InvitedBy string    `json:"invited_by"`
-	InviterName string  `json:"inviter_name"`
-	CreatedAt time.Time `json:"created_at"`
+	ID          string    `json:"id"`
+	TripID      string    `json:"trip_id"`
+	TripTitle   string    `json:"trip_title"`
+	InvitedBy   string    `json:"invited_by"`
+	InviterName string    `json:"inviter_name"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 func (s *Store) GetAndClearPendingInvites(ctx context.Context, telegramID int64) ([]PendingInviteWithTrip, error) {

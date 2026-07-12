@@ -10,12 +10,27 @@ export const expandTelegram = () => {
 	tg?.expand?.();
 };
 
-export const setupMainButton = (text: string, onClick: () => void, isVisible = true, isActive = true) => {
+// Telegram accumulates MainButton onClick handlers; registering a new one on
+// every reactive update makes a single tap fire the callback multiple times
+// (duplicate trips, double submits). Track the active handler and detach it
+// before attaching the next one.
+let activeMainButtonHandler: (() => void) | null = null;
+
+export const setupMainButton = (
+	text: string,
+	onClick: () => void,
+	isVisible = true,
+	isActive = true
+) => {
 	if (typeof window === 'undefined') return;
 	const tg = (window as any).Telegram?.WebApp;
 	if (tg?.MainButton) {
 		tg.MainButton.text = text;
+		if (activeMainButtonHandler) {
+			tg.MainButton.offClick?.(activeMainButtonHandler);
+		}
 		tg.MainButton.onClick(onClick);
+		activeMainButtonHandler = onClick;
 		if (isVisible) {
 			tg.MainButton.show();
 		} else {
@@ -32,7 +47,13 @@ export const setupMainButton = (text: string, onClick: () => void, isVisible = t
 export const hideMainButton = () => {
 	if (typeof window === 'undefined') return;
 	const tg = (window as any).Telegram?.WebApp;
-	tg?.MainButton?.hide();
+	if (tg?.MainButton) {
+		if (activeMainButtonHandler) {
+			tg.MainButton.offClick?.(activeMainButtonHandler);
+			activeMainButtonHandler = null;
+		}
+		tg.MainButton.hide();
+	}
 };
 
 export const setMainButtonState = (isLoading: boolean) => {
@@ -49,19 +70,31 @@ export const setMainButtonState = (isLoading: boolean) => {
 	}
 };
 
+let activeBackButtonHandler: (() => void) | null = null;
+
 export const setupBackButton = (onClick: () => void) => {
 	if (typeof window === 'undefined') return;
 	const tg = (window as any).Telegram?.WebApp;
 	if (tg?.BackButton) {
+		if (activeBackButtonHandler) {
+			tg.BackButton.offClick?.(activeBackButtonHandler);
+		}
 		tg.BackButton.show();
 		tg.BackButton.onClick(onClick);
+		activeBackButtonHandler = onClick;
 	}
 };
 
 export const hideBackButton = () => {
 	if (typeof window === 'undefined') return;
 	const tg = (window as any).Telegram?.WebApp;
-	tg?.BackButton?.hide();
+	if (tg?.BackButton) {
+		if (activeBackButtonHandler) {
+			tg.BackButton.offClick?.(activeBackButtonHandler);
+			activeBackButtonHandler = null;
+		}
+		tg.BackButton.hide();
+	}
 };
 
 export const hapticImpact = (style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft' = 'light') => {

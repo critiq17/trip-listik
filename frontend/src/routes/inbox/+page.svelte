@@ -45,14 +45,18 @@
 			items = data.items ?? [];
 			// Only show pending invites
 			invites = (data.invites ?? []).filter(i => i.status === 'pending');
-			// Clear unread badge when viewing inbox
-			unreadCount.set(0); 
+			// Clear unread badge locally and on the server, otherwise it
+			// reappears on the next app launch.
+			unreadCount.set(0);
+			apiFetch('/v1/inbox/read-all', { method: 'POST' }).catch(() => {});
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load inbox';
 		} finally {
 			loading = false;
 		}
 	});
+
+	let actionError = $state('');
 
 	let declineSheetOpen = $state(false);
 	let decliningInviteId = $state('');
@@ -61,7 +65,8 @@
 	let declineSubmitting = $state(false);
 
 	const respondInvite = async (inviteId: string, action: 'accept' | 'decline', reason?: string, suggestDate?: string) => {
-		// Optimistic UI: fade-remove card (set a "removing" state, then filter after transition)
+		// Optimistic UI: remove the card now, restore it if the request fails.
+		const removed = invites.find((inv) => inv.id === inviteId);
 		invites = invites.filter((inv) => inv.id !== inviteId);
 		try {
 			const body: Record<string, unknown> = { action };
@@ -72,6 +77,8 @@
 				body: JSON.stringify(body)
 			});
 		} catch (err) {
+			if (removed) invites = [removed, ...invites];
+			actionError = `Failed to ${action} the invite. Please try again.`;
 			console.error(`Failed to ${action} invite:`, err);
 		}
 	};
@@ -112,6 +119,9 @@
 		{:else if error}
 			<div class="card error-card">{error}</div>
 		{:else}
+			{#if actionError}
+				<div class="card error-card">{actionError}</div>
+			{/if}
 			{#if invites.length > 0}
 				<h3 class="section-title">Pending Invites</h3>
 				{#each invites as inv (inv.id)}

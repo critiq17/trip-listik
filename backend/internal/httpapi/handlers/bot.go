@@ -33,6 +33,14 @@ type TelegramUpdate struct {
 // HandleUpdate processes incoming Telegram bot webhook updates.
 // Returns HTTP 200 always to prevent Telegram from retrying.
 func (h *BotHandler) HandleUpdate(c *fiber.Ctx) error {
+	// When TELEGRAM_WEBHOOK_SECRET is configured (set the same value via
+	// setWebhook secret_token), reject requests that don't carry it.
+	if h.Cfg != nil && h.Cfg.TelegramWebhookSecret != "" {
+		if c.Get("X-Telegram-Bot-Api-Secret-Token") != h.Cfg.TelegramWebhookSecret {
+			return c.SendStatus(fiber.StatusForbidden)
+		}
+	}
+
 	var update TelegramUpdate
 	if err := c.BodyParser(&update); err != nil {
 		return c.SendStatus(200)
@@ -58,8 +66,7 @@ func (h *BotHandler) HandleUpdate(c *fiber.Ctx) error {
 		pendingInvites, err := h.Store.GetAndClearPendingInvites(ctx, chatID)
 		if err == nil && len(pendingInvites) > 0 {
 			for _, pi := range pendingInvites {
-				msg := "You have a pending trip invite for: " + pi.TripTitle + " from " + pi.InviterName
-				h.Bot.SendMessage(ctx, chatID, msg)
+				h.Bot.SendPendingInviteReminder(ctx, chatID, pi.TripTitle, pi.InviterName)
 			}
 		}
 

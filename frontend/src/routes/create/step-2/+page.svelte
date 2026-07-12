@@ -3,11 +3,12 @@
 	import { setDraft, getDraft } from '$lib/tripDraft';
 	import { onMount, onDestroy } from 'svelte';
 	import { setupMainButton, hideMainButton, setupBackButton } from '$lib/telegram';
+	import { parseCalendarDate, toCalendarDateString } from '$lib/format';
 
 	let draft = getDraft() || {};
 	let visibility = $state<'public' | 'private'>(draft.visibility === 'private' ? 'private' : 'public');
-	let startDate = $state<Date | null>(draft.start_date ? new Date(draft.start_date) : null);
-	let endDate = $state<Date | null>(draft.end_date ? new Date(draft.end_date) : null);
+	let startDate = $state<Date | null>(parseCalendarDate(draft.start_date));
+	let endDate = $state<Date | null>(parseCalendarDate(draft.end_date));
 
 	// Calendar state
 	let calendarYear = $state(new Date().getFullYear());
@@ -23,12 +24,6 @@
 	const fmtDate = (d: Date | null) => {
 		if (!d) return '—';
 		return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-	};
-
-	// Format date as yyyy-mm-dd string for draft
-	const toISODate = (d: Date | null) => {
-		if (!d) return '';
-		return d.toISOString().split('T')[0];
 	};
 
 	// Build calendar grid
@@ -121,8 +116,8 @@
 	const next = () => {
 		if (!startDate || !endDate) return;
 		setDraft({
-			start_date: toISODate(startDate),
-			end_date: toISODate(endDate),
+			start_date: toCalendarDateString(startDate),
+			end_date: toCalendarDateString(endDate),
 			visibility: visibility
 		});
 		goto('/create/step-3');
