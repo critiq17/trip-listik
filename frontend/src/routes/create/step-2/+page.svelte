@@ -130,43 +130,31 @@
 </svelte:head>
 
 <div class="page">
-	<!-- Sticky Header -->
 	<header class="top-bar">
 		<button class="back-btn" aria-label="Go back" onclick={() => history.back()}>
 			<span class="material-symbols-outlined">arrow_back</span>
 		</button>
-		<span class="header-title">Create Trip</span>
+		<span class="header-title">New Trip</span>
 		<div class="header-spacer"></div>
 	</header>
 
-	<!-- Progress -->
 	<div class="progress-track">
 		<div class="progress-fill" style="width: 66.66%"></div>
 	</div>
 
 	<main class="content">
-		<div class="progress-meta">
-			<span class="step-label">Step 2 of 3</span>
-			<span class="pct-label">66% Complete</span>
-		</div>
-
+		<p class="step-label">Step 2 of 3</p>
 		<h1>When does the journey begin?</h1>
 
 		<!-- Date Inputs -->
 		<div class="date-grid">
 			<div class="date-field" class:active={startDate !== null}>
-				<p class="date-field-label">FROM</p>
-				<div class="date-value">
-					<span class="material-symbols-outlined date-icon">calendar_today</span>
-					<span>{fmtDate(startDate)}</span>
-				</div>
+				<p class="date-field-label">From</p>
+				<p class="date-value">{fmtDate(startDate)}</p>
 			</div>
 			<div class="date-field" class:active={endDate !== null}>
-				<p class="date-field-label">TO</p>
-				<div class="date-value">
-					<span class="material-symbols-outlined date-icon">event</span>
-					<span>{fmtDate(endDate)}</span>
-				</div>
+				<p class="date-field-label">To</p>
+				<p class="date-value">{fmtDate(endDate)}</p>
 			</div>
 		</div>
 
@@ -211,23 +199,21 @@
 		<!-- Visibility Toggle -->
 		<div class="visibility-card">
 			<div class="vis-left">
-				<p class="vis-title">Trip Visibility</p>
+				<p class="vis-title">Trip visibility</p>
 				<p class="vis-sub">Who can see your itinerary?</p>
 			</div>
-			<div class="vis-toggle">
-				<div class="toggle-track">
-					<div class="toggle-pill" class:private={visibility === 'private'}></div>
-					<button
-						class="toggle-option"
-						class:active={visibility === 'public'}
-						onclick={() => (visibility = 'public')}
-					>PUBLIC</button>
-					<button
-						class="toggle-option"
-						class:active={visibility === 'private'}
-						onclick={() => (visibility = 'private')}
-					>PRIVATE</button>
-				</div>
+			<div class="toggle-track">
+				<div class="toggle-pill" class:private={visibility === 'private'}></div>
+				<button
+					class="toggle-option"
+					class:active={visibility === 'public'}
+					onclick={() => (visibility = 'public')}
+				>Public</button>
+				<button
+					class="toggle-option"
+					class:active={visibility === 'private'}
+					onclick={() => (visibility = 'private')}
+				>Private</button>
 			</div>
 		</div>
 
@@ -238,7 +224,6 @@
 			disabled={!startDate || !endDate}
 		>
 			Continue
-			<span class="material-symbols-outlined">arrow_forward</span>
 		</button>
 	</main>
 </div>
@@ -246,21 +231,21 @@
 <style>
 .page {
 	min-height: 100dvh;
-	background: #161c18;
-	color: #f1f5f9;
+	background: var(--bg);
+	color: var(--text);
 }
 
-/* ── Sticky Header ─────────────────────────────────────── */
+/* ── Header ─────────────────────────────────────────────── */
 .top-bar {
 	position: sticky;
 	top: 0;
 	z-index: 50;
 	display: flex;
 	align-items: center;
-	height: 56px;
-	padding: 0 16px;
-	background: #161c18;
-	border-bottom: 1px solid rgba(77, 157, 109, 0.1);
+	height: 52px;
+	padding: 0 8px;
+	background: var(--bg);
+	border-bottom: 1px solid var(--border);
 }
 
 .back-btn {
@@ -269,7 +254,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: white;
+	color: var(--text);
 	background: none;
 	border: none;
 	cursor: pointer;
@@ -283,9 +268,9 @@
 .header-title {
 	flex: 1;
 	text-align: center;
-	font-size: 18px;
-	font-weight: 700;
-	color: white;
+	font-size: 16px;
+	font-weight: 600;
+	color: var(--text);
 }
 
 .header-spacer {
@@ -295,48 +280,34 @@
 /* ── Progress ────────────────────────────────────────────── */
 .progress-track {
 	width: 100%;
-	height: 8px;
-	background: rgba(77, 157, 109, 0.15);
-	border-radius: 9999px;
+	height: 3px;
+	background: var(--border);
 }
 
 .progress-fill {
 	height: 100%;
-	background: #4d9d6d;
-	border-radius: 9999px;
-	transition: width 500ms cubic-bezier(0.4, 0, 0.2, 1);
+	background: var(--green);
+	transition: width 0.2s ease;
 }
 
 /* ── Content ─────────────────────────────────────────────── */
 .content {
-	padding: 16px 16px 96px;
+	padding: 24px 16px 96px;
 	max-width: 480px;
 	margin: 0 auto;
 }
 
-.progress-meta {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	padding-top: 8px;
-	margin-bottom: 16px;
-}
-
 .step-label {
 	font-size: 13px;
-	color: #4d9d6d;
-	font-weight: 600;
-}
-
-.pct-label {
-	font-size: 13px;
-	color: #94a3b8;
+	color: var(--text-sub);
+	font-weight: 500;
+	margin-bottom: 8px;
 }
 
 h1 {
 	font-size: 24px;
 	font-weight: 700;
-	color: white;
+	color: var(--text);
 	margin-bottom: 24px;
 	line-height: 1.2;
 }
@@ -345,53 +316,41 @@ h1 {
 .date-grid {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
-	gap: 16px;
-	margin-bottom: 32px;
+	gap: 12px;
+	margin-bottom: 20px;
 }
 
 .date-field {
-	border-bottom: 2px solid rgba(77, 157, 109, 0.3);
-	padding-bottom: 8px;
-	transition: border-color 0.2s ease;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-input);
+	padding: 10px 14px;
+	transition: border-color 0.15s ease;
 }
 
 .date-field.active {
-	border-bottom-color: #4d9d6d;
+	border-color: var(--green);
 }
 
 .date-field-label {
-	font-size: 10px;
-	color: #94a3b8;
-	text-transform: uppercase;
-	letter-spacing: 0.1em;
-	margin-bottom: 4px;
+	font-size: 12px;
+	color: var(--text-sub);
+	margin-bottom: 2px;
 }
 
 .date-value {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	padding: 8px 0;
-}
-
-.date-icon {
-	font-size: 20px;
-	color: #4d9d6d;
-}
-
-.date-value span:last-child {
-	font-size: 16px;
-	font-weight: 500;
-	color: white;
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--text);
 }
 
 /* ── Calendar ────────────────────────────────────────────── */
 .calendar {
-	background: rgba(255, 255, 255, 0.03);
-	border: 1px solid rgba(77, 157, 109, 0.15);
-	border-radius: 12px;
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-card);
 	padding: 16px;
-	margin-bottom: 32px;
+	margin-bottom: 20px;
 }
 
 .cal-header {
@@ -409,14 +368,9 @@ h1 {
 	justify-content: center;
 	background: none;
 	border: none;
-	color: white;
+	color: var(--text);
 	cursor: pointer;
 	border-radius: 6px;
-	transition: background 0.15s ease;
-}
-
-.cal-nav:hover {
-	background: rgba(255, 255, 255, 0.06);
 }
 
 .cal-nav .material-symbols-outlined {
@@ -425,8 +379,8 @@ h1 {
 
 .cal-title {
 	font-size: 14px;
-	font-weight: 700;
-	color: white;
+	font-weight: 600;
+	color: var(--text);
 }
 
 .cal-days-header {
@@ -438,8 +392,8 @@ h1 {
 .cal-days-header span {
 	text-align: center;
 	font-size: 10px;
-	color: #94a3b8;
-	font-weight: 700;
+	color: var(--text-muted);
+	font-weight: 600;
 }
 
 .cal-grid {
@@ -454,7 +408,7 @@ h1 {
 	justify-content: center;
 	height: 36px;
 	font-size: 13px;
-	color: #e2e8f0;
+	color: var(--text);
 	background: none;
 	border: none;
 	cursor: pointer;
@@ -463,20 +417,19 @@ h1 {
 }
 
 .cal-day.other-month {
-	color: #4a5568;
+	color: var(--text-muted);
 }
 
 .cal-day.in-range {
-	background: rgba(77, 157, 109, 0.15);
+	background: var(--green-soft);
 	border-radius: 0;
 }
 
 .cal-day.is-start,
 .cal-day.is-end {
-	background: #4d9d6d;
-	color: white;
-	font-weight: 700;
-	border-radius: 8px;
+	background: var(--green);
+	color: #fff;
+	font-weight: 600;
 }
 
 .cal-day.is-start {
@@ -487,27 +440,21 @@ h1 {
 	border-radius: 0 8px 8px 0;
 }
 
-.cal-day.is-start:not(.is-end),
-.cal-day.is-end:not(.is-start) {
-	position: relative;
-	z-index: 1;
-}
-
-.cal-day:hover:not(.is-start):not(.is-end) {
-	background: rgba(77, 157, 109, 0.2);
+.cal-day.is-start.is-end {
+	border-radius: 8px;
 }
 
 /* ── Visibility Toggle ───────────────────────────────────── */
 .visibility-card {
-	background: rgba(77, 157, 109, 0.06);
-	border: 1px solid rgba(77, 157, 109, 0.2);
-	border-radius: 12px;
-	padding: 16px;
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-card);
+	padding: 14px 16px;
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: 16px;
-	margin-bottom: 32px;
+	margin-bottom: 24px;
 }
 
 .vis-left {
@@ -516,41 +463,38 @@ h1 {
 
 .vis-title {
 	font-size: 14px;
-	font-weight: 700;
-	color: white;
-	margin-bottom: 4px;
+	font-weight: 600;
+	color: var(--text);
+	margin-bottom: 2px;
 }
 
 .vis-sub {
 	font-size: 13px;
-	color: #94a3b8;
-}
-
-/* Pill toggle */
-.vis-toggle {
-	flex-shrink: 0;
+	color: var(--text-sub);
 }
 
 .toggle-track {
 	position: relative;
 	display: flex;
-	background: #161c18;
-	border-radius: 9999px;
-	width: 140px;
-	height: 40px;
-	padding: 4px;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-pill);
+	width: 148px;
+	height: 36px;
+	padding: 3px;
 	overflow: hidden;
+	flex-shrink: 0;
 }
 
 .toggle-pill {
 	position: absolute;
-	top: 4px;
-	left: 4px;
-	width: calc(50% - 4px);
-	height: 32px;
-	background: #4d9d6d;
-	border-radius: 9999px;
-	transition: transform 0.2s ease;
+	top: 3px;
+	left: 3px;
+	width: calc(50% - 3px);
+	height: 28px;
+	background: var(--green);
+	border-radius: var(--radius-pill);
+	transition: transform 0.15s ease;
 	pointer-events: none;
 }
 
@@ -563,51 +507,33 @@ h1 {
 	z-index: 1;
 	background: none;
 	border: none;
-	font-size: 11px;
-	font-weight: 700;
+	font-size: 12px;
+	font-weight: 600;
 	cursor: pointer;
-	color: #64748b;
-	border-radius: 9999px;
-	transition: color 0.2s ease;
+	color: var(--text-sub);
+	border-radius: var(--radius-pill);
+	transition: color 0.15s ease;
 }
 
 .toggle-option.active {
-	color: white;
+	color: #fff;
 }
 
 /* ── Continue Button ─────────────────────────────────────── */
 .continue-btn {
 	width: 100%;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 8px;
-	padding: 16px;
-	border-radius: 12px;
-	background: #4d9d6d;
-	color: white;
+	padding: 14px;
+	border-radius: var(--radius-input);
+	background: var(--green);
+	color: #fff;
 	font-size: 16px;
-	font-weight: 700;
+	font-weight: 600;
 	border: none;
 	cursor: pointer;
-	box-shadow: 0 8px 25px rgba(77, 157, 109, 0.3);
-	transition: opacity 0.15s ease, transform 0.1s ease;
-}
-
-.continue-btn:hover:not(:disabled) {
-	opacity: 0.92;
-}
-
-.continue-btn:active:not(:disabled) {
-	transform: scale(0.98);
 }
 
 .continue-btn:disabled {
 	opacity: 0.4;
 	cursor: not-allowed;
-}
-
-.continue-btn .material-symbols-outlined {
-	font-size: 20px;
 }
 </style>

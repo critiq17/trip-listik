@@ -168,26 +168,20 @@
 </svelte:head>
 
 <div class="page">
-	<!-- Sticky Header -->
 	<header class="top-bar">
 		<button class="back-btn" aria-label="Go back" onclick={() => history.back()}>
 			<span class="material-symbols-outlined">arrow_back</span>
 		</button>
-		<span class="header-title">Create Trip</span>
+		<span class="header-title">New Trip</span>
 		<div class="header-spacer"></div>
 	</header>
 
-	<!-- Progress -->
 	<div class="progress-track">
-		<div class="progress-fill"></div>
+		<div class="progress-fill" style="width: 100%"></div>
 	</div>
 
 	<main class="content">
-		<div class="progress-meta">
-			<span class="step-label">Step 3 of 3</span>
-			<span class="pct-label">100% Complete</span>
-		</div>
-
+		<p class="step-label">Step 3 of 3</p>
 		<h1>Who's coming along?</h1>
 
 		<!-- Friend Chips -->
@@ -215,6 +209,7 @@
 
 		<!-- Friend Search -->
 		<div class="friend-search">
+			<span class="material-symbols-outlined search-icon">search</span>
 			<input
 				type="text"
 				class="search-input"
@@ -223,8 +218,7 @@
 				oninput={onSearchInput}
 				autocomplete="off"
 			/>
-			<span class="material-symbols-outlined search-icon">search</span>
-			
+
 			{#if searchResults.length > 0}
 				<div class="search-dropdown">
 					{#each searchResults as user (user.id)}
@@ -242,15 +236,13 @@
 		</div>
 
 		<!-- Cover Photo -->
-		<div class="cover-section">
-			<label class="section-label" for="cover-file">Cover Photo</label>
+		<div class="section">
+			<label class="section-label" for="cover-file">Cover photo</label>
 			<button type="button" class="upload-zone" onclick={pickPhoto}>
 				{#if coverPhotoPreview}
 					<img class="preview-img" src={coverPhotoPreview} alt="Cover preview" />
 				{:else}
-					<div class="upload-icon-circle">
-						<span class="material-symbols-outlined">add_a_photo</span>
-					</div>
+					<span class="material-symbols-outlined upload-icon">add_a_photo</span>
 					<p class="upload-hint">Add a cover image</p>
 				{/if}
 			</button>
@@ -265,8 +257,8 @@
 		</div>
 
 		<!-- Description -->
-		<div class="desc-section">
-			<label class="section-label" for="trip-desc">Trip Description <span class="optional">(Optional)</span></label>
+		<div class="section">
+			<label class="section-label" for="trip-desc">Description <span class="optional">(optional)</span></label>
 			<textarea
 				id="trip-desc"
 				class="desc-area"
@@ -286,12 +278,7 @@
 			onclick={submit}
 			disabled={loading}
 		>
-			{#if loading}
-				<span class="material-symbols-outlined spin-icon">refresh</span>
-				Creating...
-			{:else}
-				Create Trip
-			{/if}
+			{loading ? 'Creating...' : 'Create Trip'}
 		</button>
 	</main>
 </div>
@@ -299,21 +286,21 @@
 <style>
 .page {
 	min-height: 100dvh;
-	background: #161c18;
-	color: #f1f5f9;
+	background: var(--bg);
+	color: var(--text);
 }
 
-/* ── Sticky Header ─────────────────────────────────────── */
+/* ── Header ─────────────────────────────────────────────── */
 .top-bar {
 	position: sticky;
 	top: 0;
 	z-index: 50;
 	display: flex;
 	align-items: center;
-	height: 56px;
-	padding: 0 16px;
-	background: #161c18;
-	border-bottom: 1px solid rgba(77, 157, 109, 0.1);
+	height: 52px;
+	padding: 0 8px;
+	background: var(--bg);
+	border-bottom: 1px solid var(--border);
 }
 
 .back-btn {
@@ -322,7 +309,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: white;
+	color: var(--text);
 	background: none;
 	border: none;
 	cursor: pointer;
@@ -336,9 +323,9 @@
 .header-title {
 	flex: 1;
 	text-align: center;
-	font-size: 18px;
-	font-weight: 700;
-	color: white;
+	font-size: 16px;
+	font-weight: 600;
+	color: var(--text);
 }
 
 .header-spacer {
@@ -348,49 +335,34 @@
 /* ── Progress ────────────────────────────────────────────── */
 .progress-track {
 	width: 100%;
-	height: 8px;
-	background: rgba(77, 157, 109, 0.15);
-	border-radius: 9999px;
+	height: 3px;
+	background: var(--border);
 }
 
 .progress-fill {
-	width: 100%;
 	height: 100%;
-	background: #4d9d6d;
-	border-radius: 9999px;
-	transition: width 500ms cubic-bezier(0.4, 0, 0.2, 1);
+	background: var(--green);
+	transition: width 0.2s ease;
 }
 
 /* ── Content ─────────────────────────────────────────────── */
 .content {
-	padding: 16px 16px 96px;
+	padding: 24px 16px 96px;
 	max-width: 480px;
 	margin: 0 auto;
 }
 
-.progress-meta {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	padding-top: 8px;
-	margin-bottom: 16px;
-}
-
 .step-label {
 	font-size: 13px;
-	color: #4d9d6d;
-	font-weight: 600;
-}
-
-.pct-label {
-	font-size: 13px;
-	color: #94a3b8;
+	color: var(--text-sub);
+	font-weight: 500;
+	margin-bottom: 8px;
 }
 
 h1 {
 	font-size: 24px;
 	font-weight: 700;
-	color: white;
+	color: var(--text);
 	margin-bottom: 24px;
 	line-height: 1.2;
 }
@@ -400,31 +372,40 @@ h1 {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 8px;
-	margin-bottom: 16px;
+	margin-bottom: 12px;
 }
 
 .chip {
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	background: rgba(77, 157, 109, 0.15);
-	border: 1px solid rgba(77, 157, 109, 0.25);
-	border-radius: 9999px;
+	background: var(--green-soft);
+	border-radius: var(--radius-pill);
 	padding: 4px 8px 4px 4px;
 }
 
 .chip-avatar {
 	width: 28px;
 	height: 28px;
-	border-radius: 9999px;
+	border-radius: var(--radius-pill);
 	object-fit: cover;
 	flex-shrink: 0;
+}
+
+.chip-avatar.fallback {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--bg-card);
+	color: var(--green);
+	font-size: 11px;
+	font-weight: 600;
 }
 
 .chip-name {
 	font-size: 14px;
 	font-weight: 500;
-	color: white;
+	color: var(--text);
 }
 
 .chip-remove {
@@ -435,7 +416,7 @@ h1 {
 	justify-content: center;
 	background: none;
 	border: none;
-	color: #94a3b8;
+	color: var(--text-sub);
 	cursor: pointer;
 	padding: 0;
 }
@@ -447,198 +428,46 @@ h1 {
 /* ── Friend Search ───────────────────────────────────────── */
 .friend-search {
 	position: relative;
-	margin-bottom: 32px;
+	margin-bottom: 24px;
 }
 
 .search-input {
 	width: 100%;
-	background: transparent;
-	border: none;
-	border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-	border-radius: 0;
-	font-size: 18px;
-	color: white;
-	padding: 8px 36px 8px 0;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-input);
+	font-size: 15px;
+	color: var(--text);
+	padding: 12px 14px 12px 40px;
 	outline: none;
-	transition: border-bottom-color 0.2s ease;
+	transition: border-color 0.15s ease;
 }
 
 .search-input:focus {
-	border-bottom-color: #4d9d6d;
+	border-color: var(--green);
 }
 
 .search-icon {
 	position: absolute;
-	right: 0;
-	top: 50%;
+	left: 12px;
+	top: 22px;
 	transform: translateY(-50%);
-	font-size: 24px;
-	color: #94a3b8;
+	font-size: 20px;
+	color: var(--text-muted);
 	pointer-events: none;
 }
 
-/* ── Cover Photo ─────────────────────────────────────────── */
-.cover-section {
-	margin-bottom: 32px;
-}
-
-.section-label {
-	display: block;
-	font-size: 14px;
-	color: #94a3b8;
-	font-weight: 600;
-	margin-bottom: 12px;
-}
-
-.optional {
-	font-weight: 400;
-	color: #64748b;
-}
-
-.upload-zone {
-	width: 100%;
-	aspect-ratio: 16 / 9;
-	border-radius: 12px;
-	border: 2px dashed rgba(255, 255, 255, 0.1);
-	background: rgba(255, 255, 255, 0.03);
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	gap: 8px;
-	cursor: pointer;
-	overflow: hidden;
-	transition: border-color 0.2s ease, background 0.2s ease;
-}
-
-.upload-zone:hover {
-	border-color: rgba(77, 157, 109, 0.4);
-}
-
-.upload-icon-circle {
-	width: 48px;
-	height: 48px;
-	border-radius: 9999px;
-	background: rgba(77, 157, 109, 0.1);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-.upload-icon-circle .material-symbols-outlined {
-	font-size: 24px;
-	color: #4d9d6d;
-}
-
-.upload-hint {
-	font-size: 12px;
-	color: #64748b;
-	font-weight: 500;
-}
-
-.preview-img {
-	width: 100%;
-	height: 100%;
-	object-fit: cover;
-}
-
-.file-input {
-	display: none;
-}
-
-/* ── Description ─────────────────────────────────────────── */
-.desc-section {
-	margin-bottom: 32px;
-}
-
-.desc-area {
-	width: 100%;
-	background: transparent;
-	border: none;
-	border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-	border-radius: 0;
-	font-size: 16px;
-	color: white;
-	padding: 8px 0;
-	resize: none;
-	font-family: inherit;
-	outline: none;
-	transition: border-bottom-color 0.2s ease;
-}
-
-.desc-area::placeholder {
-	color: rgba(255, 255, 255, 0.25);
-}
-
-.desc-area:focus {
-	border-bottom-color: #4d9d6d;
-}
-
-/* ── Error ───────────────────────────────────────────────── */
-.error-msg {
-	color: #f87171;
-	font-size: 14px;
-	text-align: center;
-	padding: 12px;
-	background: rgba(248, 113, 113, 0.08);
-	border-radius: 8px;
-	margin-bottom: 16px;
-}
-
-/* ── Create Button ───────────────────────────────────────── */
-.create-btn {
-	width: 100%;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 8px;
-	padding: 16px;
-	border-radius: 12px;
-	background: #4d9d6d;
-	color: white;
-	font-size: 18px;
-	font-weight: 700;
-	border: none;
-	cursor: pointer;
-	box-shadow: 0 0 24px rgba(77, 157, 109, 0.35);
-	transition: opacity 0.15s ease, transform 0.1s ease;
-}
-
-.create-btn:hover:not(:disabled) {
-	opacity: 0.92;
-}
-
-.create-btn:active:not(:disabled) {
-	transform: scale(0.98);
-}
-
-.create-btn:disabled {
-	opacity: 0.6;
-	cursor: not-allowed;
-}
-
-@keyframes spin {
-	from { transform: rotate(0deg); }
-	to { transform: rotate(360deg); }
-}
-
-.spin-icon {
-	animation: spin 1s linear infinite;
-	font-size: 20px;
-}
-
-/* ── Search Dropdown ─────────────────────────────────── */
 .search-dropdown {
 	position: absolute;
 	top: calc(100% + 4px);
 	left: 0;
 	right: 0;
-	background: #1e2820;
-	border: 1px solid rgba(77, 157, 109, 0.2);
-	border-radius: 12px;
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-card);
 	overflow: hidden;
 	z-index: 10;
-	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+	box-shadow: 0 4px 16px rgba(17, 20, 24, 0.08);
 }
 
 .search-item {
@@ -649,15 +478,14 @@ h1 {
 	padding: 10px 14px;
 	background: none;
 	border: none;
-	color: white;
+	color: var(--text);
 	font-size: 14px;
 	cursor: pointer;
 	text-align: left;
-	transition: background 0.15s ease;
 }
 
 .search-item:hover {
-	background: rgba(77, 157, 109, 0.1);
+	background: var(--bg-subtle);
 }
 
 .search-item img {
@@ -672,13 +500,119 @@ h1 {
 	width: 32px;
 	height: 32px;
 	border-radius: 50%;
-	background: rgba(77, 157, 109, 0.2);
-	color: #4d9d6d;
+	background: var(--green-soft);
+	color: var(--green);
 	font-size: 13px;
-	font-weight: 700;
+	font-weight: 600;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	flex-shrink: 0;
+}
+
+/* ── Sections ────────────────────────────────────────────── */
+.section {
+	margin-bottom: 24px;
+}
+
+.section-label {
+	display: block;
+	font-size: 13px;
+	color: var(--text-sub);
+	font-weight: 500;
+	margin-bottom: 8px;
+}
+
+.optional {
+	font-weight: 400;
+	color: var(--text-muted);
+}
+
+.upload-zone {
+	width: 100%;
+	aspect-ratio: 16 / 9;
+	border-radius: var(--radius-card);
+	border: 1px dashed var(--border);
+	background: var(--bg-subtle);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	cursor: pointer;
+	overflow: hidden;
+	transition: border-color 0.15s ease;
+}
+
+.upload-zone:hover {
+	border-color: var(--green);
+}
+
+.upload-icon {
+	font-size: 28px;
+	color: var(--green);
+}
+
+.upload-hint {
+	font-size: 13px;
+	color: var(--text-sub);
+}
+
+.preview-img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.file-input {
+	display: none;
+}
+
+/* ── Description ─────────────────────────────────────────── */
+.desc-area {
+	width: 100%;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-input);
+	font-size: 15px;
+	color: var(--text);
+	padding: 12px 14px;
+	resize: none;
+	font-family: inherit;
+	outline: none;
+	transition: border-color 0.15s ease;
+}
+
+.desc-area:focus {
+	border-color: var(--green);
+}
+
+/* ── Error ───────────────────────────────────────────────── */
+.error-msg {
+	color: var(--danger);
+	font-size: 14px;
+	text-align: center;
+	padding: 12px;
+	background: var(--danger-soft);
+	border-radius: var(--radius-input);
+	margin-bottom: 16px;
+}
+
+/* ── Create Button ───────────────────────────────────────── */
+.create-btn {
+	width: 100%;
+	padding: 14px;
+	border-radius: var(--radius-input);
+	background: var(--green);
+	color: #fff;
+	font-size: 16px;
+	font-weight: 600;
+	border: none;
+	cursor: pointer;
+}
+
+.create-btn:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
 }
 </style>

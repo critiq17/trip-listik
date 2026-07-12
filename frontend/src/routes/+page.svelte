@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { fly } from 'svelte/transition';
 	import TripCard from '$lib/components/TripCard.svelte';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import { apiFetch } from '$lib/api';
@@ -24,8 +23,6 @@
 	let myItems = $state<TripCardData[]>([]);
 	let myLoading = $state(true);
 	let myError = $state('');
-
-	let ready = $state(false);
 
 	const fetchAllTrips = async (mode: 'reset' | 'append' = 'reset') => {
 		if (mode === 'append' && (allLoading || allLoadingMore || !allHasMore || !allCursor)) return;
@@ -77,7 +74,6 @@
 
 	onMount(() => {
 		expandTelegram();
-		ready = true;
 		fetchAllTrips('reset');
 		fetchMyTrips();
 		return observeAll();
@@ -120,10 +116,8 @@
 				{:else if allItems.length === 0}
 					<div class="state empty">No public trips yet — check back soon!</div>
 				{:else}
-					{#each allItems as trip, i (trip.id)}
-						<div in:fly={{ y: 30, duration: 250, delay: i < 6 ? i * 60 : 0 }}>
-							<TripCard {trip} variant="compact" />
-						</div>
+					{#each allItems as trip (trip.id)}
+						<TripCard {trip} variant="compact" />
 					{/each}
 				{/if}
 				<div bind:this={allSentinel} class="sentinel" aria-hidden="true"></div>
@@ -150,10 +144,8 @@
 						<a href="/create" class="empty-cta">Plan your first trip</a>
 					</div>
 				{:else}
-					{#each myItems as trip, i (trip.id)}
-						<div in:fly={{ y: 30, duration: 250, delay: i < 6 ? i * 60 : 0 }}>
-							<TripCard {trip} variant="compact" />
-						</div>
+					{#each myItems as trip (trip.id)}
+						<TripCard {trip} variant="compact" />
 					{/each}
 				{/if}
 			</div>
@@ -164,8 +156,8 @@
 <style>
 .page {
 	min-height: 100dvh;
-	background: #161c18;
-	color: #f1f5f9;
+	background: var(--bg);
+	color: var(--text);
 	padding-bottom: 96px;
 }
 
@@ -179,14 +171,14 @@
 	justify-content: space-between;
 	height: 52px;
 	padding: 0 16px;
-	background: #161c18;
-	border-bottom: 1px solid rgba(77, 157, 109, 0.1);
+	background: var(--bg);
+	border-bottom: 1px solid var(--border);
 }
 
 .logo {
 	font-size: 18px;
 	font-weight: 700;
-	color: white;
+	color: var(--text);
 	letter-spacing: -0.01em;
 }
 
@@ -196,10 +188,9 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: rgba(77, 157, 109, 0.15);
-	border: 1px solid rgba(77, 157, 109, 0.3);
+	background: var(--green-soft);
 	border-radius: 8px;
-	color: #4d9d6d;
+	color: var(--green);
 	text-decoration: none;
 }
 
@@ -212,8 +203,8 @@
 	position: sticky;
 	top: 52px;
 	z-index: 40;
-	background: #161c18;
-	border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+	background: var(--bg);
+	border-bottom: 1px solid var(--border);
 }
 
 .tabs {
@@ -228,7 +219,7 @@
 	padding: 12px 0;
 	font-size: 14px;
 	font-weight: 600;
-	color: #64748b;
+	color: var(--text-sub);
 	background: none;
 	border: none;
 	border-bottom: 2px solid transparent;
@@ -238,8 +229,8 @@
 }
 
 .tab.active {
-	color: #4d9d6d;
-	border-bottom-color: #4d9d6d;
+	color: var(--green);
+	border-bottom-color: var(--green);
 }
 
 /* ── Content ─────────────────────────────────────────────── */
@@ -259,15 +250,15 @@
 .state {
 	text-align: center;
 	padding: 32px 24px;
-	border-radius: 12px;
-	background: rgba(255, 255, 255, 0.04);
-	color: #94a3b8;
+	border-radius: var(--radius-card);
+	background: var(--bg-subtle);
+	color: var(--text-sub);
 	font-size: 14px;
 }
 
 .state.error {
-	color: #f87171;
-	background: rgba(248, 113, 113, 0.08);
+	color: var(--danger);
+	background: var(--danger-soft);
 }
 
 .state.connect {
@@ -279,18 +270,16 @@
 
 .connect-icon {
 	font-size: 32px;
-	color: #4d9d6d;
-	opacity: 0.6;
+	color: var(--green);
 }
 
 .empty-cta {
 	display: inline-block;
 	margin-top: 12px;
 	padding: 8px 20px;
-	background: rgba(77, 157, 109, 0.15);
-	border: 1px solid rgba(77, 157, 109, 0.3);
+	background: var(--green-soft);
 	border-radius: 8px;
-	color: #4d9d6d;
+	color: var(--green);
 	font-size: 14px;
 	font-weight: 600;
 	text-decoration: none;

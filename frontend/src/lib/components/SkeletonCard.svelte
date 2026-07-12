@@ -7,7 +7,6 @@
 <style>
 	.skeleton-card {
 		width: 100%;
-		border-radius: 12px;
-		box-shadow: var(--shadow-card);
+		border-radius: var(--radius-card);
 	}
 </style>

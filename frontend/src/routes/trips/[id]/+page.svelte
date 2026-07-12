@@ -6,7 +6,6 @@
 	import { resolvePhotoUrl } from '$lib/photos';
 	import { connectTripStream } from '$lib/realtime';
 	import InviteModal from '$lib/components/InviteModal.svelte';
-	import { scalePress } from '$lib/actions/animate';
 	import { hapticImpact, hapticNotification, setupBackButton, hideBackButton } from '$lib/telegram';
 	import {
 		formatDateRange,
@@ -171,14 +170,14 @@
 		<div class="hero skeleton"></div>
 	{:else if error}
 		<div class="container">
-			<div class="error glass">{error}</div>
+			<div class="error">{error}</div>
 		</div>
 	{:else if trip}
 		<div class="hero">
 			{#if coverUrl}
 				<div class="img-skeleton skeleton"></div>
 				<img
-					class="trip-img top-image"
+					class="trip-img"
 					src={coverUrl}
 					alt={trip.title}
 					onload={(e) => e.currentTarget.classList.add('loaded')}
@@ -187,29 +186,30 @@
 			{:else}
 				<div class="placeholder"></div>
 			{/if}
-			<div class="overlay"></div>
-			<div class="floating top">
-				<a class="fab-btn" href="/trips">←</a>
-			</div>
-			<div class="hero-content">
-				<p class="badge">{getStatusLabel(trip.status)}</p>
-				<h1>{trip.title}</h1>
-				<p>{getTripLocation(trip)}</p>
-				<div class="meta-row">
-					<span>{formatDateRange(trip.start_date, trip.end_date)}</span>
-					<span>{memberCount} members</span>
-				</div>
-			</div>
+			<a class="back-btn" href="/trips" aria-label="Back to trips">
+				<span class="material-symbols-outlined">arrow_back</span>
+			</a>
 		</div>
 
 		<div class="content container">
+			<div class="head">
+				<span class="badge">{getStatusLabel(trip.status)}</span>
+				<h1>{trip.title}</h1>
+				<p class="location">{getTripLocation(trip)}</p>
+				<div class="meta-row">
+					<span>{formatDateRange(trip.start_date, trip.end_date)}</span>
+					<span class="dot">·</span>
+					<span>{memberCount} members</span>
+				</div>
+			</div>
+
 			{#if trip.description}
-				<div class="detail-block glass">
+				<div class="block">
 					<p>{trip.description}</p>
 				</div>
 			{/if}
 
-			<div class="detail-block glass members-block">
+			<div class="block members-block">
 				<div class="members-header">
 					<h2>{memberCount} Members</h2>
 					<button class="toggle-btn" onclick={() => (membersExpanded = !membersExpanded)}>
@@ -218,7 +218,7 @@
 				</div>
 				<div class="avatar-row">
 					{#each members.slice(0, 5) as member (member.user_id ?? member.username)}
-						<div class="avatar-ring avatar">
+						<div class="avatar">
 							{#if member.photo_url}
 								<img src={member.photo_url} alt={getUserName(member)} />
 							{:else}
@@ -236,7 +236,7 @@
 					<div class="member-list">
 						{#each members as member (member.user_id ?? member.username)}
 							<div class="member-row">
-								<div class="avatar-ring avatar avatar--sm">
+								<div class="avatar avatar--sm">
 									{#if member.photo_url}
 										<img src={member.photo_url} alt={getUserName(member)} />
 									{:else}
@@ -276,7 +276,6 @@
 						class="action-btn action-btn--join"
 						onclick={joinTrip}
 						disabled={joinLoading || !!joinStatus}
-						use:scalePress
 					>
 						{joinLoading ? 'Joining...' : (joinStatusLabel[joinStatus] ?? joinStatus) || 'Join Trip'}
 					</button>
@@ -291,28 +290,27 @@
 <style>
 	.trip {
 		padding-bottom: 6rem;
+		background: var(--bg);
+		min-height: 100dvh;
 	}
 
 	.hero {
 		position: relative;
-		height: 45vh;
-		min-height: 360px;
-		max-height: 560px;
-		overflow: hidden;
-	}
-
-	.hero img,
-	.placeholder,
-	.skeleton,
-	.img-skeleton {
+		aspect-ratio: 16 / 10;
+		max-height: 360px;
 		width: 100%;
-		height: 100%;
-		object-fit: cover;
+		overflow: hidden;
+		background: var(--bg-subtle);
 	}
 
 	.img-skeleton {
 		position: absolute;
 		inset: 0;
+		border-radius: 0;
+	}
+
+	.hero.skeleton {
+		border-radius: 0;
 	}
 
 	.trip-img {
@@ -322,136 +320,117 @@
 		height: 100%;
 		object-fit: cover;
 		opacity: 0;
-		transition: opacity 0.4s ease;
+		transition: opacity 0.3s ease;
 	}
 
 	:global(.trip-img.loaded) { opacity: 1; }
 	:global(.trip-img.error)  { display: none; }
 
-	.placeholder,
-	.skeleton {
-		background:
-			radial-gradient(circle at top right, rgba(127, 191, 153, 0.12), transparent 30%),
-			linear-gradient(135deg, rgba(30, 38, 32, 1), rgba(38, 48, 40, 1) 60%, rgba(30, 38, 32, 1));
+	.placeholder {
+		width: 100%;
+		height: 100%;
+		background: var(--bg-subtle);
 	}
 
-	.overlay {
+	.back-btn {
 		position: absolute;
-		inset: 0;
-		background: linear-gradient(180deg, rgba(3, 18, 35, 0.15) 0%, rgba(3, 18, 35, 0.88) 100%);
-	}
-
-	.floating {
-		position: absolute;
-		left: 1rem;
-		right: 1rem;
-		top: 1rem;
-		z-index: 2;
-		display: flex;
-		justify-content: space-between;
-	}
-
-	.fab-btn {
-		width: 46px;
-		height: 46px;
+		top: 12px;
+		left: 12px;
+		width: 40px;
+		height: 40px;
 		border-radius: 50%;
 		display: grid;
 		place-items: center;
-		background: rgba(255, 255, 255, 0.12);
-		backdrop-filter: blur(18px);
-		border: 1px solid rgba(255, 255, 255, 0.14);
-		color: white;
+		background: rgba(255, 255, 255, 0.92);
+		color: var(--text);
 		text-decoration: none;
 	}
 
-	.hero-content {
-		position: absolute;
-		left: 1.25rem;
-		right: 1.25rem;
-		bottom: 1.25rem;
-		z-index: 2;
+	.back-btn .material-symbols-outlined {
+		font-size: 20px;
+	}
+
+	.container {
+		max-width: 480px;
+		margin: 0 auto;
+		padding: 0 16px;
+	}
+
+	.content {
+		padding-top: 16px;
+	}
+
+	/* ── Head ────────────────────────────────────────────────── */
+	.head {
+		margin-bottom: 16px;
 	}
 
 	.badge {
-		display: inline-flex;
-		padding: 0.45rem 0.8rem;
-		border-radius: var(--radius-pill);
-		background: rgba(32, 146, 186, 0.18);
-		border: 1px solid rgba(122, 234, 244, 0.24);
-		color: white;
-		font-size: 0.72rem;
-		font-weight: 800;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
-		margin-bottom: 0.7rem;
+		display: inline-block;
+		padding: 3px 8px;
+		border-radius: 6px;
+		background: var(--green-soft);
+		color: var(--green);
+		font-size: 12px;
+		font-weight: 600;
+		margin-bottom: 8px;
 	}
 
 	h1 {
-		font-size: clamp(2rem, 8vw, 3.2rem);
-		font-weight: 800;
-		line-height: 0.98;
-		letter-spacing: -0.06em;
-		margin-bottom: 0.45rem;
+		font-size: 24px;
+		font-weight: 700;
+		line-height: 1.2;
+		color: var(--text);
+		margin-bottom: 4px;
 	}
 
-	.hero-content p {
-		color: var(--text-secondary);
+	.location {
+		color: var(--text-sub);
+		font-size: 14px;
 	}
 
 	.meta-row {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 0.55rem;
-		margin-top: 0.85rem;
+		align-items: center;
+		gap: 6px;
+		margin-top: 8px;
+		color: var(--text-sub);
+		font-size: 13px;
 	}
 
-	.meta-row span {
-		padding: 0.45rem 0.7rem;
-		border-radius: var(--radius-pill);
-		background: rgba(255, 255, 255, 0.08);
-		backdrop-filter: blur(16px);
-		font-size: 0.8rem;
+	.dot {
+		color: var(--text-muted);
 	}
 
-	.container {
-		max-width: 640px;
-		margin: 0 auto;
-		padding: 0 1rem;
+	/* ── Blocks ──────────────────────────────────────────────── */
+	.block {
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-card);
+		padding: 16px;
+		margin-bottom: 12px;
 	}
 
-	.content {
-		padding-top: 1rem;
-	}
-
-	.glass {
-		background: rgba(255, 255, 255, 0.03);
-		border: 1px solid rgba(255, 255, 255, 0.07);
-		backdrop-filter: blur(12px);
-	}
-
-	.detail-block {
-		padding: 1.15rem;
-		border-radius: var(--radius-2xl);
-		margin-bottom: 1rem;
-	}
-
-	.detail-block p {
-		color: var(--text-secondary);
+	.block p {
+		color: var(--text-sub);
 		line-height: 1.5;
+		font-size: 14px;
 	}
 
 	.error {
-		padding: 1rem;
-		border-radius: var(--radius-xl);
+		padding: 16px;
+		border-radius: var(--radius-card);
 		text-align: center;
-		color: var(--text-secondary);
+		color: var(--danger);
+		background: var(--danger-soft);
+		margin-top: 16px;
 	}
 
 	/* ── Members block ───────────────────────────────────────── */
 	.members-block {
 		display: flex;
 		flex-direction: column;
-		gap: 0.85rem;
+		gap: 12px;
 	}
 
 	.members-header {
@@ -461,16 +440,16 @@
 	}
 
 	.members-header h2 {
-		font-size: 1rem;
-		font-weight: 800;
-		color: white;
+		font-size: 15px;
+		font-weight: 600;
+		color: var(--text);
 	}
 
 	.toggle-btn {
 		background: none;
 		border: none;
-		color: var(--accent-strong);
-		font-size: 0.82rem;
+		color: var(--green);
+		font-size: 13px;
 		font-weight: 600;
 		cursor: pointer;
 		padding: 0;
@@ -478,7 +457,7 @@
 
 	.avatar-row {
 		display: flex;
-		gap: 0.4rem;
+		gap: 6px;
 		align-items: center;
 	}
 
@@ -486,6 +465,8 @@
 		width: 40px;
 		height: 40px;
 		flex-shrink: 0;
+		border-radius: 50%;
+		overflow: hidden;
 	}
 
 	.avatar--sm {
@@ -493,12 +474,7 @@
 		height: 36px;
 	}
 
-	.avatar-ring {
-		border-radius: 50%;
-		overflow: hidden;
-	}
-
-	.avatar-ring img {
+	.avatar img {
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
@@ -510,10 +486,10 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: rgba(77, 157, 109, 0.18);
-		color: var(--accent-strong);
-		font-size: 0.9rem;
-		font-weight: 700;
+		background: var(--green-soft);
+		color: var(--green);
+		font-size: 13px;
+		font-weight: 600;
 		border-radius: 50%;
 	}
 
@@ -521,67 +497,67 @@
 		width: 40px;
 		height: 40px;
 		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.08);
+		background: var(--bg-subtle);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 0.75rem;
-		font-weight: 700;
-		color: var(--text-secondary);
+		font-size: 12px;
+		font-weight: 600;
+		color: var(--text-sub);
 		flex-shrink: 0;
 	}
 
 	.member-list {
 		display: flex;
 		flex-direction: column;
-		gap: 0.6rem;
-		padding-top: 0.5rem;
-		border-top: 1px solid rgba(255, 255, 255, 0.06);
+		gap: 10px;
+		padding-top: 10px;
+		border-top: 1px solid var(--border);
 	}
 
 	.member-row {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
+		gap: 10px;
 	}
 
 	.member-info {
 		flex: 1;
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: 8px;
 	}
 
 	.member-info strong {
-		color: white;
-		font-size: 0.9rem;
+		color: var(--text);
+		font-size: 14px;
+		font-weight: 600;
 	}
 
 	.role-badge {
-		padding: 0.2rem 0.5rem;
+		padding: 2px 8px;
 		border-radius: var(--radius-pill);
-		background: rgba(77, 157, 109, 0.16);
-		color: var(--accent-strong);
-		font-size: 0.68rem;
-		font-weight: 700;
+		background: var(--green-soft);
+		color: var(--green);
+		font-size: 11px;
+		font-weight: 600;
 	}
 
 	/* ── Action buttons ──────────────────────────────────────── */
 	.actions {
 		display: flex;
-		gap: 0.75rem;
-		margin-bottom: 1rem;
+		gap: 10px;
+		margin-bottom: 16px;
 	}
 
 	.action-btn {
 		flex: 1;
-		padding: 14px 16px;
-		border-radius: 12px;
+		padding: 13px 16px;
+		border-radius: var(--radius-input);
 		font-size: 15px;
-		font-weight: 700;
+		font-weight: 600;
 		border: none;
 		cursor: pointer;
-		transition: opacity 0.15s ease;
 		-webkit-tap-highlight-color: transparent;
 	}
 
@@ -591,18 +567,17 @@
 	}
 
 	.action-btn--invite {
-		background: rgba(77, 157, 109, 0.2);
-		color: #4d9d6d;
+		background: var(--green-soft);
+		color: var(--green);
 	}
 
 	.action-btn--delete {
-		background: rgba(239, 68, 68, 0.1);
-		color: #ef4444;
+		background: var(--danger-soft);
+		color: var(--danger);
 	}
 
 	.action-btn--join {
-		background: var(--accent-grad);
-		color: white;
-		box-shadow: var(--shadow-glow);
+		background: var(--green);
+		color: #fff;
 	}
 </style>

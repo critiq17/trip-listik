@@ -43,22 +43,28 @@
 </svelte:head>
 
 <div class="page">
-	<!-- Progress Bar -->
+	<header class="top-bar">
+		<button class="back-btn" aria-label="Go back" onclick={() => history.back()}>
+			<span class="material-symbols-outlined">arrow_back</span>
+		</button>
+		<span class="header-title">New Trip</span>
+		<div class="header-spacer"></div>
+	</header>
+
 	<div class="progress-track">
-		<div class="progress-fill" style="width: 33.33%; transition: width 500ms cubic-bezier(0.4, 0, 0.2, 1)"></div>
+		<div class="progress-fill" style="width: 33.33%"></div>
 	</div>
 
 	<main class="content">
 		<p class="step-label">Step 1 of 3</p>
-		<h1 class="serif">Where are you headed?</h1>
+		<h1>Where are you headed?</h1>
 
 		<div class="form">
-			<!-- Trip Name -->
 			<div class="field">
-				<label class="field-label" for="trip-name">Trip Name</label>
+				<label class="field-label" for="trip-name">Trip name</label>
 				<input
 					id="trip-name"
-					class="big-input"
+					class="text-input"
 					type="text"
 					placeholder="e.g. Summer in Tuscany"
 					bind:value={title}
@@ -66,31 +72,25 @@
 				/>
 			</div>
 
-			<!-- Destination -->
-			<div class="field autocomplete-field">
+			<div class="field">
 				<label class="field-label" for="trip-destination">Destination</label>
-				<div class="input-icon-wrap">
-					<CityAutocomplete
-						bind:value={destination}
-						bind:countryCode={countryCode}
-						bind:lat={lat}
-						bind:lng={lng}
-						id="trip-destination"
-						placeholder="Where to?"
-					/>
-					<span class="material-symbols-outlined input-suffix-icon">map</span>
-				</div>
+				<CityAutocomplete
+					bind:value={destination}
+					bind:countryCode={countryCode}
+					bind:lat={lat}
+					bind:lng={lng}
+					id="trip-destination"
+					placeholder="Where to?"
+				/>
 			</div>
 		</div>
 
-		<!-- Continue Button -->
 		<button
 			class="continue-btn"
 			onclick={next}
 			disabled={!title.trim()}
 		>
 			Continue
-			<span class="material-symbols-outlined">arrow_forward</span>
 		</button>
 	</main>
 </div>
@@ -98,137 +98,138 @@
 <style>
 .page {
 	min-height: 100dvh;
-	background: #161c18;
-	color: #f1f5f9;
+	background: var(--bg);
+	color: var(--text);
 }
 
-/* ── Progress Bar ────────────────────────────────────────── */
+/* ── Header ─────────────────────────────────────────────── */
+.top-bar {
+	position: sticky;
+	top: 0;
+	z-index: 50;
+	display: flex;
+	align-items: center;
+	height: 52px;
+	padding: 0 8px;
+	background: var(--bg);
+	border-bottom: 1px solid var(--border);
+}
+
+.back-btn {
+	width: 44px;
+	height: 44px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text);
+	background: none;
+	border: none;
+	cursor: pointer;
+	flex-shrink: 0;
+}
+
+.back-btn .material-symbols-outlined {
+	font-size: 22px;
+}
+
+.header-title {
+	flex: 1;
+	text-align: center;
+	font-size: 16px;
+	font-weight: 600;
+	color: var(--text);
+}
+
+.header-spacer {
+	width: 44px;
+}
+
+/* ── Progress ────────────────────────────────────────────── */
 .progress-track {
 	width: 100%;
-	height: 4px;
-	background: rgba(77, 157, 109, 0.2);
+	height: 3px;
+	background: var(--border);
 }
 
 .progress-fill {
 	height: 100%;
-	background: #4d9d6d;
+	background: var(--green);
+	transition: width 0.2s ease;
 }
 
 /* ── Content ─────────────────────────────────────────────── */
 .content {
 	max-width: 480px;
 	margin: 0 auto;
-	padding: 32px 24px 96px;
+	padding: 24px 16px 96px;
 }
 
 .step-label {
-	font-size: 11px;
-	color: #4d9d6d;
-	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: 0.15em;
-	margin-bottom: 16px;
+	font-size: 13px;
+	color: var(--text-sub);
+	font-weight: 500;
+	margin-bottom: 8px;
 }
 
 h1 {
-	font-size: 38px;
-	line-height: 1.1;
-	color: white;
-	margin-bottom: 40px;
+	font-size: 24px;
+	font-weight: 700;
+	line-height: 1.2;
+	color: var(--text);
+	margin-bottom: 24px;
 }
 
 /* ── Form ───────────────────────────────────────────────── */
 .form {
 	display: flex;
 	flex-direction: column;
-	gap: 48px;
-	margin-bottom: 48px;
+	gap: 20px;
+	margin-bottom: 32px;
 }
 
 .field {
 	display: flex;
 	flex-direction: column;
-	gap: 4px;
+	gap: 6px;
 }
 
 .field-label {
-	font-size: 14px;
-	color: #94a3b8;
+	font-size: 13px;
+	color: var(--text-sub);
 	font-weight: 500;
-	margin-bottom: 4px;
 }
 
-/* ── Text Inputs ─────────────────────────────────────────── */
-.big-input {
+.text-input {
 	width: 100%;
-	background: transparent;
-	border: none;
-	border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-	border-radius: 0;
-	font-size: 24px;
-	font-weight: 500;
-	color: white;
-	padding: 8px 0;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-input);
+	font-size: 16px;
+	color: var(--text);
+	padding: 12px 14px;
 	outline: none;
-	transition: border-bottom-color 0.2s ease;
+	transition: border-color 0.15s ease;
 }
 
-.big-input::placeholder {
-	color: rgba(255, 255, 255, 0.2);
-}
-
-.big-input:focus {
-	border-bottom-color: #4d9d6d;
-}
-
-/* Destination field with map icon */
-.input-icon-wrap {
-	position: relative;
-}
-
-.input-suffix-icon {
-	position: absolute;
-	right: 0;
-	top: 50%;
-	transform: translateY(-50%);
-	font-size: 24px;
-	color: #64748b;
-	pointer-events: none;
+.text-input:focus {
+	border-color: var(--green);
 }
 
 /* ── Continue Button ─────────────────────────────────────── */
 .continue-btn {
 	width: 100%;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 8px;
-	padding: 16px;
-	border-radius: 12px;
-	background: #4d9d6d;
-	color: white;
+	padding: 14px;
+	border-radius: var(--radius-input);
+	background: var(--green);
+	color: #fff;
 	font-size: 16px;
-	font-weight: 700;
+	font-weight: 600;
 	border: none;
 	cursor: pointer;
-	box-shadow: 0 8px 25px rgba(77, 157, 109, 0.3);
-	transition: opacity 0.15s ease, transform 0.1s ease;
-}
-
-.continue-btn:hover:not(:disabled) {
-	opacity: 0.92;
-}
-
-.continue-btn:active:not(:disabled) {
-	transform: scale(0.98);
 }
 
 .continue-btn:disabled {
 	opacity: 0.4;
 	cursor: not-allowed;
-}
-
-.continue-btn .material-symbols-outlined {
-	font-size: 20px;
 }
 </style>

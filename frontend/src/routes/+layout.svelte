@@ -6,7 +6,6 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { ensureAuth } from '$lib/auth';
-	import { pageEnter } from '$lib/transitions';
 
 	let { children } = $props();
 	let authReady = $state(false);
@@ -24,9 +23,9 @@
 		if (tg) {
 			tg.ready();                           // Tell Telegram the app is ready
 			tg.expand();                          // Full-screen — synchronous, before any await
-			tg.setHeaderColor?.('#161c18');
-			tg.setBackgroundColor?.('#161c18');
-			tg.setBottomBarColor?.('#161c18');
+			tg.setHeaderColor?.('#ffffff');
+			tg.setBackgroundColor?.('#ffffff');
+			tg.setBottomBarColor?.('#ffffff');
 		}
 
 		// ── Deep links: t.me/...?startapp=<param> lands here as start_param ──
@@ -73,18 +72,14 @@
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
-	<meta name="theme-color" content="#0d1f17" />
+	<meta name="theme-color" content="#ffffff" />
 </svelte:head>
 
 <div class="app">
 	{#if !authReady}
 		<div class="auth-loading" aria-hidden="true"></div>
 	{:else}
-		{#key $page.url.pathname}
-			<div use:pageEnter>
-				{@render children()}
-			</div>
-		{/key}
+		{@render children()}
 		{#if shouldShowNav($page.url.pathname)}
 			<BottomNav />
 		{/if}
@@ -95,11 +90,11 @@
 	.app {
 		min-height: 100dvh;
 		position: relative;
-		background: #161c18;
+		background: var(--bg);
 	}
 
 	.auth-loading {
 		min-height: 100dvh;
-		background: #161c18;
+		background: var(--bg);
 	}
 </style>

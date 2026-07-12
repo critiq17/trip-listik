@@ -9,14 +9,14 @@
 
 /* ── Root ───────────────────────────────────────────────── */
 html {
-  background: #161c18;
-  color-scheme: dark;
+  background: var(--bg);
+  color-scheme: light;
 }
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: #161c18;
-  color: #f1f5f9;
+  background: var(--bg);
+  color: var(--text);
   min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -45,21 +45,12 @@ input,
 textarea,
 select {
   font: inherit;
-  color: #f1f5f9;
+  color: var(--text);
 }
 
 input::placeholder,
 textarea::placeholder {
-  color: rgba(255, 255, 255, 0.25);
-}
-
-/* ── Typography helpers ─────────────────────────────────── */
-.serif {
-  font-family: 'DM Serif Display', 'Georgia', serif;
-}
-
-.serif-text {
-  font-family: 'DM Serif Display', 'Georgia', serif;
+  color: var(--text-muted);
 }
 
 /* ── Material Symbols ───────────────────────────────────── */
@@ -92,19 +83,6 @@ textarea::placeholder {
   padding-bottom: env(safe-area-inset-bottom, 16px);
 }
 
-/* ── Glass / panel utilities ────────────────────────────── */
-.glass {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-}
-
-.panel {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-}
-
 /* ── Skeleton shimmer ───────────────────────────────────── */
 @keyframes shimmer {
   0%   { background-position: -200% 0; }
@@ -114,9 +92,9 @@ textarea::placeholder {
 .skeleton {
   background: linear-gradient(
     90deg,
-    rgba(30, 38, 32, 1) 0%,
-    rgba(38, 48, 40, 1) 40%,
-    rgba(30, 38, 32, 1) 80%
+    #eef0f2 0%,
+    #f7f8f9 40%,
+    #eef0f2 80%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
@@ -126,12 +104,10 @@ textarea::placeholder {
 /* ── Button press feedback ──────────────────────────────── */
 button, a {
   -webkit-tap-highlight-color: transparent;
-  transition: opacity 150ms ease, transform 100ms ease;
 }
 
 button:active, a:active {
-  transform: scale(0.97);
-  opacity: 0.85;
+  opacity: 0.7;
 }
 
 /* ── Reduced motion ─────────────────────────────────────── */

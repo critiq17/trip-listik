@@ -56,7 +56,6 @@
 			{:else}
 				<div class="placeholder"></div>
 			{/if}
-			<div class="overlay"></div>
 
 			{#if isCompact && trip.status}
 				<div class="badge">{getStatusLabel(trip.status)}</div>
@@ -70,13 +69,13 @@
 			</div>
 
 			{#if (trip.member_count ?? 0) > 0}
-				<div class="like-pill">
-					<span class="material-symbols-outlined fill-icon">group</span>
+				<div class="count-pill">
+					<span class="material-symbols-outlined">group</span>
 					{trip.member_count}
 				</div>
 			{:else if !isCompact && (trip.vote_count ?? 0) > 0}
-				<div class="like-pill">
-					<span class="material-symbols-outlined fill-icon">thumb_up</span>
+				<div class="count-pill">
+					<span class="material-symbols-outlined">thumb_up</span>
 					{trip.vote_count ?? 0}
 				</div>
 			{/if}
@@ -89,22 +88,12 @@
 .card {
 	display: block;
 	position: relative;
-	border-radius: 12px;
+	border-radius: var(--radius-card);
 	overflow: hidden;
 	cursor: pointer;
-	box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
-	transition: transform 0.25s ease, box-shadow 0.25s ease;
+	background: var(--bg-card);
+	border: 1px solid var(--border);
 	-webkit-tap-highlight-color: transparent;
-}
-
-.card:hover {
-	transform: translateY(-2px);
-	box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
-}
-
-.card:active {
-	transform: scale(0.97);
-	transition-duration: 0.08s;
 }
 
 /* ── Feed variant ──────────────────────────────────────── */
@@ -131,6 +120,7 @@
 .img-skeleton {
 	position: absolute;
 	inset: 0;
+	border-radius: 0;
 }
 
 .trip-img {
@@ -140,7 +130,7 @@
 	object-fit: cover;
 	display: block;
 	opacity: 0;
-	transition: opacity 0.4s ease, transform 500ms ease;
+	transition: opacity 0.3s ease;
 }
 
 .trip-img.loaded {
@@ -151,106 +141,77 @@
 	display: none;
 }
 
-.card:hover .trip-img {
-	transform: scale(1.05);
-}
-
 .placeholder {
-	background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
-}
-
-.overlay {
-	position: absolute;
-	inset: 0;
-	background: linear-gradient(to top, rgba(0, 0, 0, 0.82) 0%, transparent 60%);
-	pointer-events: none;
+	background: var(--bg-subtle);
 }
 
 /* ── Badge (compact) ───────────────────────────────────── */
 .badge {
 	position: absolute;
-	top: 16px; right: 16px;
-	background: rgba(255, 255, 255, 0.15);
-	backdrop-filter: blur(8px);
-	-webkit-backdrop-filter: blur(8px);
-	color: white;
-	font-size: 10px;
-	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: 0.08em;
+	top: 12px; right: 12px;
+	background: rgba(255, 255, 255, 0.92);
+	color: var(--text);
+	font-size: 11px;
+	font-weight: 600;
 	padding: 4px 8px;
-	border-radius: 4px;
+	border-radius: 6px;
 }
 
-/* ── Bottom overlay content ────────────────────────────── */
+/* ── Bottom content ────────────────────────────────────── */
 .bottom {
-	position: absolute;
-	bottom: 0; left: 0; right: 0;
-	padding: 16px;
+	padding: 12px 14px;
 	display: flex;
 	justify-content: space-between;
-	align-items: flex-end;
+	align-items: center;
 	gap: 12px;
 }
 
 .info h3 {
-	font-size: 18px;
-	font-weight: 700;
-	color: white;
-	margin: 0 0 4px;
-	line-height: 1.2;
+	font-size: 16px;
+	font-weight: 600;
+	color: var(--text);
+	margin: 0 0 2px;
+	line-height: 1.3;
 }
 
 .info p {
-	font-size: 12px;
-	color: rgba(255, 255, 255, 0.75);
-	font-weight: 500;
+	font-size: 13px;
+	color: var(--text-sub);
 	margin: 0;
 }
 
-.like-pill {
+.count-pill {
 	display: flex;
 	align-items: center;
-	gap: 6px;
-	background: rgba(255, 255, 255, 0.15);
-	backdrop-filter: blur(8px);
-	-webkit-backdrop-filter: blur(8px);
-	border-radius: 9999px;
-	padding: 6px 12px;
-	color: white;
-	font-size: 14px;
-	font-weight: 700;
+	gap: 5px;
+	color: var(--text-sub);
+	font-size: 13px;
+	font-weight: 600;
 	white-space: nowrap;
 	flex-shrink: 0;
 }
 
-.like-pill .material-symbols-outlined {
-	font-size: 16px;
+.count-pill .material-symbols-outlined {
+	font-size: 18px;
 }
 
 /* ── Horizontal variant (Profile page) ─────────────────── */
 .card.horizontal {
 	display: flex;
 	align-items: center;
-	gap: 16px;
-	padding: 0;
-	box-shadow: none;
+	gap: 12px;
+	padding: 12px 0;
 	background: transparent;
-	border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+	border: none;
+	border-bottom: 1px solid var(--border);
 	border-radius: 0;
-	padding-bottom: 16px;
-}
-
-.card.horizontal:hover {
-	transform: none;
-	box-shadow: none;
 }
 
 .thumb-wrap {
 	position: relative;
 	width: 48px;
 	height: 48px;
-	border-radius: 6px;
+	border-radius: 8px;
 	overflow: hidden;
 	flex-shrink: 0;
 }
@@ -276,8 +237,8 @@
 .thumb-placeholder {
 	width: 100%;
 	height: 100%;
-	background: rgba(255, 255, 255, 0.06);
-	border-radius: 6px;
+	background: var(--bg-subtle);
+	border-radius: 8px;
 }
 
 .h-body {
@@ -288,7 +249,7 @@
 .h-title {
 	font-size: 15px;
 	font-weight: 600;
-	color: white;
+	color: var(--text);
 	line-height: 1.3;
 	white-space: nowrap;
 	overflow: hidden;
@@ -297,7 +258,7 @@
 
 .h-meta {
 	font-size: 13px;
-	color: #94a3b8;
+	color: var(--text-sub);
 	margin-top: 2px;
 }
 </style>

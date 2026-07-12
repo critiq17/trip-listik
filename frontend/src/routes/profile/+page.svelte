@@ -2,7 +2,6 @@
 	import { onMount } from 'svelte';
 	import { apiFetch } from '$lib/api';
 	import TripCard from '$lib/components/TripCard.svelte';
-	import { countUp } from '$lib/transitions';
 	import { getUserInitials, getUserName, normalizeStats, parseCalendarDate } from '$lib/format';
 	import type { TripCardData, User, UserStats, UserSummary } from '$lib/types';
 
@@ -10,10 +9,6 @@
 	let stats = $state<UserStats | null>(null);
 	let history = $state<TripCardData[]>([]);
 	let friends = $state<UserSummary[]>([]);
-	let statEl0 = $state<HTMLElement | null>(null);
-	let statEl1 = $state<HTMLElement | null>(null);
-	let statEl2 = $state<HTMLElement | null>(null);
-	let statEl3 = $state<HTMLElement | null>(null);
 	let historyError = $state('');
 	let error = $state('');
 	let contentTab = $state<'trips' | 'friends'>('trips');
@@ -55,13 +50,6 @@
 			} catch (e) {
 				historyError = e instanceof Error ? e.message : 'Failed to load';
 			}
-
-			if (stats) {
-				if (statEl0) countUp(statEl0, stats.total_trips);
-				if (statEl1) countUp(statEl1, stats.countries_visited);
-				if (statEl2) countUp(statEl2, stats.trips_with_friends);
-				if (statEl3) countUp(statEl3, referralCount);
-			}
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load profile';
 		}
@@ -95,14 +83,14 @@
 </svelte:head>
 
 <div class="page">
-	<header class="header">
-		<p class="eyebrow">Profile</p>
+	<header class="top-bar">
+		<span class="page-title">Profile</span>
 		<button class="settings-btn" aria-label="Settings" onclick={() => (settingsOpen = true)}>
 			<span class="material-symbols-outlined">settings</span>
 		</button>
 	</header>
 
-	<main class="content hide-scrollbar">
+	<main class="content">
 		{#if error}
 			<div class="state">{error}</div>
 		{:else}
@@ -124,22 +112,19 @@
 			<!-- Stats Row -->
 			<div class="stats-row">
 				<div class="stat">
-					<p bind:this={statEl0}>0</p>
+					<p>{stats?.total_trips ?? 0}</p>
 					<span>Trips</span>
 				</div>
-				<div class="divider"></div>
 				<div class="stat">
-					<p bind:this={statEl1}>0</p>
+					<p>{stats?.countries_visited ?? 0}</p>
 					<span>Countries</span>
 				</div>
-				<div class="divider"></div>
 				<div class="stat">
-					<p bind:this={statEl2}>0</p>
+					<p>{stats?.trips_with_friends ?? 0}</p>
 					<span>Friends</span>
 				</div>
-				<div class="divider"></div>
 				<div class="stat">
-					<p bind:this={statEl3}>0</p>
+					<p>{referralCount}</p>
 					<span>Referrals</span>
 				</div>
 			</div>
@@ -257,36 +242,40 @@
 <style>
 .page {
 	min-height: 100dvh;
-	background: #161c18;
-	color: #f1f5f9;
+	background: var(--bg);
+	color: var(--text);
 	padding-bottom: 96px;
 }
 
 /* ── Header ─────────────────────────────────────────────── */
-.header {
+.top-bar {
+	position: sticky;
+	top: 0;
+	z-index: 50;
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: 32px 24px 0;
+	height: 52px;
+	padding: 0 16px;
+	background: var(--bg);
+	border-bottom: 1px solid var(--border);
 	max-width: 480px;
 	margin: 0 auto;
 }
 
-.eyebrow {
-	font-size: 10px;
-	color: #4d9d6d;
+.page-title {
+	font-size: 18px;
 	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: 0.12em;
+	color: var(--text);
 }
 
 .settings-btn {
-	width: 32px;
-	height: 32px;
+	width: 36px;
+	height: 36px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: #94a3b8;
+	color: var(--text-sub);
 	background: none;
 	border: none;
 	cursor: pointer;
@@ -298,7 +287,7 @@
 
 /* ── Content ─────────────────────────────────────────────── */
 .content {
-	padding: 0 24px 2rem;
+	padding: 0 16px 2rem;
 	max-width: 480px;
 	margin: 0 auto;
 }
@@ -307,26 +296,25 @@
 .profile-row {
 	display: flex;
 	align-items: center;
-	gap: 20px;
+	gap: 16px;
 	margin-top: 20px;
-	margin-bottom: 28px;
+	margin-bottom: 20px;
 }
 
 .avatar-wrap {
-	width: 80px;
-	height: 80px;
-	border-radius: 9999px;
-	outline: 1px solid rgba(77, 157, 109, 0.4);
-	outline-offset: 3px;
+	width: 72px;
+	height: 72px;
+	border-radius: 50%;
 	flex-shrink: 0;
 	overflow: hidden;
+	border: 1px solid var(--border);
 }
 
 .avatar-img {
 	width: 100%;
 	height: 100%;
 	object-fit: cover;
-	border-radius: 9999px;
+	border-radius: 50%;
 }
 
 .avatar-fallback {
@@ -335,39 +323,38 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: rgba(255, 255, 255, 0.08);
-	color: white;
+	background: var(--green-soft);
+	color: var(--green);
 	font-size: 22px;
-	font-weight: 700;
-	border-radius: 9999px;
+	font-weight: 600;
+	border-radius: 50%;
 }
 
 .user-info {
 	display: flex;
 	flex-direction: column;
-	gap: 4px;
+	gap: 2px;
 }
 
 .user-name {
-	font-size: 20px;
+	font-size: 18px;
 	font-weight: 700;
-	color: white;
+	color: var(--text);
 }
 
 .user-handle {
 	font-size: 14px;
-	color: #94a3b8;
+	color: var(--text-sub);
 }
 
 /* ── Stats Row ───────────────────────────────────────────── */
 .stats-row {
 	display: grid;
-	grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
-	align-items: center;
-	padding: 16px 0;
-	border-top: 1px solid rgba(255, 255, 255, 0.06);
-	border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-	margin-bottom: 20px;
+	grid-template-columns: repeat(4, 1fr);
+	padding: 12px 0;
+	border-top: 1px solid var(--border);
+	border-bottom: 1px solid var(--border);
+	margin-bottom: 16px;
 }
 
 .stat {
@@ -375,24 +362,15 @@
 }
 
 .stat p {
-	font-size: 18px;
+	font-size: 17px;
 	font-weight: 700;
-	color: white;
-	margin-bottom: 4px;
+	color: var(--text);
+	margin-bottom: 2px;
 }
 
 .stat span {
-	font-size: 9px;
-	text-transform: uppercase;
-	letter-spacing: 0.1em;
-	color: #64748b;
-}
-
-.divider {
-	width: 1px;
-	height: 32px;
-	background: rgba(255, 255, 255, 0.06);
-	align-self: center;
+	font-size: 12px;
+	color: var(--text-sub);
 }
 
 /* ── Referral row ────────────────────────────────────────── */
@@ -400,17 +378,17 @@
 	display: flex;
 	gap: 8px;
 	align-items: center;
-	margin-bottom: 24px;
+	margin-bottom: 20px;
 }
 
 .referral-input {
 	flex: 1;
-	background: rgba(255,255,255,0.06);
-	border: 1px solid rgba(255,255,255,0.1);
-	border-radius: 8px;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-input);
 	padding: 10px 12px;
 	font-size: 12px;
-	color: #94a3b8;
+	color: var(--text-sub);
 	outline: none;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -423,10 +401,9 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: rgba(77,157,109,0.15);
-	border: 1px solid rgba(77,157,109,0.3);
-	border-radius: 8px;
-	color: #4d9d6d;
+	background: var(--green-soft);
+	border-radius: var(--radius-input);
+	color: var(--green);
 	cursor: pointer;
 	flex-shrink: 0;
 	border: none;
@@ -438,8 +415,8 @@
 .content-tabs {
 	display: flex;
 	gap: 20px;
-	margin-bottom: 16px;
-	border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+	margin-bottom: 12px;
+	border-bottom: 1px solid var(--border);
 }
 
 .ctab {
@@ -449,7 +426,7 @@
 	padding: 8px 0;
 	font-size: 14px;
 	font-weight: 600;
-	color: #64748b;
+	color: var(--text-sub);
 	background: none;
 	border: none;
 	border-bottom: 2px solid transparent;
@@ -459,16 +436,16 @@
 }
 
 .ctab.active {
-	color: white;
-	border-bottom-color: #4d9d6d;
+	color: var(--text);
+	border-bottom-color: var(--green);
 }
 
 .tab-count {
 	font-size: 11px;
-	background: rgba(77, 157, 109, 0.2);
-	color: #4d9d6d;
+	background: var(--green-soft);
+	color: var(--green);
 	padding: 1px 6px;
-	border-radius: 9999px;
+	border-radius: var(--radius-pill);
 }
 
 /* ── Travel History ──────────────────────────────────────── */
@@ -479,37 +456,35 @@
 .history-tabs {
 	display: flex;
 	gap: 16px;
-	margin-bottom: 16px;
+	margin-bottom: 8px;
 }
 
 .htab {
 	font-size: 13px;
 	font-weight: 500;
-	color: #64748b;
+	color: var(--text-sub);
 	background: none;
 	border: none;
 	border-bottom: 2px solid transparent;
 	padding: 4px 0;
 	cursor: pointer;
-	transition: color 0.2s ease, border-color 0.2s ease;
+	transition: color 0.15s ease, border-color 0.15s ease;
 }
 
 .htab.active {
-	color: white;
-	border-bottom-color: #4d9d6d;
+	color: var(--text);
+	border-bottom-color: var(--green);
 }
 
 .history-list {
 	display: flex;
 	flex-direction: column;
-	gap: 0;
 }
 
 /* ── Friends list ────────────────────────────────────────── */
 .friends-list {
 	display: flex;
 	flex-direction: column;
-	gap: 0;
 }
 
 .friend-row {
@@ -517,22 +492,22 @@
 	align-items: center;
 	gap: 12px;
 	padding: 12px 0;
-	border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+	border-bottom: 1px solid var(--border);
 }
 
 .friend-avatar {
 	width: 44px;
 	height: 44px;
-	border-radius: 9999px;
+	border-radius: 50%;
 	overflow: hidden;
-	background: rgba(255, 255, 255, 0.06);
+	background: var(--green-soft);
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	flex-shrink: 0;
-	font-size: 16px;
-	font-weight: 700;
-	color: white;
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--green);
 }
 
 .friend-avatar img {
@@ -550,21 +525,21 @@
 .friend-name {
 	font-size: 15px;
 	font-weight: 600;
-	color: white;
+	color: var(--text);
 }
 
 .friend-handle {
 	font-size: 13px;
-	color: #94a3b8;
+	color: var(--text-sub);
 }
 
 /* ── Misc ────────────────────────────────────────────────── */
 .state {
 	padding: 20px;
-	border-radius: 12px;
-	background: rgba(255, 255, 255, 0.04);
+	border-radius: var(--radius-card);
+	background: var(--bg-subtle);
 	text-align: center;
-	color: #94a3b8;
+	color: var(--text-sub);
 	font-size: 14px;
 }
 
@@ -578,8 +553,7 @@
 	position: fixed;
 	inset: 0;
 	z-index: 30;
-	background: rgba(0, 0, 0, 0.6);
-	backdrop-filter: blur(4px);
+	background: rgba(17, 20, 24, 0.4);
 	border: none;
 	cursor: pointer;
 }
@@ -590,16 +564,18 @@
 	left: 0;
 	right: 0;
 	z-index: 31;
-	background: #1a2420;
-	border-radius: 20px 20px 0 0;
+	background: var(--bg-card);
+	border-radius: 16px 16px 0 0;
 	padding: 12px 20px 48px;
+	max-width: 480px;
+	margin: 0 auto;
 }
 
 .sheet-handle {
 	width: 36px;
 	height: 4px;
-	border-radius: 9999px;
-	background: rgba(255, 255, 255, 0.12);
+	border-radius: var(--radius-pill);
+	background: var(--border);
 	margin: 0 auto 16px;
 }
 
@@ -613,15 +589,15 @@
 .sheet-header h2 {
 	font-size: 16px;
 	font-weight: 700;
-	color: white;
+	color: var(--text);
 }
 
 .sheet-close {
 	width: 32px;
 	height: 32px;
 	border-radius: 50%;
-	background: rgba(255, 255, 255, 0.08);
-	color: white;
+	background: var(--bg-subtle);
+	color: var(--text);
 	font-size: 1.4rem;
 	display: grid;
 	place-items: center;
@@ -635,13 +611,13 @@
 
 .sheet-section-label {
 	font-size: 13px;
-	font-weight: 700;
-	color: #f1f5f9;
+	font-weight: 600;
+	color: var(--text);
 	margin-bottom: 4px;
 }
 
 .sheet-section-sub {
 	font-size: 12px;
-	color: #64748b;
+	color: var(--text-sub);
 }
 </style>
