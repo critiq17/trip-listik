@@ -3,7 +3,7 @@
 	import { apiFetch } from '$lib/api';
 	import TripCard from '$lib/components/TripCard.svelte';
 	import { countUp } from '$lib/transitions';
-	import { getUserInitials, getUserName, normalizeStats } from '$lib/format';
+	import { getUserInitials, getUserName, normalizeStats, parseCalendarDate } from '$lib/format';
 	import type { TripCardData, User, UserStats, UserSummary } from '$lib/types';
 
 	let user = $state<User | null>(null);
@@ -67,15 +67,16 @@
 		}
 	});
 
-	let activeHistory = $derived(history.filter((trip) => {
-		if (!trip.end_date) return true;
-		return new Date(trip.end_date) >= new Date();
-	}));
+	// A trip stays active through the whole last day in the user's timezone.
+	const isPastTrip = (endDate?: string | null) => {
+		const end = parseCalendarDate(endDate);
+		if (!end) return false;
+		end.setHours(23, 59, 59, 999);
+		return end.getTime() < Date.now();
+	};
 
-	let pastHistory = $derived(history.filter((trip) => {
-		if (!trip.end_date) return false;
-		return new Date(trip.end_date) < new Date();
-	}));
+	let activeHistory = $derived(history.filter((trip) => !isPastTrip(trip.end_date)));
+	let pastHistory = $derived(history.filter((trip) => isPastTrip(trip.end_date)));
 
 	const copyReferralLink = async () => {
 		try {

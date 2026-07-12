@@ -3,6 +3,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import BottomNav from '$lib/components/BottomNav.svelte';
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { ensureAuth } from '$lib/auth';
 	import { pageEnter } from '$lib/transitions';
@@ -28,9 +29,34 @@
 			tg.setBottomBarColor?.('#161c18');
 		}
 
+		// ── Deep links: t.me/...?startapp=<param> lands here as start_param ──
+		// Supported: "notifications" / "inbox" → inbox, "profile_<id>" → profile,
+		// "trip_<id>" → trip detail.
+		const routeStartParam = () => {
+			const raw: string =
+				tg?.initDataUnsafe?.start_param ??
+				new URLSearchParams(window.location.search).get('startapp') ??
+				'';
+			if (!raw) return;
+			if (raw === 'notifications' || raw === 'inbox') {
+				goto('/inbox');
+				return;
+			}
+			const profileId = raw.startsWith('profile_') ? raw.slice('profile_'.length) : '';
+			if (profileId) {
+				goto(`/profile/${profileId}`);
+				return;
+			}
+			const tripId = raw.startsWith('trip_') ? raw.slice('trip_'.length) : '';
+			if (tripId) {
+				goto(`/trips/${tripId}`);
+			}
+		};
+
 		// ── Auth (async, after Telegram init) ──
 		ensureAuth($page.url.pathname).then(() => {
 			authReady = true;
+			routeStartParam();
 		});
 
 		// ── Fallback: re-expand if minimized then re-opened ──

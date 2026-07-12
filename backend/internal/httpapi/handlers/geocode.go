@@ -14,10 +14,10 @@ type GeocodeHandler struct {
 }
 
 type nominatimResponse struct {
-	PlaceID     int64    `json:"place_id"`
-	Description string   `json:"display_name"`
-	Lat         string   `json:"lat"`
-	Lon         string   `json:"lon"`
+	PlaceID     int64  `json:"place_id"`
+	Description string `json:"display_name"`
+	Lat         string `json:"lat"`
+	Lon         string `json:"lon"`
 	Address     struct {
 		City        string `json:"city"`
 		Town        string `json:"town"`
@@ -54,7 +54,7 @@ func (h *GeocodeHandler) Search(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to create request")
 	}
-	
+
 	// Nominatim requires a User-Agent
 	req.Header.Set("User-Agent", "TripListik-App/1.0")
 
@@ -82,7 +82,7 @@ func (h *GeocodeHandler) Search(c *fiber.Ctx) error {
 		if city == "" {
 			city = item.Address.Village
 		}
-		
+
 		results = append(results, geocodeResult{
 			ID:          fmt.Sprintf("%d", item.PlaceID),
 			Description: item.Description,

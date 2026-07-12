@@ -43,6 +43,36 @@ func RequireAuth(cfg *config.Config) fiber.Handler {
 	}
 }
 
+// OptionalAuth resolves the user from a Bearer token when one is present,
+// but lets the request through anonymously otherwise. Public endpoints need
+// this so viewer-specific fields (viewer_is_member, private trip access)
+// work for logged-in users.
+func OptionalAuth(cfg *config.Config) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		authHeader := c.Get("Authorization")
+		if authHeader == "" {
+			return c.Next()
+		}
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+			return c.Next()
+		}
+
+		claims, err := parseToken(cfg, parts[1])
+		if err != nil {
+			return c.Next()
+		}
+		userID, err := uuid.Parse(claims.Subject)
+		if err != nil {
+			return c.Next()
+		}
+
+		c.Locals(ctxUserIDKey, userID)
+		c.Locals(ctxTelegramIDKey, claims.TelegramID)
+		return c.Next()
+	}
+}
+
 func parseToken(cfg *config.Config, tokenStr string) (*auth.Claims, error) {
 	claims := &auth.Claims{}
 	_, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {

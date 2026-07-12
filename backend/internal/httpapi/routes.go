@@ -43,12 +43,15 @@ func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 	v1.Post("/webhook/telegram", botHandler.HandleUpdate)
 
 	// ── Public ────────────────────────────────────────────────────────────────
+	// OptionalAuth: these endpoints work anonymously, but resolve the viewer
+	// when a token is present (private trip access, viewer_is_member, etc.).
+	optionalAuth := middleware.OptionalAuth(cfg)
 	v1.Post("/auth/telegram", authHandler.TelegramAuth)
 	v1.Post("/auth/refresh", authHandler.Refresh)
-	v1.Get("/feed", feedHandler.Feed)
-	v1.Get("/explore", feedHandler.Explore)
-	v1.Get("/trips/:id", tripsHandler.GetTrip)
-	v1.Get("/users/:id/profile", publicProfileHandler.GetPublicProfile)
+	v1.Get("/feed", optionalAuth, feedHandler.Feed)
+	v1.Get("/explore", optionalAuth, feedHandler.Explore)
+	v1.Get("/trips/:id", optionalAuth, tripsHandler.GetTrip)
+	v1.Get("/users/:id/profile", optionalAuth, publicProfileHandler.GetPublicProfile)
 	v1.Get("/trips/:id/stream", middleware.RequireAuthQuery(cfg), streamHandler.TripStream)
 
 	// ── Protected ─────────────────────────────────────────────────────────────

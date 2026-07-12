@@ -7,6 +7,7 @@ import (
 	"github.com/critiq17/tripListik/internal/store/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func (s *Store) GetTripMembers(ctx context.Context, tripID uuid.UUID) ([]models.TripMember, error) {
@@ -74,7 +75,12 @@ func (s *Store) IsTripMember(ctx context.Context, tripID, userID uuid.UUID) (boo
 
 func (s *Store) AddTripMember(ctx context.Context, tripID, userID uuid.UUID, role string) error {
 	member := models.TripMember{TripID: tripID, UserID: userID, Role: role}
-	return s.DB.WithContext(ctx).Create(&member).Error
+	return s.DB.WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "trip_id"}, {Name: "user_id"}},
+			DoNothing: true,
+		}).
+		Create(&member).Error
 }
 
 func (s *Store) RemoveTripMember(ctx context.Context, tripID, userID uuid.UUID) error {
