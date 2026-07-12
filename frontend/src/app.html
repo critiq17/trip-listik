@@ -14,6 +14,18 @@
 			rel="stylesheet"
 		/>
 		<script src="https://telegram.org/js/telegram-web-app.js"></script>
+		<script>
+			// Paint Telegram chrome white before the app bundle loads, otherwise
+			// dark-theme users see a black background until layout onMount runs.
+			try {
+				var tg = window.Telegram && window.Telegram.WebApp;
+				if (tg) {
+					tg.setBackgroundColor && tg.setBackgroundColor('#ffffff');
+					tg.setHeaderColor && tg.setHeaderColor('#ffffff');
+					tg.setBottomBarColor && tg.setBottomBarColor('#ffffff');
+				}
+			} catch (e) {}
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

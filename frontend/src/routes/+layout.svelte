@@ -2,7 +2,7 @@
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import BottomNav from '$lib/components/BottomNav.svelte';
-	import { page } from '$app/stores';
+	import { page, updated } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { ensureAuth } from '$lib/auth';
@@ -58,11 +58,21 @@
 			routeStartParam();
 		});
 
-		// ── Fallback: re-expand if minimized then re-opened ──
+		// ── Fallback: re-expand and re-apply colors if minimized then re-opened ──
+		// Telegram restores a suspended WebView with its own theme colors, so a
+		// dark-theme user gets a black background until we paint it white again.
 		const handleVisibilityChange = () => {
 			const tgApp = (window as any).Telegram?.WebApp;
-			if (document.visibilityState === 'visible' && tgApp && !tgApp.isExpanded) {
-				tgApp.expand();
+			if (document.visibilityState === 'visible' && tgApp) {
+				if (!tgApp.isExpanded) tgApp.expand();
+				tgApp.setHeaderColor?.('#ffffff');
+				tgApp.setBackgroundColor?.('#ffffff');
+				tgApp.setBottomBarColor?.('#ffffff');
+				// A restored session may predate the latest deploy; reload it
+				// instead of letting stale JS mix with fresh assets.
+				updated.check().then((stale) => {
+					if (stale) location.reload();
+				});
 			}
 		};
 		document.addEventListener('visibilitychange', handleVisibilityChange);
