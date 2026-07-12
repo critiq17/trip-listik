@@ -23,8 +23,13 @@ type StorageClient struct {
 	Client     *http.Client
 }
 
+// SignedUploadResponse holds the parsed reply of POST /object/upload/sign.
+// The storage API returns {"url": "/object/upload/sign/...?token=...", "token": "..."};
+// the signedUrl/path fields exist only in supabase-js client output, so they are
+// kept as fallbacks. SignedURL is always populated with an absolute URL.
 type SignedUploadResponse struct {
 	SignedURL string `json:"signedUrl"`
+	URL       string `json:"url"`
 	Path      string `json:"path"`
 	Token     string `json:"token"`
 }
@@ -87,12 +92,17 @@ func (c *StorageClient) CreateSignedUploadURL(bucket, objectPath string, expires
 
 	var out SignedUploadResponse
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("supabase storage create signed upload url: decode response: %w", err)
 	}
 
-	if out.SignedURL == "" {
-		return nil, fmt.Errorf("missing signedUrl in response")
+	signedURL := out.SignedURL
+	if signedURL == "" {
+		signedURL = out.URL
 	}
+	if signedURL == "" {
+		return nil, fmt.Errorf("supabase storage create signed upload url: response has no url field")
+	}
+	out.SignedURL = c.absoluteStorageURL(signedURL)
 
 	return &out, nil
 }

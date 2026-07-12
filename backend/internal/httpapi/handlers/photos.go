@@ -223,13 +223,6 @@ func (h *PhotosHandler) PresignUpload(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadGateway, "storage service rejected the upload request")
 	}
 
-	// Supabase returns a relative signedUrl (e.g. /storage/v1/object/upload/sign/...)
-	// Prepend the base URL so the client can upload directly to Supabase.
-	signedURL := upload.SignedURL
-	if len(signedURL) > 0 && signedURL[0] == '/' {
-		signedURL = h.Storage.BaseURL + signedURL
-	}
-
 	// Supabase may echo back the path with the bucket name prepended
 	// (e.g. "trip-photos/trip_photos/uuid/file.jpg"). Strip the bucket prefix
 	// so the frontend receives just the object path ("trip_photos/uuid/file.jpg").
@@ -242,7 +235,7 @@ func (h *PhotosHandler) PresignUpload(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"signed_url": signedURL,
+		"signed_url": upload.SignedURL,
 		"token":      upload.Token,
 		"path":       storagePath,
 		"public_url": h.Storage.PublicObjectURL(h.Bucket, storagePath),
