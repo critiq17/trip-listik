@@ -1,6 +1,8 @@
 package httpapi
 
 import (
+	"log/slog"
+
 	"github.com/critiq17/tripListik/internal/config"
 	"github.com/critiq17/tripListik/internal/httpapi/handlers"
 	"github.com/critiq17/tripListik/internal/httpapi/middleware"
@@ -24,6 +26,12 @@ func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 	// ── Handlers ──────────────────────────────────────────────────────────────
 	authHandler := &handlers.AuthHandler{Store: store, Cfg: cfg, Bot: bot}
 	storageClient := supabase.NewStorageClient(cfg.SupabaseURL, cfg.SupabaseServiceKey)
+	if !storageClient.IsConfigured() {
+		slog.Warn("supabase storage is not configured: photo uploads will fail",
+			"supabase_url_set", cfg.SupabaseURL != "",
+			"service_role_key_set", cfg.SupabaseServiceKey != "",
+		)
+	}
 	feedHandler := &handlers.FeedHandler{Store: store, Storage: storageClient, Bucket: cfg.SupabaseStorageBucket}
 	tripsHandler := &handlers.TripsHandler{Service: tripsService, Storage: storageClient, Bucket: cfg.SupabaseStorageBucket}
 	membersHandler := &handlers.MembersHandler{Store: store, Bot: bot}

@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"context"
+	"errors"
+	"log/slog"
 	"path/filepath"
 	"strings"
 	"time"
@@ -195,20 +197,30 @@ func (h *PhotosHandler) PresignUpload(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "file_name is required")
 	}
 
+	if h.Storage == nil || !h.Storage.IsConfigured() {
+		slog.Error("presign upload rejected: supabase storage is not configured",
+			"trip_id", tripID.String(),
+			"bucket", h.Bucket,
+		)
+		return fiber.NewError(fiber.StatusServiceUnavailable, "photo uploads are not configured on the server")
+	}
+
 	ext := filepath.Ext(req.FileName)
 	objectID := uuid.New().String() + ext
 	objectPath := "trip_photos/" + tripID.String() + "/" + objectID
 
 	upload, err := h.Storage.CreateSignedUploadURL(h.Bucket, objectPath, 3600)
 	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "failed to create signed upload url")
-	}
-
-	// Supabase returns a relative signedUrl (e.g. /storage/v1/object/upload/sign/...)
-	// Prepend the base URL so the client can upload directly to Supabase.
-	signedURL := upload.SignedURL
-	if len(signedURL) > 0 && signedURL[0] == '/' {
-		signedURL = h.Storage.BaseURL + signedURL
+		slog.Error("presign upload failed",
+			"trip_id", tripID.String(),
+			"user_id", userID.String(),
+			"bucket", h.Bucket,
+			"err", err,
+		)
+		if errors.Is(err, supabase.ErrNotConfigured) {
+			return fiber.NewError(fiber.StatusServiceUnavailable, "photo uploads are not configured on the server")
+		}
+		return fiber.NewError(fiber.StatusBadGateway, "storage service rejected the upload request")
 	}
 
 	// Supabase may echo back the path with the bucket name prepended
@@ -223,7 +235,7 @@ func (h *PhotosHandler) PresignUpload(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"signed_url": signedURL,
+		"signed_url": upload.SignedURL,
 		"token":      upload.Token,
 		"path":       storagePath,
 		"public_url": h.Storage.PublicObjectURL(h.Bucket, storagePath),

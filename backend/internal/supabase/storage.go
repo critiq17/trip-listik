@@ -3,7 +3,9 @@ package supabase
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -11,14 +13,23 @@ import (
 	"time"
 )
 
+// ErrNotConfigured is returned when SUPABASE_URL or the service role key is
+// missing, so callers can answer with 503 instead of a generic 500.
+var ErrNotConfigured = errors.New("supabase storage is not configured")
+
 type StorageClient struct {
 	BaseURL    string
 	ServiceKey string
 	Client     *http.Client
 }
 
+// SignedUploadResponse holds the parsed reply of POST /object/upload/sign.
+// The storage API returns {"url": "/object/upload/sign/...?token=...", "token": "..."};
+// the signedUrl/path fields exist only in supabase-js client output, so they are
+// kept as fallbacks. SignedURL is always populated with an absolute URL.
 type SignedUploadResponse struct {
 	SignedURL string `json:"signedUrl"`
+	URL       string `json:"url"`
 	Path      string `json:"path"`
 	Token     string `json:"token"`
 }
@@ -43,9 +54,14 @@ func NewStorageClient(baseURL, serviceKey string) *StorageClient {
 	}
 }
 
+// IsConfigured reports whether the client has both a base URL and a service key.
+func (c *StorageClient) IsConfigured() bool {
+	return c.BaseURL != "" && c.ServiceKey != ""
+}
+
 func (c *StorageClient) CreateSignedUploadURL(bucket, objectPath string, expiresIn int) (*SignedUploadResponse, error) {
-	if c.BaseURL == "" || c.ServiceKey == "" {
-		return nil, fmt.Errorf("supabase storage not configured")
+	if !c.IsConfigured() {
+		return nil, ErrNotConfigured
 	}
 
 	escapedPath := escapePath(objectPath)
@@ -71,24 +87,29 @@ func (c *StorageClient) CreateSignedUploadURL(bucket, objectPath string, expires
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("supabase storage error: %s", resp.Status)
+		return nil, responseError("create signed upload url", resp)
 	}
 
 	var out SignedUploadResponse
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("supabase storage create signed upload url: decode response: %w", err)
 	}
 
-	if out.SignedURL == "" {
-		return nil, fmt.Errorf("missing signedUrl in response")
+	signedURL := out.SignedURL
+	if signedURL == "" {
+		signedURL = out.URL
 	}
+	if signedURL == "" {
+		return nil, fmt.Errorf("supabase storage create signed upload url: response has no url field")
+	}
+	out.SignedURL = c.absoluteStorageURL(signedURL)
 
 	return &out, nil
 }
 
 func (c *StorageClient) CreateSignedObjectURL(bucket, objectPath string, expiresIn int) (string, error) {
-	if c.BaseURL == "" || c.ServiceKey == "" {
-		return "", fmt.Errorf("supabase storage not configured")
+	if !c.IsConfigured() {
+		return "", ErrNotConfigured
 	}
 
 	cleanPath := c.NormalizeObjectPath(bucket, objectPath)
@@ -114,7 +135,7 @@ func (c *StorageClient) CreateSignedObjectURL(bucket, objectPath string, expires
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("supabase storage sign error: %s", resp.Status)
+		return "", responseError("sign object url", resp)
 	}
 
 	var out SignedObjectResponse
@@ -129,8 +150,8 @@ func (c *StorageClient) CreateSignedObjectURL(bucket, objectPath string, expires
 }
 
 func (c *StorageClient) CreateSignedObjectURLs(bucket string, objectPaths []string, expiresIn int) (map[string]string, error) {
-	if c.BaseURL == "" || c.ServiceKey == "" {
-		return nil, fmt.Errorf("supabase storage not configured")
+	if !c.IsConfigured() {
+		return nil, ErrNotConfigured
 	}
 	if len(objectPaths) == 0 {
 		return map[string]string{}, nil
@@ -169,7 +190,7 @@ func (c *StorageClient) CreateSignedObjectURLs(bucket string, objectPaths []stri
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("supabase storage bulk sign error: %s", resp.Status)
+		return nil, responseError("bulk sign object urls", resp)
 	}
 
 	var out []SignedObjectBulkItem
@@ -257,6 +278,17 @@ func (c *StorageClient) NormalizeObjectPath(bucket, raw string) string {
 	}
 
 	return ""
+}
+
+// responseError builds an error that keeps the Supabase status line and a
+// snippet of the response body, so server logs show the real failure cause.
+func responseError(op string, resp *http.Response) error {
+	snippet, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+	body := strings.TrimSpace(string(snippet))
+	if body == "" {
+		return fmt.Errorf("supabase storage %s: %s", op, resp.Status)
+	}
+	return fmt.Errorf("supabase storage %s: %s: %s", op, resp.Status, body)
 }
 
 func escapePath(p string) string {
