@@ -23,10 +23,15 @@
 		if (tg) {
 			tg.ready();                           // Tell Telegram the app is ready
 			tg.expand();                          // Full-screen — synchronous, before any await
+			tg.disableVerticalSwipes?.();         // Swipe on content scrolls; app closes only via header
 			tg.setHeaderColor?.('#ffffff');
 			tg.setBackgroundColor?.('#ffffff');
 			tg.setBottomBarColor?.('#ffffff');
 		}
+
+		// iOS pinch bypasses the viewport meta in some WebView builds
+		const preventGesture = (e: Event) => e.preventDefault();
+		document.addEventListener('gesturestart', preventGesture);
 
 		// ── Deep links: t.me/...?startapp=<param> lands here as start_param ──
 		// Supported: "notifications" / "inbox" → inbox, "profile_<id>" → profile,
@@ -65,6 +70,7 @@
 			const tgApp = (window as any).Telegram?.WebApp;
 			if (document.visibilityState === 'visible' && tgApp) {
 				if (!tgApp.isExpanded) tgApp.expand();
+				tgApp.disableVerticalSwipes?.();
 				tgApp.setHeaderColor?.('#ffffff');
 				tgApp.setBackgroundColor?.('#ffffff');
 				tgApp.setBottomBarColor?.('#ffffff');
@@ -76,7 +82,10 @@
 			}
 		};
 		document.addEventListener('visibilitychange', handleVisibilityChange);
-		return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+		return () => {
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+			document.removeEventListener('gesturestart', preventGesture);
+		};
 	});
 </script>
 
