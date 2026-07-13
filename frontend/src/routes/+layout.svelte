@@ -35,7 +35,7 @@
 
 		// ── Deep links: t.me/...?startapp=<param> lands here as start_param ──
 		// Supported: "notifications" / "inbox" → inbox, "profile_<id>" → profile,
-		// "trip_<id>" → trip detail.
+		// "trip_<id>" → trip detail, "join_<token>" → invite link accept screen.
 		const routeStartParam = () => {
 			const raw: string =
 				tg?.initDataUnsafe?.start_param ??
@@ -44,6 +44,11 @@
 			if (!raw) return;
 			if (raw === 'notifications' || raw === 'inbox') {
 				goto('/inbox');
+				return;
+			}
+			const joinToken = raw.startsWith('join_') ? raw.slice('join_'.length) : '';
+			if (joinToken) {
+				goto(`/invite/join/${joinToken}`);
 				return;
 			}
 			const profileId = raw.startsWith('profile_') ? raw.slice('profile_'.length) : '';

@@ -285,7 +285,7 @@
 	{/if}
 </section>
 
-<InviteModal bind:open={inviteOpen} tripId={trip?.id ?? ''} />
+<InviteModal bind:open={inviteOpen} tripId={trip?.id ?? ''} tripTitle={trip?.title ?? ''} />
 
 <style>
 	.trip {

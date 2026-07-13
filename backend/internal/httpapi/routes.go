@@ -60,6 +60,7 @@ func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 	v1.Get("/explore", optionalAuth, feedHandler.Explore)
 	v1.Get("/trips/:id", optionalAuth, tripsHandler.GetTrip)
 	v1.Get("/users/:id/profile", optionalAuth, publicProfileHandler.GetPublicProfile)
+	v1.Get("/invite-links/:token", optionalAuth, invitesHandler.GetInviteLinkPreview)
 	v1.Get("/trips/:id/stream", middleware.RequireAuthQuery(cfg), streamHandler.TripStream)
 
 	// ── Protected ─────────────────────────────────────────────────────────────
@@ -91,6 +92,8 @@ func Register(v1 fiber.Router, cfg *config.Config, store *store.Store) {
 
 	// Invites
 	protected.Post("/trips/:id/invite", invitesHandler.InviteUser)
+	protected.Post("/trips/:id/invite-link", invitesHandler.CreateInviteLink)
+	protected.Post("/invite-links/:token/accept", invitesHandler.AcceptInviteLink)
 	protected.Get("/trips/:id/invites", invitesHandler.ListTripInvites)
 	protected.Get("/invites/:id", invitesHandler.GetInvite)
 	protected.Post("/invites/:id/respond", invitesHandler.RespondInvite)

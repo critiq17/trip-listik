@@ -1,14 +1,17 @@
 <script lang="ts">
 	import { apiFetch } from '$lib/api';
 	import { getUserInitials, getUserName } from '$lib/format';
+	import { buildJoinLink, shareLinkViaTelegram } from '$lib/links';
 	import type { InviteItem, UserSummary } from '$lib/types';
 
 	let {
 		open = $bindable(false),
-		tripId
+		tripId,
+		tripTitle = ''
 	}: {
 		open?: boolean;
 		tripId: string;
+		tripTitle?: string;
 	} = $props();
 
 	let query = $state('');
@@ -17,6 +20,28 @@
 	let loading = $state(false);
 	let error = $state('');
 	let inviteLoading = $state<string | null>(null);
+	let shareLoading = $state(false);
+
+	// Share a join link into any Telegram chat — works for people who never
+	// opened the bot: the link itself launches the mini app on the join screen.
+	const shareInviteLink = async () => {
+		if (!tripId || shareLoading) return;
+		shareLoading = true;
+		error = '';
+		try {
+			const res = await apiFetch<{ token: string }>(`/v1/trips/${tripId}/invite-link`, {
+				method: 'POST'
+			});
+			const text = tripTitle
+				? `Join my trip "${tripTitle}" on TripListik!`
+				: 'Join my trip on TripListik!';
+			shareLinkViaTelegram(buildJoinLink(res.token), text);
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to create invite link';
+		} finally {
+			shareLoading = false;
+		}
+	};
 
 	const close = () => {
 		open = false;
@@ -85,6 +110,12 @@
 			<h3>Invite friends</h3>
 			<button class="close" onclick={close} aria-label="Close">×</button>
 		</header>
+
+		<button class="share-link-btn" onclick={shareInviteLink} disabled={shareLoading}>
+			<span class="material-symbols-outlined">send</span>
+			{shareLoading ? 'Creating link...' : 'Send invite link to any chat'}
+		</button>
+		<p class="share-hint">Works even if they haven't opened the bot yet.</p>
 
 		<div class="search">
 			<input bind:value={query} placeholder="Search by username or name" />
@@ -197,6 +228,36 @@
 		font-size: 1.2rem;
 		display: grid;
 		place-items: center;
+	}
+
+	.share-link-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		width: 100%;
+		padding: 12px;
+		border-radius: var(--radius-input);
+		background: var(--green);
+		color: #fff;
+		font-weight: 600;
+		font-size: 14px;
+		border: none;
+	}
+
+	.share-link-btn:disabled {
+		opacity: 0.6;
+	}
+
+	.share-link-btn .material-symbols-outlined {
+		font-size: 18px;
+	}
+
+	.share-hint {
+		font-size: 12px;
+		color: var(--text-sub);
+		text-align: center;
+		margin: 6px 0 14px;
 	}
 
 	.search input {

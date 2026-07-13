@@ -195,6 +195,75 @@ func (h *InvitesHandler) GetInvite(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"invite": invite})
 }
 
+// ── invite links ───────────────────────────────────────────────────────────────
+
+func (h *InvitesHandler) CreateInviteLink(c *fiber.Ctx) error {
+	requesterID, ok := middleware.GetUserID(c)
+	if !ok {
+		return fiber.NewError(fiber.StatusUnauthorized, "unauthorized")
+	}
+
+	tripID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid trip id")
+	}
+
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
+	defer cancel()
+
+	link, err := h.Service.CreateInviteLink(ctx, requesterID, tripID)
+	if err != nil {
+		return mapInviteError(err)
+	}
+
+	return c.JSON(fiber.Map{"token": link.Token})
+}
+
+func (h *InvitesHandler) GetInviteLinkPreview(c *fiber.Ctx) error {
+	token := c.Params("token")
+	if token == "" {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid token")
+	}
+
+	var viewerID *uuid.UUID
+	if id, ok := middleware.GetUserID(c); ok {
+		viewerID = &id
+	}
+
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
+	defer cancel()
+
+	preview, err := h.Service.GetInviteLinkPreview(ctx, token, viewerID)
+	if err != nil {
+		return mapInviteError(err)
+	}
+	preview.CoverPhotoURL = normalizeStoredPhotoURL(h.Storage, h.Bucket, preview.CoverPhotoURL)
+
+	return c.JSON(fiber.Map{"link": preview})
+}
+
+func (h *InvitesHandler) AcceptInviteLink(c *fiber.Ctx) error {
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		return fiber.NewError(fiber.StatusUnauthorized, "unauthorized")
+	}
+
+	token := c.Params("token")
+	if token == "" {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid token")
+	}
+
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
+	defer cancel()
+
+	tripID, err := h.Service.AcceptInviteLink(ctx, userID, token)
+	if err != nil {
+		return mapInviteError(err)
+	}
+
+	return c.JSON(fiber.Map{"trip_id": tripID.String()})
+}
+
 // ── error mapping ──────────────────────────────────────────────────────────────
 
 func mapInviteError(err error) error {

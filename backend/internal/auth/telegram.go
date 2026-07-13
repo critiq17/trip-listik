@@ -19,6 +19,9 @@ type TelegramUser struct {
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
 	PhotoURL  string `json:"photo_url"`
+	// StartParam is the startapp deep-link payload, taken from the signed
+	// initData so referral attribution cannot be spoofed by the client.
+	StartParam string `json:"-"`
 }
 
 func ValidateTelegramInitData(initData string, botToken string) (*TelegramUser, error) {
@@ -62,6 +65,7 @@ func ValidateTelegramInitData(initData string, botToken string) (*TelegramUser, 
 	if err := json.Unmarshal([]byte(userJSON), &user); err != nil {
 		return nil, err
 	}
+	user.StartParam = values.Get("start_param")
 
 	return &user, nil
 }

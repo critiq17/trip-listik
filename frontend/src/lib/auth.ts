@@ -8,15 +8,24 @@ const baseUrl = env.PUBLIC_API_BASE_URL || 'http://localhost:8080';
  * Authenticate using Telegram initData.
  * Always re-authenticates on every app mount (initData is always available in TG context).
  */
-export const authenticate = async (): Promise<{ token: string; refresh_token: string; user: Record<string, unknown> }> => {
+export const authenticate = async (): Promise<{
+	token: string;
+	refresh_token: string;
+	user: Record<string, unknown>;
+}> => {
 	const initData = getTelegramInitData();
 	if (!initData) {
 		throw new Error('Telegram init data is missing — are you inside Telegram?');
 	}
+	// start_param carries the referral / invite deep link. The backend prefers
+	// the signed copy inside initData; this is a fallback for older clients.
+	const startParam =
+		(window as unknown as { Telegram?: { WebApp?: { initDataUnsafe?: { start_param?: string } } } })
+			.Telegram?.WebApp?.initDataUnsafe?.start_param ?? '';
 	const res = await fetch(`${baseUrl}/v1/auth/telegram`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ initData })
+		body: JSON.stringify({ initData, start_param: startParam })
 	});
 	if (!res.ok) {
 		const err = await res.json().catch(() => ({}));

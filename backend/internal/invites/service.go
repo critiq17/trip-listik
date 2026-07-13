@@ -193,6 +193,166 @@ func (s *Service) CancelInvite(ctx context.Context, requesterID, inviteID uuid.U
 	return nil
 }
 
+// ── Invite Links ──────────────────────────────────────────────────────────────
+
+// CreateInviteLink returns a shareable multi-use join token for the trip.
+// Permission mirrors InviteUser: owner always; members only on group trips.
+func (s *Service) CreateInviteLink(ctx context.Context, requesterID, tripID uuid.UUID) (*store.InviteLink, error) {
+	trip, err := s.store.GetTripByID(ctx, tripID)
+	if err != nil {
+		return nil, fmt.Errorf("invites.CreateInviteLink get trip: %w", err)
+	}
+	if trip == nil {
+		return nil, ErrNotFound
+	}
+
+	if trip.OwnerID != requesterID {
+		if trip.Visibility != "group" {
+			return nil, ErrForbidden
+		}
+		isMember, err := s.store.IsTripMember(ctx, tripID, requesterID)
+		if err != nil {
+			return nil, fmt.Errorf("invites.CreateInviteLink check member: %w", err)
+		}
+		if !isMember {
+			return nil, ErrForbidden
+		}
+	}
+
+	link, err := s.store.GetOrCreateInviteLink(ctx, tripID, requesterID)
+	if err != nil {
+		return nil, fmt.Errorf("invites.CreateInviteLink: %w", err)
+	}
+	return link, nil
+}
+
+// LinkPreview is what the join screen renders before the user accepts.
+type LinkPreview struct {
+	Token           string     `json:"token"`
+	TripID          string     `json:"trip_id"`
+	TripTitle       string     `json:"trip_title"`
+	City            string     `json:"city"`
+	CoverPhotoURL   string     `json:"cover_photo_url"`
+	StartDate       *time.Time `json:"start_date"`
+	EndDate         *time.Time `json:"end_date"`
+	MemberCount     int64      `json:"member_count"`
+	InviterName     string     `json:"inviter_name"`
+	InviterPhotoURL string     `json:"inviter_photo_url"`
+	ViewerIsMember  bool       `json:"viewer_is_member"`
+}
+
+// GetInviteLinkPreview resolves a join token into trip + inviter info.
+// viewerID is optional (the screen may render before auth resolves).
+func (s *Service) GetInviteLinkPreview(ctx context.Context, token string, viewerID *uuid.UUID) (*LinkPreview, error) {
+	link, err := s.store.GetInviteLinkByToken(ctx, token)
+	if err != nil {
+		return nil, fmt.Errorf("invites.GetInviteLinkPreview: %w", err)
+	}
+	if link == nil {
+		return nil, ErrNotFound
+	}
+
+	trip, err := s.store.GetTripByID(ctx, link.TripID)
+	if err != nil {
+		return nil, fmt.Errorf("invites.GetInviteLinkPreview get trip: %w", err)
+	}
+	if trip == nil {
+		return nil, ErrNotFound
+	}
+
+	preview := &LinkPreview{
+		Token:         link.Token,
+		TripID:        trip.ID.String(),
+		TripTitle:     trip.Title,
+		City:          trip.City,
+		CoverPhotoURL: trip.CoverPhotoURL,
+		StartDate:     trip.StartDate,
+		EndDate:       trip.EndDate,
+	}
+
+	if inviter, err := s.store.GetUserByID(ctx, link.CreatedBy); err == nil && inviter != nil {
+		preview.InviterName = inviter.FirstName
+		if preview.InviterName == "" {
+			preview.InviterName = "@" + inviter.Username
+		}
+		preview.InviterPhotoURL = inviter.PhotoURL
+	}
+
+	if counts, err := s.store.GetTripMemberCounts(ctx, []uuid.UUID{trip.ID}); err == nil {
+		preview.MemberCount = counts[trip.ID]
+	}
+
+	if viewerID != nil {
+		if *viewerID == trip.OwnerID {
+			preview.ViewerIsMember = true
+		} else if isMember, err := s.store.IsTripMember(ctx, trip.ID, *viewerID); err == nil {
+			preview.ViewerIsMember = isMember
+		}
+	}
+
+	return preview, nil
+}
+
+// AcceptInviteLink joins the user to the trip behind the token. Idempotent:
+// owners and existing members just get the trip ID back. A pre-existing
+// direct invite for the same user is marked accepted (and its TG message
+// cleaned up) instead of creating a duplicate row.
+func (s *Service) AcceptInviteLink(ctx context.Context, userID uuid.UUID, token string) (uuid.UUID, error) {
+	link, err := s.store.GetInviteLinkByToken(ctx, token)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("invites.AcceptInviteLink: %w", err)
+	}
+	if link == nil {
+		return uuid.Nil, ErrNotFound
+	}
+
+	trip, err := s.store.GetTripByID(ctx, link.TripID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("invites.AcceptInviteLink get trip: %w", err)
+	}
+	if trip == nil {
+		return uuid.Nil, ErrNotFound
+	}
+
+	if trip.OwnerID == userID {
+		return trip.ID, nil
+	}
+	isMember, err := s.store.IsTripMember(ctx, trip.ID, userID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("invites.AcceptInviteLink check member: %w", err)
+	}
+	if isMember {
+		return trip.ID, nil
+	}
+
+	// Keep trip_invites consistent: reuse an existing row (UNIQUE(trip_id,
+	// invited_user_id)) or create one attributed to the link creator.
+	invite, err := s.store.GetInviteByTripAndUser(ctx, trip.ID, userID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("invites.AcceptInviteLink check invite: %w", err)
+	}
+	if invite == nil {
+		invite, err = s.store.CreateInvite(ctx, trip.ID, userID, link.CreatedBy)
+		if err != nil {
+			return uuid.Nil, fmt.Errorf("invites.AcceptInviteLink create invite: %w", err)
+		}
+	}
+	if invite.Status != "accepted" {
+		if err := s.store.UpdateInviteStatus(ctx, invite.ID, "accepted", nil, nil); err != nil {
+			return uuid.Nil, fmt.Errorf("invites.AcceptInviteLink update status: %w", err)
+		}
+	}
+
+	if err := s.store.AddTripMember(ctx, trip.ID, userID, "member"); err != nil {
+		return uuid.Nil, fmt.Errorf("invites.AcceptInviteLink add member: %w", err)
+	}
+
+	// Deletes a stale direct-invite TG message (if any) and notifies the owner.
+	go s.handleInviteResponse(invite, userID, "accepted", nil, nil)
+
+	return trip.ID, nil
+}
+
 // ── internal notification helpers ─────────────────────────────────────────────
 
 func (s *Service) sendInviteNotification(invite *models.TripInvite, trip *models.Trip, inviterID, invitedUserID uuid.UUID) {

@@ -4,6 +4,7 @@
 	import { apiFetch } from '$lib/api';
 	import TripCard from '$lib/components/TripCard.svelte';
 	import { getUserInitials, getUserName, normalizeStats, parseCalendarDate } from '$lib/format';
+	import { buildProfileLink } from '$lib/links';
 	import type { TripCardData, User, UserStats, UserSummary } from '$lib/types';
 
 	let user = $state<User | null>(null);
@@ -28,7 +29,7 @@
 
 			if (meRes.status === 'fulfilled') {
 				user = meRes.value.user;
-				referralLink = `https://t.me/tripListikBot?startapp=profile_${user?.id}`;
+				if (user?.id) referralLink = buildProfileLink(user.id);
 			}
 
 			if (statsRes.status === 'fulfilled') {

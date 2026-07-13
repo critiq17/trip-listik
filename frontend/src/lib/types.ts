@@ -107,6 +107,20 @@ export type InviteItem = {
 	inviter_photo_url?: string;
 };
 
+export type InviteLinkPreview = {
+	token: string;
+	trip_id: string;
+	trip_title: string;
+	city: string;
+	cover_photo_url: string;
+	start_date?: string | null;
+	end_date?: string | null;
+	member_count: number;
+	inviter_name: string;
+	inviter_photo_url: string;
+	viewer_is_member: boolean;
+};
+
 export type VoteItemData = {
 	id: string;
 	trip_id: string;

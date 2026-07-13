@@ -24,17 +24,32 @@ func (s *Store) WithTx(tx *gorm.DB) *Store {
 	return &Store{DB: tx}
 }
 
-func (s *Store) UpsertTelegramUser(ctx context.Context, u *models.User) (*models.User, error) {
+// UpsertTelegramUser creates or refreshes a user by telegram_id. The second
+// return value reports whether the user was created by this call, so callers
+// can attribute referrals to first-time signups only.
+func (s *Store) UpsertTelegramUser(ctx context.Context, u *models.User) (*models.User, bool, error) {
+	var existed int64
+	if err := s.DB.WithContext(ctx).
+		Model(&models.User{}).
+		Where("telegram_id = ?", u.TelegramID).
+		Count(&existed).Error; err != nil {
+		return nil, false, err
+	}
+
 	if err := s.DB.WithContext(ctx).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "telegram_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{"username", "first_name", "last_name", "photo_url", "updated_at"}),
 		}).
 		Create(u).Error; err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
-	return s.GetUserByTelegramID(ctx, u.TelegramID)
+	stored, err := s.GetUserByTelegramID(ctx, u.TelegramID)
+	if err != nil {
+		return nil, false, err
+	}
+	return stored, existed == 0, nil
 }
 
 func (s *Store) GetUserByTelegramID(ctx context.Context, telegramID int64) (*models.User, error) {

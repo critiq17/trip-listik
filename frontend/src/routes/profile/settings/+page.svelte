@@ -3,15 +3,14 @@
 	import { apiFetch } from '$lib/api';
 	import { setupBackButton, hideBackButton, hapticImpact } from '$lib/telegram';
 	import { getUserInitials, getUserName } from '$lib/format';
+	import { buildProfileLink } from '$lib/links';
 	import type { User } from '$lib/types';
 
 	let user = $state<User | null>(null);
 	let error = $state('');
 	let referralCopied = $state(false);
 
-	let referralLink = $derived(
-		user ? `https://t.me/tripListikBot?startapp=profile_${user.id}` : ''
-	);
+	let referralLink = $derived(user ? buildProfileLink(user.id) : '');
 
 	onMount(async () => {
 		setupBackButton(() => history.back());

@@ -81,41 +81,20 @@ func (h *AuthHandler) TelegramAuth(c *fiber.Ctx) error {
 		PhotoURL:   tgUser.PhotoURL,
 	}
 
-	stored, err := h.Store.UpsertTelegramUser(ctx, user)
+	stored, created, err := h.Store.UpsertTelegramUser(ctx, user)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to upsert user")
 	}
 
-	// Record referral if user came via a profile link (e.g. startapp=profile_<uuid>)
-	if referrerIDStr, ok := strings.CutPrefix(req.StartParam, "profile_"); ok {
-		if referrerID, parseErr := uuid.Parse(referrerIDStr); parseErr == nil && referrerID != stored.ID {
-			go func() {
-				rCtx, rCancel := context.WithTimeout(context.Background(), 3*time.Second)
-				defer rCancel()
-				if err := h.Store.RecordReferral(rCtx, referrerID.String(), stored.ID.String()); err != nil {
-					return // referral already recorded or error — skip notification
-				}
-				referrer, err := h.Store.GetUserByID(rCtx, referrerID)
-				if err != nil || referrer == nil || h.Bot == nil {
-					return
-				}
-				if referrer.TelegramID == 0 {
-					slog.Warn("referral: referrer has no TelegramID", "referrer_id", referrerID)
-					return
-				}
-				count, err := h.Store.GetReferralCount(rCtx, referrerID)
-				if err != nil {
-					return
-				}
-				newUserName := stored.Username
-				if newUserName == "" {
-					newUserName = stored.FirstName
-				}
-				nCtx, nCancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer nCancel()
-				h.Bot.SendReferralNotification(nCtx, referrer.TelegramID, newUserName, count)
-			}()
-		}
+	// Referral attribution: only first-time signups count, and the deep-link
+	// payload comes from the signed initData (client body is a fallback for
+	// older Telegram clients that omit start_param there).
+	startParam := tgUser.StartParam
+	if startParam == "" {
+		startParam = req.StartParam
+	}
+	if created && startParam != "" {
+		go h.recordReferral(startParam, stored)
 	}
 
 	token, err := auth.NewToken(stored.ID, stored.TelegramID, h.Cfg.JWTSecret, accessTokenTTL)
@@ -142,6 +121,63 @@ func (h *AuthHandler) TelegramAuth(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(resp)
+}
+
+// recordReferral resolves a startapp deep-link payload to a referrer and
+// credits them for the new signup. Supported payloads: profile_<uuid>
+// (profile share link) and join_<token> (trip invite link — the link
+// creator is the referrer). Runs in a goroutine: failures only cost the
+// referral notification, never the login.
+func (h *AuthHandler) recordReferral(startParam string, newUser *models.User) {
+	rCtx, rCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer rCancel()
+
+	var referrerID uuid.UUID
+	switch {
+	case strings.HasPrefix(startParam, "profile_"):
+		id, err := uuid.Parse(strings.TrimPrefix(startParam, "profile_"))
+		if err != nil {
+			return
+		}
+		referrerID = id
+	case strings.HasPrefix(startParam, "join_"):
+		link, err := h.Store.GetInviteLinkByToken(rCtx, strings.TrimPrefix(startParam, "join_"))
+		if err != nil || link == nil {
+			return
+		}
+		referrerID = link.CreatedBy
+	default:
+		return
+	}
+
+	if referrerID == newUser.ID {
+		return
+	}
+
+	if err := h.Store.RecordReferral(rCtx, referrerID.String(), newUser.ID.String()); err != nil {
+		return // referral already recorded or error — skip notification
+	}
+
+	referrer, err := h.Store.GetUserByID(rCtx, referrerID)
+	if err != nil || referrer == nil || h.Bot == nil {
+		return
+	}
+	if referrer.TelegramID == 0 {
+		slog.Warn("referral: referrer has no TelegramID", "referrer_id", referrerID)
+		return
+	}
+	count, err := h.Store.GetReferralCount(rCtx, referrerID)
+	if err != nil {
+		return
+	}
+
+	newUserName := newUser.Username
+	if newUserName == "" {
+		newUserName = newUser.FirstName
+	}
+	nCtx, nCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer nCancel()
+	h.Bot.SendReferralNotification(nCtx, referrer.TelegramID, newUserName, count)
 }
 
 func (h *AuthHandler) Refresh(c *fiber.Ctx) error {
