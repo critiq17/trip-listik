@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { setDraft, getDraft } from '$lib/tripDraft';
-	import { onMount } from 'svelte';
-	import { setupMainButton, setupBackButton } from '$lib/telegram';
+	import { onMount, onDestroy } from 'svelte';
+	import { setupMainButton, hideMainButton, setupBackButton, isTelegramEnv } from '$lib/telegram';
 	import CityAutocomplete from '$lib/components/CityAutocomplete.svelte';
 
 	let draft = getDraft() || {};
@@ -11,6 +11,9 @@
 	let countryCode = $state(draft.country_code || '');
 	let lat = $state(draft.lat || 0);
 	let lng = $state(draft.lon || 0);
+	// Telegram renders the native MainButton at the bottom; the inline button
+	// is only a fallback for plain-browser sessions (local dev).
+	let showFallbackButton = $state(false);
 
 	$effect(() => {
 		if (title.trim()) {
@@ -22,6 +25,11 @@
 
 	onMount(() => {
 		setupBackButton(() => history.back());
+		showFallbackButton = !isTelegramEnv();
+	});
+
+	onDestroy(() => {
+		hideMainButton();
 	});
 
 	const next = () => {
@@ -85,13 +93,15 @@
 			</div>
 		</div>
 
-		<button
-			class="continue-btn"
-			onclick={next}
-			disabled={!title.trim()}
-		>
-			Continue
-		</button>
+		{#if showFallbackButton}
+			<button
+				class="continue-btn"
+				onclick={next}
+				disabled={!title.trim()}
+			>
+				Continue
+			</button>
+		{/if}
 	</main>
 </div>
 

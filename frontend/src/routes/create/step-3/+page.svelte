@@ -5,8 +5,9 @@
 	import { onMount, onDestroy } from 'svelte';
 	import type { TripCardData, User } from '$lib/types';
 	import { getUserName, getUserInitials } from '$lib/format';
-	import { setupMainButton, hideMainButton, setMainButtonState, setupBackButton } from '$lib/telegram';
+	import { setupMainButton, hideMainButton, setMainButtonState, setupBackButton, isTelegramEnv } from '$lib/telegram';
 
+	let showFallbackButton = $state(false);
 	let description = $state('');
 	let coverPhotoPreview = $state('');
 	let coverPhotoFile: File | null = null;
@@ -58,6 +59,7 @@
 
 	onMount(() => {
 		setupBackButton(() => history.back());
+		showFallbackButton = !isTelegramEnv();
 	});
 
 	onDestroy(() => {
@@ -272,14 +274,16 @@
 			<p class="error-msg">{error}</p>
 		{/if}
 
-		<!-- Create Trip Button -->
-		<button
-			class="create-btn"
-			onclick={submit}
-			disabled={loading}
-		>
-			{loading ? 'Creating...' : 'Create Trip'}
-		</button>
+		<!-- Fallback for plain-browser sessions; Telegram shows the native MainButton -->
+		{#if showFallbackButton}
+			<button
+				class="create-btn"
+				onclick={submit}
+				disabled={loading}
+			>
+				{loading ? 'Creating...' : 'Create Trip'}
+			</button>
+		{/if}
 	</main>
 </div>
 

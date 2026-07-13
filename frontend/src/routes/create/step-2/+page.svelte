@@ -2,9 +2,10 @@
 	import { goto } from '$app/navigation';
 	import { setDraft, getDraft } from '$lib/tripDraft';
 	import { onMount, onDestroy } from 'svelte';
-	import { setupMainButton, hideMainButton, setupBackButton } from '$lib/telegram';
+	import { setupMainButton, hideMainButton, setupBackButton, isTelegramEnv } from '$lib/telegram';
 	import { parseCalendarDate, toCalendarDateString } from '$lib/format';
 
+	let showFallbackButton = $state(false);
 	let draft = getDraft() || {};
 	let visibility = $state<'public' | 'private'>(draft.visibility === 'private' ? 'private' : 'public');
 	let startDate = $state<Date | null>(parseCalendarDate(draft.start_date));
@@ -107,6 +108,7 @@
 
 	onMount(() => {
 		setupBackButton(() => history.back());
+		showFallbackButton = !isTelegramEnv();
 	});
 
 	onDestroy(() => {
@@ -217,14 +219,16 @@
 			</div>
 		</div>
 
-		<!-- Continue Button -->
-		<button
-			class="continue-btn"
-			onclick={next}
-			disabled={!startDate || !endDate}
-		>
-			Continue
-		</button>
+		<!-- Fallback for plain-browser sessions; Telegram shows the native MainButton -->
+		{#if showFallbackButton}
+			<button
+				class="continue-btn"
+				onclick={next}
+				disabled={!startDate || !endDate}
+			>
+				Continue
+			</button>
+		{/if}
 	</main>
 </div>
 

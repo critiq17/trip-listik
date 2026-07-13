@@ -55,7 +55,15 @@
 	display: flex;
 	justify-content: space-around;
 	align-items: center;
-	padding: 6px 8px env(safe-area-inset-bottom, 8px);
+	/* iOS home indicator overlaps the nav without this: Telegram's WebView
+	   reports the inset via --tg-safe-area-inset-bottom, regular browsers via
+	   env(). Take the larger one and keep a minimum lift of 10px. */
+	padding: 6px 8px
+		max(
+			calc(env(safe-area-inset-bottom, 0px) + 6px),
+			calc(var(--tg-safe-area-inset-bottom, 0px) + 6px),
+			10px
+		);
 	background: var(--bg);
 	border-top: 1px solid var(--border);
 }

@@ -80,7 +80,11 @@ textarea::placeholder {
 
 /* ── Safe area ──────────────────────────────────────────── */
 .pb-safe {
-  padding-bottom: env(safe-area-inset-bottom, 16px);
+  padding-bottom: max(
+    env(safe-area-inset-bottom, 0px),
+    var(--tg-safe-area-inset-bottom, 0px),
+    16px
+  );
 }
 
 /* ── Skeleton shimmer ───────────────────────────────────── */

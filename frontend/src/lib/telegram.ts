@@ -4,6 +4,12 @@ export const getTelegramInitData = () => {
 	return tg?.initData ?? '';
 };
 
+export const isTelegramEnv = () => {
+	if (typeof window === 'undefined') return false;
+	const tg = (window as any).Telegram?.WebApp;
+	return Boolean(tg?.initData);
+};
+
 export const expandTelegram = () => {
 	if (typeof window === 'undefined') return;
 	const tg = (window as any).Telegram?.WebApp;

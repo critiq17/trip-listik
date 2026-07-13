@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { apiFetch } from '$lib/api';
 	import TripCard from '$lib/components/TripCard.svelte';
 	import { getUserInitials, getUserName, normalizeStats, parseCalendarDate } from '$lib/format';
@@ -13,7 +14,6 @@
 	let error = $state('');
 	let contentTab = $state<'trips' | 'friends'>('trips');
 	let historyTab = $state<'active' | 'past'>('active');
-	let settingsOpen = $state(false);
 	let referralCount = $state(0);
 	let referralLink = $state('');
 	let referralCopied = $state(false);
@@ -85,7 +85,7 @@
 <div class="page">
 	<header class="top-bar">
 		<span class="page-title">Profile</span>
-		<button class="settings-btn" aria-label="Settings" onclick={() => (settingsOpen = true)}>
+		<button class="settings-btn" aria-label="Settings" onclick={() => goto('/profile/settings')}>
 			<span class="material-symbols-outlined">settings</span>
 		</button>
 	</header>
@@ -218,26 +218,6 @@
 		{/if}
 	</main>
 </div>
-
-<!-- Settings bottom sheet -->
-{#if settingsOpen}
-	<button
-		class="sheet-backdrop"
-		onclick={() => (settingsOpen = false)}
-		aria-label="Close settings"
-	></button>
-	<div class="sheet" role="dialog" aria-label="Settings">
-		<div class="sheet-handle"></div>
-		<div class="sheet-header">
-			<h2>Settings</h2>
-			<button class="sheet-close" onclick={() => (settingsOpen = false)} aria-label="Close">×</button>
-		</div>
-		<div class="sheet-body">
-			<p class="sheet-section-label">Account</p>
-			<p class="sheet-section-sub">Manage your profile settings and preferences.</p>
-		</div>
-	</div>
-{/if}
 
 <style>
 .page {
@@ -546,78 +526,5 @@
 .state.small {
 	padding: 16px;
 	font-size: 13px;
-}
-
-/* ── Settings sheet ──────────────────────────────────────── */
-.sheet-backdrop {
-	position: fixed;
-	inset: 0;
-	z-index: 30;
-	background: rgba(17, 20, 24, 0.4);
-	border: none;
-	cursor: pointer;
-}
-
-.sheet {
-	position: fixed;
-	bottom: 0;
-	left: 0;
-	right: 0;
-	z-index: 31;
-	background: var(--bg-card);
-	border-radius: 16px 16px 0 0;
-	padding: 12px 20px 48px;
-	max-width: 480px;
-	margin: 0 auto;
-}
-
-.sheet-handle {
-	width: 36px;
-	height: 4px;
-	border-radius: var(--radius-pill);
-	background: var(--border);
-	margin: 0 auto 16px;
-}
-
-.sheet-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	margin-bottom: 24px;
-}
-
-.sheet-header h2 {
-	font-size: 16px;
-	font-weight: 700;
-	color: var(--text);
-}
-
-.sheet-close {
-	width: 32px;
-	height: 32px;
-	border-radius: 50%;
-	background: var(--bg-subtle);
-	color: var(--text);
-	font-size: 1.4rem;
-	display: grid;
-	place-items: center;
-	border: none;
-	cursor: pointer;
-}
-
-.sheet-body {
-	padding: 0 4px;
-}
-
-.sheet-section-label {
-	font-size: 13px;
-	font-weight: 600;
-	color: var(--text);
-	margin-bottom: 4px;
-}
-
-.sheet-section-sub {
-	font-size: 12px;
-	color: var(--text-sub);
 }
 </style>
